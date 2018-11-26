@@ -1,9 +1,11 @@
 require "./spec_helper"
 
-describe Amqp::Client do
-  # TODO: Write tests
-
-  it "works" do
-    false.should eq(true)
+describe AMQP::Client do
+  it "can connect" do
+    c = AMQP::Client.new("amqp://guest:guest@localhost")
+    c.connect
+    ch = c.channel
+    ch.should_not be_nil
+    c.close
   end
 end
