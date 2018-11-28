@@ -46,7 +46,7 @@ class AMQP::Client
 
     def publish(io : IO, exchange : String, routing_key : String, opts = {} of String => String)
       @connection.write AMQ::Protocol::Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, false, false), flush: false
-      @connection.write AMQ::Protocol::Frame::Header.new(@id, 0_u16, 0_u16, io.bytesize.to_u64, AMQ::Protocol::Properties.new), flush: false
+      @connection.write AMQ::Protocol::Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, AMQ::Protocol::Properties.new), flush: false
       @connection.write AMQ::Protocol::Frame::Body.new(@id, io.bytesize.to_u32, io)
     end
 

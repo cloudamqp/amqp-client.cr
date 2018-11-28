@@ -17,6 +17,7 @@ class AMQP::Client
     
   def connect : Connection
     socket = TCPSocket.new(@uri.host || "localhost", @uri.port || 5672, connect_timeout: 5)
+    socket.sync = false
     socket.keepalive = true
     socket.tcp_nodelay = true
     socket.tcp_keepalive_idle = 60
@@ -45,12 +46,14 @@ class AMQP::Client
     password = URI.unescape(@uri.password || "guest")
     response = "\u0000#{user}\u0000#{password}"
     io.write_bytes AMQ::Protocol::Frame::Connection::StartOk.new(props, "PLAIN", response, ""), IO::ByteFormat::NetworkEndian
+    io.flush
     tune = AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::Tune) }
-    io.write_bytes AMQ::Protocol::Frame::Connection::TuneOk.new(channel_max: 0_u16,
+    io.write_bytes AMQ::Protocol::Frame::Connection::TuneOk.new(channel_max: 1024_u16,
                                                                 frame_max: 131072_u32, heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
     path = @uri.path || ""
     vhost = path.size > 1 ? URI.unescape(path[1..-1]) : "/"
     io.write_bytes AMQ::Protocol::Frame::Connection::Open.new(vhost), IO::ByteFormat::NetworkEndian
+    io.flush
     AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::OpenOk) }
 
     UInt16::MAX

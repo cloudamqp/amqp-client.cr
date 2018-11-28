@@ -19,7 +19,9 @@ class AMQP::Client
       end
       1_u16.upto(@channel_max) do |i|
         next if @channels.has_key? i
-        return @channels[i] = Channel.new(self, i).open
+        ch = @channels[i] = Channel.new(self, i)
+        ch.open
+        return ch
       end
       raise "channel_max reached"
     end
@@ -27,9 +29,6 @@ class AMQP::Client
     private def read_loop
       loop do
         AMQ::Protocol::Frame.from_io(@io) do |f|
-          case f
-          when AMQ::Protocol::Frame::Channel::OpenOk
-          end
           if ch = @channels[f.channel]
             ch.incoming f
           else
