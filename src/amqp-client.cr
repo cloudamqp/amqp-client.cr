@@ -48,7 +48,8 @@ class AMQP::Client
     io.write_bytes AMQ::Protocol::Frame::Connection::StartOk.new(props, "PLAIN", response, ""), IO::ByteFormat::NetworkEndian
     io.flush
     tune = AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::Tune) }
-    io.write_bytes AMQ::Protocol::Frame::Connection::TuneOk.new(channel_max: 1024_u16,
+    channel_max = tune.channel_max.zero? ? UInt16::MAX : tune.channel_max
+    io.write_bytes AMQ::Protocol::Frame::Connection::TuneOk.new(channel_max: channel_max,
                                                                 frame_max: 131072_u32, heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
     path = @uri.path || ""
     vhost = path.size > 1 ? URI.unescape(path[1..-1]) : "/"
@@ -56,6 +57,6 @@ class AMQP::Client
     io.flush
     AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::OpenOk) }
 
-    UInt16::MAX
+    channel_max
   end
 end

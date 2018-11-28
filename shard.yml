@@ -7,6 +7,7 @@ authors:
 dependencies:
   amq-protocol:
     github: cloudamqp/amq-protocol.cr
+    # path: ../amq-protocol.cr
 
 crystal: 0.27.0
 
