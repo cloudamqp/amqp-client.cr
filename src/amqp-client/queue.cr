@@ -7,8 +7,8 @@ class AMQP::Client
     def initialize(@channel : Channel, @name : String)
     end
 
-    def bind(exchange : String, routing_key : String, args = Hash(String, AMQ::Protocol::Field).new)
-      @channel.queue_bind(@name, exchange, routing_key, args)
+    def bind(exchange : String, routing_key : String, no_wait = false, args = Hash(String, AMQ::Protocol::Field).new)
+      @channel.queue_bind(@name, exchange, routing_key, no_wait, args)
       self
     end
 
@@ -24,6 +24,14 @@ class AMQP::Client
                   args = Hash(String, AMQ::Protocol::Field).new, &blk : Message -> _)
       @channel.basic_consume(@name, no_ack, exclusive, args, &blk)
       self
+    end
+
+    def purge
+      @channel.queue_purge(@name)
+    end
+
+    def delete(if_unused = false, if_empty = false)
+      @channel.queue_delete(@name, if_unused, if_empty)
     end
   end
 end

@@ -1,7 +1,6 @@
 require "./connection"
 require "./message"
 require "./queue"
-require "uuid"
 
 class AMQP::Client
   class UnexpectedFrame < Exception; end
@@ -22,6 +21,12 @@ class AMQP::Client
     end
 
     def close
+      @connection.write AMQ::Protocol::Frame::Channel::Close.new(@id)
+      next_frame.as?(AMQ::Protocol::Frame::Channel::CloseOk) || raise UnexpectedFrame.new
+      cleanup
+    end
+
+    def cleanup
       @incoming.close
       @delivery.close
     end
@@ -46,7 +51,12 @@ class AMQP::Client
         end
         body_io.rewind
         msg = Message.new(f.exchange, f.routing_key, f.delivery_tag, header.properties, body_io)
-        @consumers[f.consumer_tag].call(msg)
+        consumer = @consumers[f.consumer_tag]
+        begin
+          consumer.call(msg)
+        rescue ex
+          @connection.log.error("Uncaught exception in worker fiber: #{ex.inspect_with_backtrace}")
+        end
       rescue ::Channel::ClosedError
         break
       end
@@ -56,8 +66,9 @@ class AMQP::Client
       f = @incoming.receive
       case f
       when AMQ::Protocol::Frame::Channel::Close
-        close
-        raise "Channel unexpectedly closed"
+        @connection.write AMQ::Protocol::Frame::Channel::CloseOk.new(@id)
+        cleanup
+        raise ClosedException.new(f)
       else
         return f
       end
@@ -80,6 +91,18 @@ class AMQP::Client
       @connection.write AMQ::Protocol::Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable, exclusive, auto_delete, no_wait, args)
       f = next_frame.as?(AMQ::Protocol::Frame::Queue::DeclareOk) || raise UnexpectedFrame.new
       { queue_name: f.queue_name, message_count: f.message_count, consumer_count: f.consumer_count }
+    end
+
+    def queue_delete(name : String, if_unused = false, if_empty = false)
+      @connection.write AMQ::Protocol::Frame::Queue::Delete.new(@id, 0_u16, name, if_unused, if_empty, no_wait: false)
+      f = next_frame.as?(AMQ::Protocol::Frame::Queue::DeleteOk) || raise UnexpectedFrame.new
+      { message_count: f.message_count }
+    end
+
+    def queue_purge(name : String)
+      @connection.write AMQ::Protocol::Frame::Queue::Purge.new(@id, 0_u16, name, no_wait: false)
+      f = next_frame.as?(AMQ::Protocol::Frame::Queue::PurgeOk) || raise UnexpectedFrame.new
+      { message_count: f.message_count }
     end
 
     def basic_publish(bytes : Bytes, exchange, routing_key, opts = {} of String => AMQ::Protocol::Field)
@@ -146,9 +169,15 @@ class AMQP::Client
       next_frame.as?(AMQ::Protocol::Frame::Basic::QosOk) || raise UnexpectedFrame.new
     end
 
-    def queue_bind(queue : String, exchange : String, routing_key : String, args = Hash(String, AMQ::Protocol::Field).new)
-      @connection.write AMQ::Protocol::Frame::Queue::Bind.new(@id, queue, exchange, routing_key, args)
-      next_frame.as?(AMQ::Protocol::Frame::Queue::BindOk) || raise UnexpectedFrame.new
+    def queue_bind(queue : String, exchange : String, routing_key : String, no_wait = false, args = Hash(String, AMQ::Protocol::Field).new)
+      @connection.write AMQ::Protocol::Frame::Queue::Bind.new(@id, 0_u16, queue, exchange, routing_key, no_wait, args)
+      next_frame.as?(AMQ::Protocol::Frame::Queue::BindOk) || raise UnexpectedFrame.new unless no_wait
+    end
+
+    class ClosedException < Exception
+      def initialize(close : AMQ::Protocol::Frame::Channel::Close)
+        super(close.reply_text)
+      end
     end
   end
 end

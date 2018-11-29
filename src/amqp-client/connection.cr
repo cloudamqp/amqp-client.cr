@@ -5,7 +5,7 @@ require "./channel"
 
 class AMQP::Client
   class Connection
-    getter frame_max
+    getter frame_max, log
 
     def initialize(@io : TCPSocket | OpenSSL::SSL::Socket::Client, @log : Logger, @channel_max : UInt16, @frame_max : UInt32)
       spawn read_loop, name: "AMQP::Client#read_loop"
@@ -57,9 +57,7 @@ class AMQP::Client
     end
 
     def close(msg = "Connection closed")
-      @channels.each do |id, channel|
-        channel.close
-      end
+      @channels.each_value &.cleanup
       @channels.clear
       @log.info("Closing connection")
       write AMQ::Protocol::Frame::Connection::Close.new(320_u16, msg, 0_u16, 0_u16)
