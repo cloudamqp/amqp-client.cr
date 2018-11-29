@@ -69,12 +69,23 @@ describe AMQP::Client do
     c.close
   end
 
-  it "can delete a purge" do
+  it "can purge a queue" do
     c = AMQP::Client.new("amqp://guest:guest@localhost").connect
     ch = c.channel
     q = ch.queue("q1")
     q.publish ""
     ok = q.purge
+    ok[:message_count].should eq 1
+    c.close
+  end
+
+  it "can declare and publish to an exchange" do
+    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    ch = c.channel
+    q = ch.queue
+    x = ch.default_exchange
+    q.publish "", q.name
+    ok = q.delete
     ok[:message_count].should eq 1
     c.close
   end
