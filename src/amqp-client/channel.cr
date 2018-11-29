@@ -180,20 +180,20 @@ class AMQP::Client
       next_frame.as?(AMQ::Protocol::Frame::Queue::BindOk) || raise UnexpectedFrame.new
     end
 
-    def topic_exchange(name = "amq.topic")
-      exchange(name, "topic", true)
+    def topic_exchange(name = "amq.topic", passive = true)
+      exchange(name, "topic", passive)
     end
 
-    def fanout_exchange(name = "amq.fanout")
-      exchange(name, "fanout", true)
+    def fanout_exchange(name = "amq.fanout", passive = true)
+      exchange(name, "fanout", passive)
     end
 
-    def header_exchange(name = "amq.header")
-      exchange(name, "header", true)
+    def header_exchange(name = "amq.header", passive = true)
+      exchange(name, "header", passive)
     end
 
-    def direct_exchange(name = "amq.direct")
-      exchange(name, "direct", true)
+    def direct_exchange(name = "amq.direct", passive = true)
+      exchange(name, "direct", passive)
     end
 
     def default_exchange
