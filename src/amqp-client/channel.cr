@@ -184,15 +184,15 @@ class AMQP::Client
       exchange(name, "topic", true)
     end
 
-    def fanout_exchnage(name = "amq.fanout")
+    def fanout_exchange(name = "amq.fanout")
       exchange(name, "fanout", true)
     end
 
-    def header_exchnage(name = "amq.header")
+    def header_exchange(name = "amq.header")
       exchange(name, "header", true)
     end
 
-    def direct_exchnage(name = "amq.direct")
+    def direct_exchange(name = "amq.direct")
       exchange(name, "direct", true)
     end
 
