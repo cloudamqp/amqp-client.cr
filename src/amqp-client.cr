@@ -26,17 +26,17 @@ class AMQP::Client
     socket.write_timeout = 15
     socket.recv_buffer_size = 131072
 
-    channel_max =
+    tune =
       if @uri.scheme == "amqps"
         io = OpenSSL::SSL::Socket::Client.new(socket, sync_close: true, hostname: @uri.host)
         negotiate_connection(io)
       else
         negotiate_connection(socket)
       end
-    Connection.new(socket, @log, channel_max)
+    Connection.new(socket, @log, tune[:channel_max], tune[:frame_max])
   end
 
-  private def negotiate_connection(io : TCPSocket | OpenSSL::SSL::Socket::Client, heartbeat = 0_u16) : UInt16
+  private def negotiate_connection(io : TCPSocket | OpenSSL::SSL::Socket::Client, heartbeat = 0_u16)
     io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
     io.flush
     AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::Start) }
@@ -49,14 +49,15 @@ class AMQP::Client
     io.flush
     tune = AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::Tune) }
     channel_max = tune.channel_max.zero? ? UInt16::MAX : tune.channel_max
+    frame_max = tune.frame_max.zero? ? 131072_u32 : tune.frame_max
     io.write_bytes AMQ::Protocol::Frame::Connection::TuneOk.new(channel_max: channel_max,
-                                                                frame_max: 131072_u32, heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
+                                                                frame_max: frame_max, heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
     path = @uri.path || ""
     vhost = path.size > 1 ? URI.unescape(path[1..-1]) : "/"
     io.write_bytes AMQ::Protocol::Frame::Connection::Open.new(vhost), IO::ByteFormat::NetworkEndian
     io.flush
     AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::OpenOk) }
 
-    channel_max
+    { channel_max: channel_max, frame_max: frame_max }
   end
 end
