@@ -12,7 +12,7 @@ class AMQP::Client
   def initialize(url : String)
     @uri = URI.parse(url)
     @uri.port ||= @uri.scheme == "amqps" ? 5671 : 5672
-    @log = Logger.new(STDOUT, level: Logger::WARN)
+    @log = Logger.new(STDOUT, level: Logger::INFO)
   end
     
   def connect : Connection

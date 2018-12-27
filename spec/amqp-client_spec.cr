@@ -11,7 +11,7 @@ describe AMQP::Client do
   it "can publish" do
     c = AMQP::Client.new("amqp://guest:guest@localhost").connect
     ch = c.channel
-    q = ch.queue("myqueue")
+    q = ch.queue
     q.publish "hej"
     msg = q.get(no_ack: true)
     msg.should_not be_nil
@@ -23,7 +23,7 @@ describe AMQP::Client do
     s = Channel(Nil).new
     c = AMQP::Client.new("amqp://guest:guest@localhost").connect
     ch = c.channel
-    q = ch.queue("myqueue")
+    q = ch.queue
     q.subscribe do |msg|
       msg.should_not be_nil
       s.send nil
@@ -59,12 +59,12 @@ describe AMQP::Client do
   it "can delete a queue" do
     c = AMQP::Client.new("amqp://guest:guest@localhost").connect
     ch = c.channel
-    q = ch.queue("q1")
+    q = ch.queue("crystal-q1")
     q.publish ""
     deleted_q = q.delete
     deleted_q[:message_count].should eq 1
     expect_raises(AMQP::Client::Channel::ClosedException) do
-      ch.queue_declare("q1", passive: true)
+      ch.queue_declare("crystal-q1", passive: true)
     end
     c.close
   end
@@ -72,7 +72,7 @@ describe AMQP::Client do
   it "can purge a queue" do
     c = AMQP::Client.new("amqp://guest:guest@localhost").connect
     ch = c.channel
-    q = ch.queue("q1")
+    q = ch.queue
     q.publish ""
     ok = q.purge
     ok[:message_count].should eq 1
@@ -84,6 +84,17 @@ describe AMQP::Client do
     ch = c.channel
     q = ch.queue
     x = ch.default_exchange
+    q.publish "", q.name
+    ok = q.delete
+    ok[:message_count].should eq 1
+    c.close
+  end
+
+  it "can publish with confirm" do
+    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    ch = c.channel
+    ch.confirm_select
+    q = ch.queue
     q.publish "", q.name
     ok = q.delete
     ok[:message_count].should eq 1

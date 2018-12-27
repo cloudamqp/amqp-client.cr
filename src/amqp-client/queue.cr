@@ -21,7 +21,7 @@ class AMQP::Client
     end
 
     def subscribe(no_ack = true, exclusive = false,
-                  args = Hash(String, AMQ::Protocol::Field).new, &blk : Message -> _)
+                  args = Hash(String, AMQ::Protocol::Field).new, &blk : DeliveredMessage -> _)
       @channel.basic_consume(@name, no_ack, exclusive, args, &blk)
       self
     end
