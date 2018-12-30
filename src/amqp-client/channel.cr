@@ -166,7 +166,7 @@ class AMQP::Client
 
     def basic_publish(io : IO, exchange : String, routing_key : String, opts = {} of String => AMQ::Protocol::Field) : Nil
       write AMQ::Protocol::Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, false, false), flush: false
-      write AMQ::Protocol::Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, AMQ::Protocol::Properties.new), flush: false
+      write AMQ::Protocol::Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, AMQ::Protocol::Properties.new), flush: io.bytesize.zero?
       until io.pos == io.bytesize
         length = Math.min(@connection.frame_max, io.bytesize.to_u32 - io.pos)
         write AMQ::Protocol::Frame::Body.new(@id, length, io)
