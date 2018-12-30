@@ -82,11 +82,10 @@ describe AMQP::Client do
   it "can declare and publish to an exchange" do
     c = AMQP::Client.new("amqp://guest:guest@localhost").connect
     ch = c.channel
-    q = ch.queue
+    q = ch.queue("crystal-q2")
     x = ch.default_exchange
-    q.publish "", q.name
-    ok = q.delete
-    ok[:message_count].should eq 1
+    x.publish "hej", q.name
+    q.delete[:message_count].should eq 1
     c.close
   end
 
