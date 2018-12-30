@@ -290,7 +290,7 @@ class AMQP::Client
     end
 
     def default_exchange
-      exchange("", "direct", true)
+      Exchange.new(self, "")
     end
 
     def exchange(name, type, passive = false)
