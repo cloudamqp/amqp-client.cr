@@ -1,6 +1,6 @@
 # amqp-client
 
-TODO: Write a description here
+An AMQP 0-9-1 client for Crystal.
 
 ## Installation
 
@@ -8,7 +8,7 @@ TODO: Write a description here
 ```yaml
 dependencies:
   amqp-client:
-    github: your-github-user/amqp-client
+    github: cloudamqp/amqp-client
 ```
 2. Run `shards install`
 
@@ -16,17 +16,19 @@ dependencies:
 
 ```crystal
 require "amqp-client"
+
+c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+ch = c.channel
+q = ch.queue
+q.publish "hej"
+msg = q.get(no_ack: true)
+puts msg.body_io.to_s
+c.close
 ```
-
-TODO: Write usage instructions here
-
-## Development
-
-TODO: Write development instructions here
 
 ## Contributing
 
-1. Fork it (<https://github.com/your-github-user/amqp-client/fork>)
+1. Fork it (<https://github.com/cloudamqp/amqp-client/fork>)
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
@@ -34,4 +36,4 @@ TODO: Write development instructions here
 
 ## Contributors
 
-- [Carl Hörberg](https://github.com/your-github-user) - creator and maintainer
+- [Carl Hörberg](https://github.com/carlhoerberg) - creator and maintainer
