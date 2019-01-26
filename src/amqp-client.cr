@@ -13,7 +13,8 @@ class AMQP::Client
   end
     
   def connect : Connection
-    socket = TCPSocket.new(@uri.host || "localhost", @uri.port || 5672, connect_timeout: 5)
+    socket = TCPSocket.new(@uri.host || "localhost", @uri.port || 5672,
+                           connect_timeout: 5)
     socket.sync = false
     socket.keepalive = true
     socket.tcp_nodelay = true
@@ -21,7 +22,6 @@ class AMQP::Client
     socket.tcp_keepalive_count = 3
     socket.tcp_keepalive_interval = 10
     socket.write_timeout = 15
-    socket.recv_buffer_size = 131072
 
     tune =
       if @uri.scheme == "amqps"
