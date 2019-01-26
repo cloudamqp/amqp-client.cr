@@ -2,13 +2,10 @@ require "amq-protocol"
 require "uri"
 require "socket"
 require "openssl"
-require "./amqp-client/*"
 require "logger"
+require "./amqp-client/*"
 
-# TODO: Write documentation
 class AMQP::Client
-  VERSION = "0.1.0"
-
   def initialize(url : String)
     @uri = URI.parse(url)
     @uri.port ||= @uri.scheme == "amqps" ? 5671 : 5672
