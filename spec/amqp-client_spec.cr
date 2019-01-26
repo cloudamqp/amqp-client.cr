@@ -92,9 +92,8 @@ describe AMQP::Client do
   it "can publish with confirm" do
     c = AMQP::Client.new("amqp://guest:guest@localhost").connect
     ch = c.channel
-    ch.confirm_select
     q = ch.queue
-    q.publish "", q.name
+    q.publish_confirm("hej").should eq true
     ok = q.delete
     ok[:message_count].should eq 1
     c.close

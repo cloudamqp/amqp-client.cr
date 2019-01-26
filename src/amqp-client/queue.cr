@@ -16,6 +16,10 @@ class AMQP::Client
       @channel.basic_publish(message, "", @name, opts)
     end
 
+    def publish_confirm(message, opts = Hash(String, AMQ::Protocol::Field).new)
+      @channel.basic_publish_confirm(message, "", @name, opts)
+    end
+
     def get(no_ack = true)
       @channel.basic_get(@name, no_ack)
     end

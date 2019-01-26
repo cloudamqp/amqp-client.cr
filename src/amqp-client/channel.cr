@@ -11,11 +11,9 @@ class AMQP::Client
 
     @confirm_mode = false
     @confirm_id = 0_u64
-    @publish_nacked = false
-    @unconfirmed_set = Set(UInt64).new
     @incoming = ::Channel(AMQ::Protocol::Frame).new
     @delivery = ::Channel(AMQ::Protocol::Frame::Basic::Deliver).new
-    @confirms = ::Channel(AMQ::Protocol::Frame).new
+    @confirms = ::Channel(AMQ::Protocol::Frame::Basic::Ack | AMQ::Protocol::Frame::Basic::Nack).new(128)
     @returns = ::Channel(AMQ::Protocol::Frame::Basic::Return).new
     @log : Logger
 
@@ -87,48 +85,6 @@ class AMQP::Client
       end
     end
 
-    def confirm_or_die(timeout = 5)
-      raise "Confirms not enabled" unless @confirm_mode
-      return if @unconfirmed_set.empty?
-      timeout_channel = timeout_channel(timeout)
-      loop do
-        idx, _ = ::Channel.receive_first(@unconfirmed_set_updated, timeout_channel)
-        case idx
-        when 0
-          raise "Nacked publish" if @publish_nacked
-          return if @unconfirmed_set.empty?
-        when 1
-          raise "Timed out waiting for confirm"
-        end
-      end
-    end
-
-    private def timeout_channel(timeout)
-      time_channel = ::Channel(Nil).new
-      spawn do
-        sleep timeout
-        time_channel.send nil
-      end
-      return time_channel
-    end
-
-    @unconfirmed_set_updated = ::Channel(Nil).new
-
-    private def confirm_loop
-      loop do
-        f = @confirms.receive
-        case f
-        when AMQ::Protocol::Frame::Basic::Ack
-          @unconfirmed_set.delete f.delivery_tag
-        when AMQ::Protocol::Frame::Basic::Nack
-          @publish_nacked = true
-        end
-        @unconfirmed_set_updated.send nil
-      rescue ::Channel::ClosedError
-        break
-      end
-    end
-
     private def delivery_loop
       loop do
         f = @delivery.receive
@@ -164,14 +120,33 @@ class AMQP::Client
       basic_publish(IO::Memory.new(str), exchange, routing_key, opts)
     end
 
-    def basic_publish(io : IO, exchange : String, routing_key : String, opts = {} of String => AMQ::Protocol::Field) : Nil
+    def basic_publish(io : IO, exchange : String, routing_key : String, opts = {} of String => AMQ::Protocol::Field) : UInt64?
       write AMQ::Protocol::Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, false, false), flush: false
       write AMQ::Protocol::Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, AMQ::Protocol::Properties.new), flush: io.bytesize.zero?
       until io.pos == io.bytesize
         length = Math.min(@connection.frame_max, io.bytesize.to_u32 - io.pos)
-        write AMQ::Protocol::Frame::Body.new(@id, length, io)
+        write AMQ::Protocol::Frame::Body.new(@id, length, io), flush: true
       end
-      @unconfirmed_set.add(@confirm_id += 1_u64) if @confirm_mode
+      @confirm_id += 1_u64 if @confirm_mode
+    end
+
+    def basic_publish_confirm(msg, exchange, routing_key, opts = {} of String => AMQ::Protocol::Field) : Bool
+      confirm_select
+      msgid = basic_publish(msg, exchange, routing_key, opts).not_nil!
+      loop do
+        confirm = @confirms.receive
+        case confirm
+        when AMQ::Protocol::Frame::Basic::Ack,
+             AMQ::Protocol::Frame::Basic::Nack
+          next if confirm.delivery_tag < msgid
+          next if confirm.delivery_tag > msgid && !confirm.multiple
+        end
+        case confirm
+        when AMQ::Protocol::Frame::Basic::Ack then return true
+        when AMQ::Protocol::Frame::Basic::Nack then return false
+        else false
+        end
+      end
     end
 
     def basic_get(queue : String, no_ack : Bool) : DeliveredMessage?
@@ -179,7 +154,7 @@ class AMQP::Client
       f = next_frame
       case f
       when AMQ::Protocol::Frame::Basic::GetEmpty
-        return nil
+        nil
       when AMQ::Protocol::Frame::Basic::GetOk
         get_message(f.as(AMQ::Protocol::Frame::Basic::GetOk))
       else
@@ -320,11 +295,10 @@ class AMQP::Client
       next_frame.as?(AMQ::Protocol::Frame::Queue::UnbindOk) || raise UnexpectedFrame.new unless no_wait
     end
 
-    def confirm_select : Nil
+    def confirm_select(no_wait = false) : Nil
       return if @confirm_mode
-      write AMQ::Protocol::Frame::Confirm::Select.new(@id, no_wait = false)
+      write AMQ::Protocol::Frame::Confirm::Select.new(@id, no_wait)
       next_frame.as?(AMQ::Protocol::Frame::Confirm::SelectOk) || raise UnexpectedFrame.new unless no_wait
-      spawn confirm_loop, name: "Channel #{@id} confirm_loop"
       @confirm_mode = true
     end
 
