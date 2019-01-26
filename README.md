@@ -8,7 +8,7 @@ An AMQP 0-9-1 client for Crystal.
 ```yaml
 dependencies:
   amqp-client:
-    github: cloudamqp/amqp-client
+    github: cloudamqp/amqp-client.cr
 ```
 2. Run `shards install`
 
@@ -28,7 +28,7 @@ c.close
 
 ## Contributing
 
-1. Fork it (<https://github.com/cloudamqp/amqp-client/fork>)
+1. Fork it (<https://github.com/cloudamqp/amqp-client.cr/fork>)
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
