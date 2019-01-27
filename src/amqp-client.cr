@@ -6,6 +6,13 @@ require "logger"
 require "./amqp-client/*"
 
 class AMQP::Client
+  def self.start(url : String, &blk : AMQP::Client::Connection -> Nil)
+    conn = self.new(url).connect
+    yield conn
+  ensure
+    conn.try &.close
+  end
+
   def initialize(url : String)
     @uri = URI.parse(url)
     @uri.port ||= @uri.scheme == "amqps" ? 5671 : 5672
