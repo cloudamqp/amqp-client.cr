@@ -34,21 +34,27 @@ class AMQP::Client
         AMQ::Protocol::Frame.from_io(@io) do |f|
           @log.info "got #{f.inspect}"
           case f
+          when AMQ::Protocol::Frame::Connection::Close
+            write AMQ::Protocol::Frame::Connection::CloseOk.new
+            next false
           when AMQ::Protocol::Frame::Connection::CloseOk
-            return
+            next false
           end
-
           if @channels.has_key? f.channel
             @channels[f.channel].incoming f
           else
             @log.error "No channel open: #{f.inspect}"
           end
-        end
-      rescue IO::EOFError
+          true
+        end || break
+      rescue ex : IO::Error | Errno
         break
       rescue ex
         @log.error "read_loop exception: #{ex.inspect}"
+        break
       end
+      @io.close
+    rescue Errno
     end
 
     def write(frame, flush = true)
@@ -62,7 +68,7 @@ class AMQP::Client
       @channels.clear
       @log.info("Closing connection")
       write AMQ::Protocol::Frame::Connection::Close.new(320_u16, msg, 0_u16, 0_u16)
-    rescue Errno
+    rescue ex : Errno | IO::Error
       @log.info("Socket already closed, can't send close frame")
     end
 
