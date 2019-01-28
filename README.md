@@ -27,9 +27,17 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
       ch.basic_ack(msg.delivery_tag)
     end
 
+    # publish directly to a queue without confirm
+    q.publish "msg"
+
+    # publish directly to a queue, blocking while waiting for confirm
+    q.publish_confirm "msg"
+
+    # publish to any exchange/routing-key
+    ch.basic_publish "msg", exchange: "amq.topic", routing_key: "a"
+
+    # publish to any exchange/routing-key and wait for confirm
     ch.basic_publish_confirm "msg", exchange: "amq.topic", routing_key: "a"
-    q.basic_publish_confirm "msg"
-    q.basic_publish_confirm "msg"
   end
 end
 ```
