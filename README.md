@@ -19,13 +19,19 @@ dependencies:
 ```crystal
 require "amqp-client"
 
-c = AMQP::Client.new("amqp://guest:guest@localhost").connect
-ch = c.channel
-q = ch.queue
-q.publish "hej"
-msg = q.get(no_ack: true)
-puts msg.body_io.to_s
-c.close
+AMQP::Client.start("amqp://guest:guest@localhost") do |c|
+  c.channel do |ch|
+    q = ch.queue("my-queue")
+    q.subscribe(no_ack: false) do |msg|
+      puts "Received: #{msg.body_io.to_s}"
+      ch.basic_ack(msg.delivery_tag)
+    end
+
+    ch.basic_publish_confirm "msg", exchange: "amq.topic", routing_key: "a"
+    q.basic_publish_confirm "msg"
+    q.basic_publish_confirm "msg"
+  end
+end
 ```
 
 ## Contributing

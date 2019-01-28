@@ -7,14 +7,16 @@ class AMQP::Client
   class UnexpectedFrame < Exception; end
 
   class Channel
+    alias Frame = AMQ::Protocol::Frame
+
     getter id
 
     @confirm_mode = false
     @confirm_id = 0_u64
-    @incoming = ::Channel(AMQ::Protocol::Frame).new
-    @delivery = ::Channel(AMQ::Protocol::Frame::Basic::Deliver).new
-    @confirms = ::Channel(AMQ::Protocol::Frame::Basic::Ack | AMQ::Protocol::Frame::Basic::Nack).new(128)
-    @returns = ::Channel(AMQ::Protocol::Frame::Basic::Return).new
+    @incoming = ::Channel(Frame).new
+    @delivery = ::Channel(Frame::Basic::Deliver).new
+    @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(128)
+    @returns = ::Channel(Frame::Basic::Return).new
     @log : Logger
 
     def initialize(@connection : Connection, @id : UInt16)
@@ -24,14 +26,14 @@ class AMQP::Client
     end
 
     def open
-      write AMQ::Protocol::Frame::Channel::Open.new(@id)
-      next_frame.as?(AMQ::Protocol::Frame::Channel::OpenOk) || raise UnexpectedFrame.new
+      write Frame::Channel::Open.new(@id)
+      next_frame.as?(Frame::Channel::OpenOk) || raise UnexpectedFrame.new
       self
     end
 
     def close
-      write AMQ::Protocol::Frame::Channel::Close.new(@id)
-      next_frame.as?(AMQ::Protocol::Frame::Channel::CloseOk) || raise UnexpectedFrame.new
+      write Frame::Channel::Close.new(@id, 320, "Bye", 0, 0)
+      next_frame.as?(Frame::Channel::CloseOk) || raise UnexpectedFrame.new
       cleanup
     end
 
@@ -43,12 +45,12 @@ class AMQP::Client
 
     def incoming(frame)
       case frame
-      when AMQ::Protocol::Frame::Basic::Deliver
+      when Frame::Basic::Deliver
         @delivery.send frame
-      when AMQ::Protocol::Frame::Basic::Ack,
-           AMQ::Protocol::Frame::Basic::Nack
+      when Frame::Basic::Ack,
+           Frame::Basic::Nack
         @confirms.send frame
-      when AMQ::Protocol::Frame::Basic::Return
+      when Frame::Basic::Return
         @returns.send frame
       else
         @incoming.send frame
@@ -63,10 +65,10 @@ class AMQP::Client
     private def return_loop
       loop do
         f = @returns.receive
-        header = next_frame.as?(AMQ::Protocol::Frame::Header) || raise UnexpectedFrame.new
+        header = next_frame.as?(Frame::Header) || raise UnexpectedFrame.new
         body_io = IO::Memory.new(header.body_size)
         until body_io.pos == header.body_size
-          body = next_frame.as?(AMQ::Protocol::Frame::Body) || raise UnexpectedFrame.new
+          body = next_frame.as?(Frame::Body) || raise UnexpectedFrame.new
           IO.copy(body.body, body_io, body.body_size)
         end
         body_io.rewind
@@ -100,11 +102,11 @@ class AMQP::Client
       end
     end
 
-    private def next_frame : AMQ::Protocol::Frame
+    private def next_frame : Frame
       f = @incoming.receive
       case f
-      when AMQ::Protocol::Frame::Channel::Close
-        write AMQ::Protocol::Frame::Channel::CloseOk.new(@id)
+      when Frame::Channel::Close
+        write Frame::Channel::CloseOk.new(@id)
         cleanup
         raise ClosedException.new(f)
       else
@@ -121,11 +123,11 @@ class AMQP::Client
     end
 
     def basic_publish(io : IO, exchange : String, routing_key : String, opts = {} of String => AMQ::Protocol::Field) : UInt64?
-      write AMQ::Protocol::Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, false, false), flush: false
-      write AMQ::Protocol::Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, AMQ::Protocol::Properties.new), flush: io.bytesize.zero?
+      write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, false, false), flush: false
+      write Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, AMQ::Protocol::Properties.new), flush: io.bytesize.zero?
       until io.pos == io.bytesize
         length = Math.min(@connection.frame_max, io.bytesize.to_u32 - io.pos)
-        write AMQ::Protocol::Frame::Body.new(@id, length, io), flush: true
+        write Frame::Body.new(@id, length, io), flush: true
       end
       @confirm_id += 1_u64 if @confirm_mode
     end
@@ -136,42 +138,42 @@ class AMQP::Client
       loop do
         confirm = @confirms.receive
         case confirm
-        when AMQ::Protocol::Frame::Basic::Ack,
-             AMQ::Protocol::Frame::Basic::Nack
+        when Frame::Basic::Ack,
+             Frame::Basic::Nack
           next if confirm.delivery_tag < msgid
           next if confirm.delivery_tag > msgid && !confirm.multiple
         end
         case confirm
-        when AMQ::Protocol::Frame::Basic::Ack then return true
-        when AMQ::Protocol::Frame::Basic::Nack then return false
+        when Frame::Basic::Ack then return true
+        when Frame::Basic::Nack then return false
         else false
         end
       end
     end
 
     def basic_get(queue : String, no_ack : Bool) : DeliveredMessage?
-      write AMQ::Protocol::Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
+      write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
       f = next_frame
       case f
-      when AMQ::Protocol::Frame::Basic::GetEmpty
+      when Frame::Basic::GetEmpty
         nil
-      when AMQ::Protocol::Frame::Basic::GetOk
-        get_message(f.as(AMQ::Protocol::Frame::Basic::GetOk))
+      when Frame::Basic::GetOk
+        get_message(f.as(Frame::Basic::GetOk))
       else
         raise UnexpectedFrame.new
       end
     end
 
     private def get_message(f) : DeliveredMessage
-      header = next_frame.as?(AMQ::Protocol::Frame::Header) || raise UnexpectedFrame.new
+      header = next_frame.as?(Frame::Header) || raise UnexpectedFrame.new
       body_io = IO::Memory.new(header.body_size)
       until body_io.pos == header.body_size
-        body = next_frame.as?(AMQ::Protocol::Frame::Body) || raise UnexpectedFrame.new
+        body = next_frame.as?(Frame::Body) || raise UnexpectedFrame.new
         IO.copy(body.body, body_io, body.body_size)
       end
       body_io.rewind
       delivery_tag = case f
-                     when AMQ::Protocol::Frame::Basic::Return
+                     when Frame::Basic::Return
                        0_u64
                      else
                        f.delivery_tag
@@ -184,27 +186,27 @@ class AMQP::Client
 
     def basic_consume(queue, no_ack = true, exclusive = false,
                 arguments = Hash(String, AMQ::Protocol::Field).new, &blk : DeliveredMessage -> _)
-      write AMQ::Protocol::Frame::Basic::Consume.new(@id, 0_u16, queue, "", false, no_ack, exclusive, false, arguments)
-      ok = next_frame.as?(AMQ::Protocol::Frame::Basic::ConsumeOk) || raise UnexpectedFrame.new
+      write Frame::Basic::Consume.new(@id, 0_u16, queue, "", false, no_ack, exclusive, false, arguments)
+      ok = next_frame.as?(Frame::Basic::ConsumeOk) || raise UnexpectedFrame.new
       @consumers[ok.consumer_tag] = blk
       ok.consumer_tag
     end
 
     def basic_ack(delivery_tag : UInt64, multiple = false) : Nil
-      write AMQ::Protocol::Frame::Basic::Ack.new(@id, delivery_tag, multiple)
+      write Frame::Basic::Ack.new(@id, delivery_tag, multiple)
     end
 
     def basic_reject(delivery_tag : UInt64, requeue = false) : Nil
-      write AMQ::Protocol::Frame::Basic::Reject.new(@id, delivery_tag, requeue)
+      write Frame::Basic::Reject.new(@id, delivery_tag, requeue)
     end
 
     def basic_nack(delivery_tag : UInt64, requeue = false, multiple = false) : Nil
-      write AMQ::Protocol::Frame::Basic::Reject.new(@id, delivery_tag, multiple, requeue)
+      write Frame::Basic::Reject.new(@id, delivery_tag, multiple, requeue)
     end
 
     def prefetch(count, global = false) : Nil
-      write AMQ::Protocol::Frame::Basic::Qos.new(@id, 0_u32, count, global)
-      next_frame.as?(AMQ::Protocol::Frame::Basic::QosOk) || raise UnexpectedFrame.new
+      write Frame::Basic::Qos.new(@id, 0_u32, count, global)
+      next_frame.as?(Frame::Basic::QosOk) || raise UnexpectedFrame.new
     end
 
     # Declares a temporary queue, which won't be durable and auto-deleted when not used anymore
@@ -221,31 +223,31 @@ class AMQP::Client
 
     def queue_declare(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, args = Hash(String, AMQ::Protocol::Field).new)
       no_wait = false
-      write AMQ::Protocol::Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable, exclusive, auto_delete, no_wait, args)
-      f = next_frame.as?(AMQ::Protocol::Frame::Queue::DeclareOk) || raise UnexpectedFrame.new
+      write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable, exclusive, auto_delete, no_wait, args)
+      f = next_frame.as?(Frame::Queue::DeclareOk) || raise UnexpectedFrame.new
       { queue_name: f.queue_name, message_count: f.message_count, consumer_count: f.consumer_count }
     end
 
     def queue_delete(name : String, if_unused = false, if_empty = false)
-      write AMQ::Protocol::Frame::Queue::Delete.new(@id, 0_u16, name, if_unused, if_empty, no_wait: false)
-      f = next_frame.as?(AMQ::Protocol::Frame::Queue::DeleteOk) || raise UnexpectedFrame.new
+      write Frame::Queue::Delete.new(@id, 0_u16, name, if_unused, if_empty, no_wait: false)
+      f = next_frame.as?(Frame::Queue::DeleteOk) || raise UnexpectedFrame.new
       { message_count: f.message_count }
     end
 
     def queue_purge(name : String)
-      write AMQ::Protocol::Frame::Queue::Purge.new(@id, 0_u16, name, no_wait: false)
-      f = next_frame.as?(AMQ::Protocol::Frame::Queue::PurgeOk) || raise UnexpectedFrame.new
+      write Frame::Queue::Purge.new(@id, 0_u16, name, no_wait: false)
+      f = next_frame.as?(Frame::Queue::PurgeOk) || raise UnexpectedFrame.new
       { message_count: f.message_count }
     end
 
     def queue_bind(queue : String, exchange : String, routing_key : String, no_wait = false, args = Hash(String, AMQ::Protocol::Field).new) : Nil
-      write AMQ::Protocol::Frame::Queue::Bind.new(@id, 0_u16, queue, exchange, routing_key, no_wait, args)
-      next_frame.as?(AMQ::Protocol::Frame::Queue::BindOk) || raise UnexpectedFrame.new unless no_wait
+      write Frame::Queue::Bind.new(@id, 0_u16, queue, exchange, routing_key, no_wait, args)
+      next_frame.as?(Frame::Queue::BindOk) || raise UnexpectedFrame.new unless no_wait
     end
 
     def queue_unbind(queue : String, exchange : String, routing_key : String, args = Hash(String, AMQ::Protocol::Field).new) : Nil
-      write AMQ::Protocol::Frame::Queue::Bind.new(@id, 0_u16, queue, exchange, routing_key, args)
-      next_frame.as?(AMQ::Protocol::Frame::Queue::BindOk) || raise UnexpectedFrame.new
+      write Frame::Queue::Bind.new(@id, 0_u16, queue, exchange, routing_key, args)
+      next_frame.as?(Frame::Queue::BindOk) || raise UnexpectedFrame.new
     end
 
     def topic_exchange(name = "amq.topic", passive = true)
@@ -276,29 +278,29 @@ class AMQP::Client
     def exchange_declare(name : String, type : String, passive = false, durable = true,
                          exclusive = false, internal = false, auto_delete = false,
                          no_wait = false, args = Hash(String, AMQ::Protocol::Field).new) : Nil
-      write AMQ::Protocol::Frame::Exchange::Declare.new(@id, 0_u16, name, type, passive, durable, auto_delete, internal, no_wait, args)
-      next_frame.as?(AMQ::Protocol::Frame::Exchange::DeclareOk) || raise UnexpectedFrame.new unless no_wait
+      write Frame::Exchange::Declare.new(@id, 0_u16, name, type, passive, durable, auto_delete, internal, no_wait, args)
+      next_frame.as?(Frame::Exchange::DeclareOk) || raise UnexpectedFrame.new unless no_wait
     end
 
     def exchange_delete(name, if_unused = false, no_wait = false)
-      write AMQ::Protocol::Frame::Exchange::Delete.new(@id, 0_u16, name, if_unused, no_wait)
-      next_frame.as?(AMQ::Protocol::Frame::Exchange::DeleteOk) || raise UnexpectedFrame.new unless no_wait
+      write Frame::Exchange::Delete.new(@id, 0_u16, name, if_unused, no_wait)
+      next_frame.as?(Frame::Exchange::DeleteOk) || raise UnexpectedFrame.new unless no_wait
     end
 
     def exchange_bind(source : String, destination : String, routing_key : String, no_wait = false, args = Hash(String, AMQ::Protocol::Field).new) : Nil
-      write AMQ::Protocol::Frame::Exchange::Bind.new(@id, 0_u16, source, destination, routing_key, no_wait, args)
-      next_frame.as?(AMQ::Protocol::Frame::Queue::BindOk) || raise UnexpectedFrame.new unless no_wait
+      write Frame::Exchange::Bind.new(@id, 0_u16, source, destination, routing_key, no_wait, args)
+      next_frame.as?(Frame::Queue::BindOk) || raise UnexpectedFrame.new unless no_wait
     end
 
     def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, args = Hash(String, AMQ::Protocol::Field).new) : Nil
-      write AMQ::Protocol::Frame::Exchange::Unbind.new(@id, 0_u16, source, destination, routing_key, no_wait, args)
-      next_frame.as?(AMQ::Protocol::Frame::Queue::UnbindOk) || raise UnexpectedFrame.new unless no_wait
+      write Frame::Exchange::Unbind.new(@id, 0_u16, source, destination, routing_key, no_wait, args)
+      next_frame.as?(Frame::Queue::UnbindOk) || raise UnexpectedFrame.new unless no_wait
     end
 
     def confirm_select(no_wait = false) : Nil
       return if @confirm_mode
-      write AMQ::Protocol::Frame::Confirm::Select.new(@id, no_wait)
-      next_frame.as?(AMQ::Protocol::Frame::Confirm::SelectOk) || raise UnexpectedFrame.new unless no_wait
+      write Frame::Confirm::Select.new(@id, no_wait)
+      next_frame.as?(Frame::Confirm::SelectOk) || raise UnexpectedFrame.new unless no_wait
       @confirm_mode = true
     end
 
@@ -307,7 +309,7 @@ class AMQP::Client
     end
 
     class ClosedException < Exception
-      def initialize(close : AMQ::Protocol::Frame::Channel::Close)
+      def initialize(close : Frame::Channel::Close)
         super(close.reply_text)
       end
     end

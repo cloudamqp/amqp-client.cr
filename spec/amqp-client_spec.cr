@@ -98,4 +98,12 @@ describe AMQP::Client do
     ok[:message_count].should eq 1
     c.close
   end
+
+  it "can use blocks" do
+    AMQP::Client.start("amqp://guest:guest@localhost") do |c|
+      c.channel do |ch|
+        ch.basic_publish_confirm("hej", "", "my-queue").should eq true
+      end
+    end
+  end
 end

@@ -29,6 +29,12 @@ class AMQP::Client
       raise "channel_max reached"
     end
 
+    def channel(&blk : Channel -> _)
+      ch = channel
+      yield ch
+      ch.close
+    end
+
     private def read_loop
       loop do
         AMQ::Protocol::Frame.from_io(@io) do |f|
