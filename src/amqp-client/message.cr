@@ -30,12 +30,12 @@ class AMQP::Client
                    @body_io : IO::Memory, @redelivered : Bool)
     end
 
-    def ack
-      @channel.basic_ack(@delivery_tag)
+    def ack(multiple = false)
+      @channel.basic_ack(@delivery_tag, multiple: multiple)
     end
 
-    def nack(requeue = false)
-      @channel.basic_nack(@delivery_tag, requeue: requeue)
+    def nack(multiple = false, requeue = false)
+      @channel.basic_nack(@delivery_tag, multiple: multiple, requeue: requeue)
     end
 
     def reject(requeue = false)
