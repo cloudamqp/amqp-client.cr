@@ -2,7 +2,7 @@ require "amq-protocol"
 require "./channel"
 
 class AMQP::Client
-  abstract struct Message
+  abstract struct BaseMessage
     getter exchange, routing_key, properties, body_io
 
     def initialize(@exchange : String, @routing_key : String,
@@ -11,7 +11,7 @@ class AMQP::Client
     end
   end
 
-  struct ReturnedMessage < Message
+  struct ReturnedMessage < BaseMessage
     getter reply_code, reply_text
 
     def initialize(@reply_code : UInt16, @reply_text : String,
@@ -21,7 +21,7 @@ class AMQP::Client
     end
   end
 
-  struct DeliveredMessage < Message
+  struct Message < BaseMessage
     getter delivery_tag, redelivered
 
     def initialize(@channel : Channel, @exchange : String,

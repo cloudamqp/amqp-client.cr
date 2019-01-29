@@ -121,9 +121,9 @@ class AMQP::Client
         IO.copy(body.body, body_io, body.body_size)
       end
       body_io.rewind
-      msg = DeliveredMessage.new(self, f.exchange, f.routing_key,
-                                 f.delivery_tag, header.properties,
-                                 body_io, f.redelivered)
+      msg = Message.new(self, f.exchange, f.routing_key,
+                        f.delivery_tag, header.properties,
+                        body_io, f.redelivered)
       consumer = @consumers[f.consumer_tag]
       begin
         consumer.call(msg)
@@ -201,7 +201,7 @@ class AMQP::Client
       end
     end
 
-    def basic_get(queue : String, no_ack : Bool) : DeliveredMessage?
+    def basic_get(queue : String, no_ack : Bool) : Message?
       write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
       f = next_frame
       case f
@@ -211,7 +211,7 @@ class AMQP::Client
       end
     end
 
-    private def get_message(f) : DeliveredMessage
+    private def get_message(f) : Message
       header = expect Frame::Header
       body_io = IO::Memory.new(header.body_size)
       until body_io.pos == header.body_size
@@ -219,16 +219,16 @@ class AMQP::Client
         IO.copy(body.body, body_io, body.body_size)
       end
       body_io.rewind
-      DeliveredMessage.new(self, f.exchange, f.routing_key,
-                           f.delivery_tag, header.properties, body_io,
-                           f.redelivered)
+      Message.new(self, f.exchange, f.routing_key,
+                  f.delivery_tag, header.properties, body_io,
+                  f.redelivered)
     end
 
     def has_subscriber?(consumer_tag)
       @consumers.has_key? consumer_tag
     end
 
-    @consumers = Hash(String, Proc(DeliveredMessage, Nil)).new
+    @consumers = Hash(String, Proc(Message, Nil)).new
 
     def basic_consume(queue, no_ack = true, exclusive = false,
                       args = Arguments.new, &blk : DeliveredMessage -> Nil)
