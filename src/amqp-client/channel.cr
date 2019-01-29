@@ -230,9 +230,9 @@ class AMQP::Client
 
     @consumers = Hash(String, Proc(Message, Nil)).new
 
-    def basic_consume(queue, no_ack = true, exclusive = false,
-                      args = Arguments.new, &blk : DeliveredMessage -> Nil)
-      write Frame::Basic::Consume.new(@id, 0_u16, queue, "", false, no_ack, exclusive, false, args)
+    def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
+                      args = Arguments.new, &blk : Message -> Nil)
+      write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, args)
       ok = expect Frame::Basic::ConsumeOk
       @consumers[ok.consumer_tag] = blk
       ok.consumer_tag
