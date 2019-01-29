@@ -393,7 +393,7 @@ class AMQP::Client
 
     class ClosedException < Exception
       def initialize(close : Frame::Channel::Close)
-        super(close.reply_text)
+        super("#{close.reply_code} - #{close.reply_text}")
       end
     end
   end
