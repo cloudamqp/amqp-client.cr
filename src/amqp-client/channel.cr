@@ -221,6 +221,7 @@ class AMQP::Client
     def basic_cancel(consumer_tag, no_wait = false) : Nil
       write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
       expect Frame::Basic::CancelOk unless no_wait
+      @consumers.delete(consumer_tag)
     end
 
     def basic_ack(delivery_tag : UInt64, multiple = false) : Nil
@@ -251,8 +252,8 @@ class AMQP::Client
     end
 
     # Declares a queue with a name, by default durable and not auto-deleted
-    def queue(name : String, passive = false, durable = true, auto_delete = false, exclusive = false, args = Arguments.new)
-      q = queue_declare(name, passive, durable, auto_delete, exclusive, args)
+    def queue(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, args = Arguments.new)
+      q = queue_declare(name, passive, durable, exclusive, auto_delete, args)
       Queue.new(self, q[:queue_name])
     end
 
@@ -334,7 +335,7 @@ class AMQP::Client
 
     def exchange_bind(source : String, destination : String, routing_key : String, no_wait = false, args = Arguments.new) : Nil
       write Frame::Exchange::Bind.new(@id, 0_u16, source, destination, routing_key, no_wait, args)
-      expect Frame::Queue::BindOk unless no_wait
+      expect Frame::Exchange::BindOk unless no_wait
     end
 
     def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, args = Arguments.new) : Nil
