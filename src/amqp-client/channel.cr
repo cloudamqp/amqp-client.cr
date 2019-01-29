@@ -84,6 +84,7 @@ class AMQP::Client
         when Frame::Channel::Close then close(frame)
         when Frame::Basic::Deliver then process_deliver(frame)
         when Frame::Basic::Return then process_return(frame)
+        when Frame::Basic::Cancel then process_cancel(frame)
         when Frame::Basic::Ack, Frame::Basic::Nack
           @confirms.send frame
         else
@@ -91,6 +92,25 @@ class AMQP::Client
         end
       end
     rescue ::Channel::ClosedError
+    end
+
+    @on_cancel : Proc(String, Nil)?
+
+    def on_cancel(&blk : String -> Nil)
+      @on_cancel = blk
+    end
+
+    private def process_cancel(f : Frame::Basic::Cancel)
+      @log.warn("Consumer #{f.consumer_tag} canceled by server") unless @on_cancel
+
+      begin
+        @on_cancel.try &.call(f.consumer_tag)
+      rescue ex
+        @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
+      end
+
+      write Frame::Basic::CancelOk.new(@id, f.consumer_tag) unless f.no_wait
+      @consumers.delete(f.consumer_tag)
     end
 
     private def process_deliver(f : Frame::Basic::Deliver)
