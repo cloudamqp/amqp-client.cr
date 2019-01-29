@@ -7,17 +7,22 @@ class AMQP::Client
     def initialize(@channel : Channel, @name : String)
     end
 
-    def bind(exchange : String, routing_key : String, no_wait = false, args = Hash(String, AMQ::Protocol::Field).new)
+    def bind(exchange : String, routing_key : String, no_wait = false, args = Arguments.new)
       @channel.queue_bind(@name, exchange, routing_key, no_wait, args)
       self
     end
 
-    def publish(message, opts = Hash(String, AMQ::Protocol::Field).new)
-      @channel.basic_publish(message, "", @name, opts)
+    def unbind(exchange : String, routing_key : String, args = Arguments.new)
+      @channel.queue_unbind(@name, exchange, routing_key, args)
+      self
     end
 
-    def publish_confirm(message, opts = Hash(String, AMQ::Protocol::Field).new)
-      @channel.basic_publish_confirm(message, "", @name, opts)
+    def publish(message, mandatory = false, immediate = false, props = Properties.new)
+      @channel.basic_publish(message, "", @name, mandatory, immediate, props)
+    end
+
+    def publish_confirm(message, mandatory = false, immediate = false, props = Properties.new)
+      @channel.basic_publish_confirm(message, "", @name, mandatory, immediate, props)
     end
 
     def get(no_ack = true)
@@ -25,9 +30,12 @@ class AMQP::Client
     end
 
     def subscribe(no_ack = true, exclusive = false,
-                  args = Hash(String, AMQ::Protocol::Field).new, &blk : DeliveredMessage -> _)
+                  args = Arguments.new, &blk : DeliveredMessage -> Nil)
       @channel.basic_consume(@name, no_ack, exclusive, args, &blk)
-      self
+    end
+
+    def unsubscribe(consumer_tag, no_wait = false)
+      @channel.basic_cancel(consumer_tag, no_wait)
     end
 
     def purge

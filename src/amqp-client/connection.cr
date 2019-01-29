@@ -35,21 +35,42 @@ class AMQP::Client
       ch.close
     end
 
+    @on_close : Proc((UInt16, String), Nil)? 
+
+    def on_close(&blk : UInt16, String ->)
+      @on_close = blk
+    end
+
     private def read_loop
       loop do
         AMQ::Protocol::Frame.from_io(@io) do |f|
-          @log.info "got #{f.inspect}"
+          @log.debug "got #{f.inspect}"
           case f
           when AMQ::Protocol::Frame::Connection::Close
+            @log.error("Connection closed by server: #{f.inspect}") unless @on_close
+            begin
+              @on_close.try &.call(f.reply_code, f.reply_text)
+            rescue ex
+              @log.error "Uncaught exception in on_close block: #{ex.inspect_with_backtrace}"
+            end
             write AMQ::Protocol::Frame::Connection::CloseOk.new
             next false
           when AMQ::Protocol::Frame::Connection::CloseOk
             next false
-          end
-          if @channels.has_key? f.channel
-            @channels[f.channel].incoming f
+          when AMQ::Protocol::Frame::Heartbeat
+            write f
           else
-            @log.error "No channel open: #{f.inspect}"
+            if @channels.has_key? f.channel
+              @channels[f.channel].incoming f
+            else
+              @log.error "Channel #{f.channel} not open for frame #{f.inspect}"
+            end
+
+            case f
+            when AMQ::Protocol::Frame::Connection::Close,
+                 AMQ::Protocol::Frame::Connection::CloseOk
+              @channels.delete f.channel
+            end
           end
           true
         end || break
@@ -60,7 +81,7 @@ class AMQP::Client
         break
       end
       @io.close
-    rescue Errno
+    rescue ex : Errno
     end
 
     def write(frame, flush = true)
