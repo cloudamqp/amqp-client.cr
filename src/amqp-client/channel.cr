@@ -4,18 +4,6 @@ require "./queue"
 require "./exchange"
 
 class AMQP::Client
-  alias Frame = AMQ::Protocol::Frame
-  alias Arguments = Hash(String, AMQ::Protocol::Field)
-  alias Properties = AMQ::Protocol::Properties
-  class UnexpectedFrame < Exception
-    def initialize
-      super
-    end
-    def initialize(frame : Frame)
-      super(frame.inspect)
-    end
-  end
-
   class Channel
     getter id
 
@@ -198,6 +186,8 @@ class AMQP::Client
           return false
         else raise UnexpectedFrame.new(confirm)
         end
+      rescue ex : ::Channel::ClosedError
+        raise ClosedException.new(@closing_frame, cause: ex)
       end
     end
 
@@ -278,6 +268,9 @@ class AMQP::Client
     end
 
     def queue_declare(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, args = Arguments.new)
+      durable = false if name.empty?
+      exclusive = true if name.empty?
+      auto_delete = true if name.empty?
       no_wait = false
       write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable,
                                       exclusive, auto_delete, no_wait,
@@ -382,8 +375,7 @@ class AMQP::Client
     private def next_frame : Frame
       @frames.receive
     rescue ex : ::Channel::ClosedError
-      raise ClosedException.new(@closing_frame.not_nil!) if @closing_frame
-      raise ex
+      raise ClosedException.new(@closing_frame, cause: ex)
     end
 
     macro expect(clz)
@@ -392,8 +384,12 @@ class AMQP::Client
     end
 
     class ClosedException < Exception
-      def initialize(close : Frame::Channel::Close)
-        super("#{close.reply_code} - #{close.reply_text}")
+      def initialize(close : Frame::Channel::Close?, cause = nil)
+        if close
+          super("#{close.reply_code} - #{close.reply_text}", cause)
+        else
+          super("Unexpectedly closed channel", cause)
+        end
       end
     end
   end

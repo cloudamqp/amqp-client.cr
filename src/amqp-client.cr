@@ -13,8 +13,11 @@ class AMQP::Client
     conn.try &.close
   end
 
-  def self.start(host = "localhost", port = 5672, vhost = "/", user = "guest", password = "guest", tls = false, heartbeat = 0_u16, frame_max = 131_072_u32, log_level = Logger::WARN, &blk : AMQP::Client::Connection -> Nil)
-    conn = self.new(host, port, vhost, user, password, tls, heartbeat, frame_max, log_level).connect
+  def self.start(host = "localhost", port = 5672, vhost = "/",
+                 user = "guest", password = "guest", tls = false,
+                 channel_max = UInt16::MAX, frame_max = 131_072_u32, heartbeat = 0_u16,
+                 log_level = Logger::WARN, &blk : AMQP::Client::Connection -> Nil)
+    conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, log_level).connect
     yield conn
   ensure
     conn.try &.close
@@ -35,10 +38,13 @@ class AMQP::Client
     arguments = uri.query.try(&.split("&").map(&.split("=")).to_h) || Hash(String, String).new
     @heartbeat = arguments.fetch("heartbeat", 0_u16).to_u16
     @frame_max = arguments.fetch("frame_max", 131_072_u32).to_u32
+    @channel_max = arguments.fetch("channel_max", UInt16::MAX).to_u16
     @log = Logger.new(STDOUT, level: log_level)
   end
 
-  def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest", @tls = false, @heartbeat = 0_u16, @frame_max = 131_072_u32, log_level = Logger::WARN)
+  def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
+                 @tls = false, @channel_max = UInt16::MAX, @frame_max = 131_072_u32, @heartbeat = 0_u16,
+                 log_level = Logger::WARN)
     @log = Logger.new(STDOUT, level: log_level)
   end
     
@@ -51,36 +57,23 @@ class AMQP::Client
     socket.tcp_keepalive_count = 3
     socket.tcp_keepalive_interval = 10
     socket.write_timeout = 15
-    tune =
-      if @tls
-        io = OpenSSL::SSL::Socket::Client.new(socket, sync_close: true, hostname: @host)
-        negotiate_connection(io)
-      else
-        negotiate_connection(socket)
-      end
-    Connection.new(socket, @log, tune[:channel_max], tune[:frame_max])
+    if @tls
+      tls_socket = OpenSSL::SSL::Socket::Client.new(socket, sync_close: true, hostname: @host)
+      Connection.start(tls_socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+    else
+      Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+    end
   end
 
-  private def negotiate_connection(io : TCPSocket | OpenSSL::SSL::Socket::Client, heartbeat = 0_u16)
-    io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
-    io.flush
-    AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::Start) }
-
-    props = {} of String => AMQ::Protocol::Field
-    user = URI.unescape(@user)
-    password = URI.unescape(@password)
-    response = "\u0000#{user}\u0000#{password}"
-    io.write_bytes AMQ::Protocol::Frame::Connection::StartOk.new(props, "PLAIN", response, ""), IO::ByteFormat::NetworkEndian
-    io.flush
-    tune = AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::Tune) }
-    channel_max = tune.channel_max.zero? ? UInt16::MAX : tune.channel_max
-    frame_max = tune.frame_max.zero? ? 131072_u32 : tune.frame_max
-    io.write_bytes AMQ::Protocol::Frame::Connection::TuneOk.new(channel_max: channel_max,
-                                                                frame_max: frame_max, heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
-    io.write_bytes AMQ::Protocol::Frame::Connection::Open.new(@vhost), IO::ByteFormat::NetworkEndian
-    io.flush
-    AMQ::Protocol::Frame.from_io(io) { |f| f.as(AMQ::Protocol::Frame::Connection::OpenOk) }
-
-    { channel_max: channel_max, frame_max: frame_max }
+  alias Frame = AMQ::Protocol::Frame
+  alias Arguments = Hash(String, AMQ::Protocol::Field)
+  alias Properties = AMQ::Protocol::Properties
+  class UnexpectedFrame < Exception
+    def initialize
+      super
+    end
+    def initialize(frame : Frame)
+      super(frame.inspect)
+    end
   end
 end

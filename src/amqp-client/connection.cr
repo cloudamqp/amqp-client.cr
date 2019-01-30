@@ -3,12 +3,14 @@ require "openssl"
 require "logger"
 require "amq-protocol"
 require "./channel"
+require "../amqp-client"
 
 class AMQP::Client
   class Connection
     getter frame_max, log
 
-    def initialize(@io : TCPSocket | OpenSSL::SSL::Socket::Client, @log : Logger, @channel_max : UInt16, @frame_max : UInt32)
+    def initialize(@io : TCPSocket | OpenSSL::SSL::Socket::Client, @log : Logger,
+                   @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
       spawn read_loop, name: "AMQP::Client#read_loop"
     end
 
@@ -43,21 +45,21 @@ class AMQP::Client
 
     private def read_loop
       loop do
-        AMQ::Protocol::Frame.from_io(@io) do |f|
+        Frame.from_io(@io) do |f|
           @log.debug "got #{f.inspect}"
           case f
-          when AMQ::Protocol::Frame::Connection::Close
+          when Frame::Connection::Close
             @log.error("Connection closed by server: #{f.inspect}") unless @on_close
             begin
               @on_close.try &.call(f.reply_code, f.reply_text)
             rescue ex
               @log.error "Uncaught exception in on_close block: #{ex.inspect_with_backtrace}"
             end
-            write AMQ::Protocol::Frame::Connection::CloseOk.new
+            write Frame::Connection::CloseOk.new
             next false
-          when AMQ::Protocol::Frame::Connection::CloseOk
+          when Frame::Connection::CloseOk
             next false
-          when AMQ::Protocol::Frame::Heartbeat
+          when Frame::Heartbeat
             write f
           else
             if @channels.has_key? f.channel
@@ -67,8 +69,8 @@ class AMQP::Client
             end
 
             case f
-            when AMQ::Protocol::Frame::Connection::Close,
-                 AMQ::Protocol::Frame::Connection::CloseOk
+            when Frame::Connection::Close,
+                 Frame::Connection::CloseOk
               @channels.delete f.channel
             end
           end
@@ -87,20 +89,67 @@ class AMQP::Client
     def write(frame, flush = true)
       @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
       @io.flush if flush
-      @log.info "sent #{frame.inspect}"
+      @log.debug "sent #{frame.inspect}"
     end
 
     def close(msg = "Connection closed")
       @channels.each_value &.cleanup
       @channels.clear
       @log.info("Closing connection")
-      write AMQ::Protocol::Frame::Connection::Close.new(320_u16, msg, 0_u16, 0_u16)
+      write Frame::Connection::Close.new(320_u16, msg, 0_u16, 0_u16)
     rescue ex : Errno | IO::Error
       @log.info("Socket already closed, can't send close frame")
     end
 
     def closed?
       @io.closed?
+    end
+
+    def self.start(io : TCPSocket | OpenSSL::SSL::Socket::Client, log,
+                   user, password, vhost,
+                   channel_max, frame_max, heartbeat)
+      io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
+      io.flush
+      Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise UnexpectedFrame.new(f) }
+
+      props = Arguments.new
+      user = URI.unescape(user)
+      password = URI.unescape(password)
+      response = "\u0000#{user}\u0000#{password}"
+      io.write_bytes(Frame::Connection::StartOk.new(props, "PLAIN", response, ""),
+                     IO::ByteFormat::NetworkEndian)
+      io.flush
+      tune = Frame.from_io(io) { |f| f.as?(Frame::Connection::Tune) || raise UnexpectedFrame.new(f) }
+      channel_max = tune.channel_max.zero? ? channel_max : tune.channel_max
+      frame_max = tune.frame_max.zero? ? frame_max : tune.frame_max
+      io.write_bytes Frame::Connection::TuneOk.new(channel_max: channel_max,
+                                                   frame_max: frame_max,
+                                                   heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
+      io.write_bytes Frame::Connection::Open.new(vhost), IO::ByteFormat::NetworkEndian
+      io.flush
+      Frame.from_io(io) do |f|
+        case f
+        when Frame::Connection::OpenOk then next
+        when Frame::Connection::Close
+          raise Connection::ClosedException.new(f.as(Frame::Connection::Close))
+        else
+          raise UnexpectedFrame.new(f)
+        end
+      end
+
+      Connection.new(io, log, channel_max, frame_max, heartbeat)
+    rescue ex : IO::EOFError
+      raise Connection::ClosedException.new("Connection closed by server", ex)
+    end
+
+    class ClosedException < Exception
+      def initialize(message, cause)
+        super(message, cause)
+      end
+
+      def initialize(close : Frame::Connection::Close)
+        super("#{close.reply_code} - #{close.reply_text}")
+      end
     end
   end
 end
