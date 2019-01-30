@@ -1,8 +1,8 @@
 name: amqp-client
-version: 0.2.2
+version: 0.3.0
 
 authors:
-  - Carl Hörberg <carl.hoerberg@gmail.com>
+  - Carl Hörberg <carl@cloudamqp.com>
 
 dependencies:
   amq-protocol:
