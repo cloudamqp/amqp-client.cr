@@ -27,7 +27,7 @@ class AMQP::Client
     uri = URI.parse(url)
     @tls = uri.scheme == "amqps"
     @host = uri.host || "localhost"
-    @port = uri.port || @tls ? 5671 : 5672
+    @port = uri.port || (@tls ? 5671 : 5672)
     @vhost = if uri.path.nil? || uri.path.not_nil!.empty?
                "/"
              else
