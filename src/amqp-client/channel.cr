@@ -112,11 +112,14 @@ class AMQP::Client
       msg = Message.new(self, f.exchange, f.routing_key,
                         f.delivery_tag, header.properties,
                         body_io, f.redelivered)
-      consumer = @consumers[f.consumer_tag]
-      begin
-        consumer.call(msg)
-      rescue ex
-        @log.error("Uncaught exception in consumer: #{ex.inspect_with_backtrace}")
+      if consumer = @consumers.fetch(f.consumer_tag, nil)
+        begin
+          consumer.call(msg)
+        rescue ex
+          @log.error("Uncaught exception in consumer: #{ex.inspect_with_backtrace}")
+        end
+      else
+        @log.warn("No consumer #{f.consumer_tag} found")
       end
     end
 
