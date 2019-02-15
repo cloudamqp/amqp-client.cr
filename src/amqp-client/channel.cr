@@ -102,10 +102,10 @@ class AMQP::Client
     end
 
     private def process_deliver(f : Frame::Basic::Deliver)
-      header = @incoming.receive.as(Frame::Header)
+      header = expect Frame::Header
       body_io = IO::Memory.new(header.body_size)
       until body_io.pos == header.body_size
-        body = @incoming.receive.as(Frame::Body)
+        body = expect Frame::Body
         IO.copy(body.body, body_io, body.body_size)
       end
       body_io.rewind
@@ -130,10 +130,10 @@ class AMQP::Client
     end
 
     private def process_return(return_frame)
-      header = @incoming.receive.as(Frame::Header)
+      header = expect Frame::Header
       body_io = IO::Memory.new(header.body_size)
       until body_io.pos == header.body_size
-        body = @incoming.receive.as(Frame::Body)
+        body = expect Frame::Body
         IO.copy(body.body, body_io, body.body_size)
       end
       body_io.rewind
