@@ -69,8 +69,8 @@ class AMQP::Client
             end
 
             case f
-            when Frame::Connection::Close,
-                 Frame::Connection::CloseOk
+            when Frame::Channel::Close,
+                 Frame::Channel::CloseOk
               @channels.delete f.channel
             end
           end
