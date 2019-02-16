@@ -2,14 +2,14 @@ require "./spec_helper"
 
 describe AMQP::Client do
   it "can connect" do
-    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    c = connect
     ch = c.channel
     ch.should_not be_nil
     c.close
   end
 
   it "can publish" do
-    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    c = connect
     ch = c.channel
     q = ch.queue
     q.publish "hej"
@@ -21,7 +21,7 @@ describe AMQP::Client do
 
   it "can consume" do
     s = Channel(Nil).new
-    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    c = connect
     ch = c.channel
     q = ch.queue
     q.subscribe do |msg|
@@ -34,7 +34,7 @@ describe AMQP::Client do
   end
 
   it "can publish msg larger than frame_max" do
-    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    c = connect
     ch = c.channel
     q = ch.queue
     str = "a" * 257 * 1024
@@ -46,7 +46,7 @@ describe AMQP::Client do
   end
 
   it "raises ClosedException if trying to delete non empty queue" do
-    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    c = connect
     ch = c.channel
     q = ch.queue
     q.publish ""
@@ -57,7 +57,7 @@ describe AMQP::Client do
   end
 
   it "can delete a queue" do
-    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    c = connect
     ch = c.channel
     q = ch.queue("crystal-q1")
     q.publish ""
@@ -70,7 +70,7 @@ describe AMQP::Client do
   end
 
   it "can purge a queue" do
-    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    c = connect
     ch = c.channel
     q = ch.queue
     q.publish ""
@@ -80,7 +80,7 @@ describe AMQP::Client do
   end
 
   it "can declare and publish to an exchange" do
-    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    c = connect
     ch = c.channel
     q = ch.queue("crystal-q2")
     x = ch.default_exchange
@@ -90,7 +90,7 @@ describe AMQP::Client do
   end
 
   it "can publish with confirm" do
-    c = AMQP::Client.new("amqp://guest:guest@localhost").connect
+    c = connect
     ch = c.channel
     q = ch.queue
     q.publish_confirm("hej").should eq true
