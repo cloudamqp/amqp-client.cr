@@ -12,11 +12,12 @@ class AMQP::Client
     @incoming = ::Channel(Frame).new
     @frames = ::Channel(Frame).new
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(1024)
+    @next_msg_ready = ::Channel(Nil).new
     @log : Logger
 
     def initialize(@connection : Connection, @id : UInt16)
       @log = @connection.log
-      spawn read_loop, name: "Channel #{@id} read_loop"
+      spawn read_loop, name: "Channel #{@id} read_loop"
     end
 
     def open
@@ -61,8 +62,33 @@ class AMQP::Client
       @closed = true
     end
 
+    @next_body_io = IO::Memory.new(0)
+    @next_body_size = 0_u32
+    @next_msg_props = AMQ::Protocol::Properties.new
+
     def incoming(frame)
-      @incoming.send frame
+      case frame
+      when Frame::Channel::Close,
+           Frame::Basic::Deliver,
+           Frame::Basic::Return,
+           Frame::Basic::Cancel
+        @incoming.send frame
+      when Frame::Basic::Ack, Frame::Basic::Nack
+        @confirms.send frame
+      when Frame::Header
+        @next_msg_props = frame.properties
+        @next_body_size = frame.body_size.to_u32
+        @next_body_io = IO::Memory.new(@next_body_size)
+        @next_msg_ready.send nil if frame.body_size.zero?
+      when Frame::Body
+        IO.copy(frame.body, @next_body_io, frame.body_size)
+        if @next_body_io.pos == @next_body_size
+          @next_body_io.rewind
+          @next_msg_ready.send nil
+        end
+      else
+        @frames.send frame
+      end
     end
 
     private def read_loop
@@ -73,10 +99,6 @@ class AMQP::Client
         when Frame::Basic::Deliver then process_deliver(frame)
         when Frame::Basic::Return then process_return(frame)
         when Frame::Basic::Cancel then process_cancel(frame)
-        when Frame::Basic::Ack, Frame::Basic::Nack
-          @confirms.send frame
-        else
-          @frames.send frame
         end
       end
     rescue ::Channel::ClosedError
@@ -102,16 +124,10 @@ class AMQP::Client
     end
 
     private def process_deliver(f : Frame::Basic::Deliver)
-      header = expect Frame::Header
-      body_io = IO::Memory.new(header.body_size)
-      until body_io.pos == header.body_size
-        body = expect Frame::Body
-        IO.copy(body.body, body_io, body.body_size)
-      end
-      body_io.rewind
+      @next_msg_ready.receive
       msg = Message.new(self, f.exchange, f.routing_key,
-                        f.delivery_tag, header.properties,
-                        body_io, f.redelivered)
+                        f.delivery_tag, @next_msg_props,
+                        @next_body_io, f.redelivered)
       if consumer = @consumers.fetch(f.consumer_tag, nil)
         begin
           consumer.call(msg)
@@ -130,25 +146,19 @@ class AMQP::Client
     end
 
     private def process_return(return_frame)
-      header = expect Frame::Header
-      body_io = IO::Memory.new(header.body_size)
-      until body_io.pos == header.body_size
-        body = expect Frame::Body
-        IO.copy(body.body, body_io, body.body_size)
-      end
-      body_io.rewind
+      @next_msg_ready.receive
       msg = ReturnedMessage.new(return_frame.reply_code,
                                 return_frame.reply_text,
                                 return_frame.exchange,
                                 return_frame.routing_key,
-                                header.properties, body_io)
+                                @next_msg_props, @next_body_io)
       unless @on_return
         @log.error("Message returned but no on_return block defined: #{msg.inspect}")
         return
       end
 
       begin
-        @on_return.try &.call(msg.not_nil!)
+        @on_return.try &.call(msg)
       rescue ex
         @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
       end
@@ -205,15 +215,9 @@ class AMQP::Client
     end
 
     private def get_message(f) : Message
-      header = expect Frame::Header
-      body_io = IO::Memory.new(header.body_size)
-      until body_io.pos == header.body_size
-        body = expect Frame::Body
-        IO.copy(body.body, body_io, body.body_size)
-      end
-      body_io.rewind
+      @next_msg_ready.receive
       Message.new(self, f.exchange, f.routing_key,
-                  f.delivery_tag, header.properties, body_io,
+                  f.delivery_tag, @next_msg_props, @next_body_io,
                   f.redelivered)
     end
 
