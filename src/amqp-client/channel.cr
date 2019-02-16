@@ -70,6 +70,7 @@ class AMQP::Client
     def incoming(frame)
       case frame
       when Frame::Channel::Close,
+           Frame::Channel::Flow,
            Frame::Basic::Deliver,
            Frame::Basic::Return,
            Frame::Basic::Cancel
