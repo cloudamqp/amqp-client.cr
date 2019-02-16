@@ -38,7 +38,7 @@ class AMQP::Client
       ch.close
     end
 
-    @on_close : Proc((UInt16, String), Nil)? 
+    @on_close : Proc(UInt16, String, Nil)?
 
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
@@ -118,14 +118,14 @@ class AMQP::Client
       password = URI.unescape(password)
       response = "\u0000#{user}\u0000#{password}"
       io.write_bytes(Frame::Connection::StartOk.new(props, "PLAIN", response, ""),
-                     IO::ByteFormat::NetworkEndian)
+        IO::ByteFormat::NetworkEndian)
       io.flush
       tune = Frame.from_io(io) { |f| f.as?(Frame::Connection::Tune) || raise UnexpectedFrame.new(f) }
       channel_max = tune.channel_max.zero? ? channel_max : tune.channel_max
       frame_max = tune.frame_max.zero? ? frame_max : tune.frame_max
       io.write_bytes Frame::Connection::TuneOk.new(channel_max: channel_max,
-                                                   frame_max: frame_max,
-                                                   heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
+        frame_max: frame_max,
+        heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
       io.write_bytes Frame::Connection::Open.new(vhost), IO::ByteFormat::NetworkEndian
       io.flush
       Frame.from_io(io) do |f|

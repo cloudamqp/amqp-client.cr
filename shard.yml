@@ -3,11 +3,13 @@ version: 0.3.6
 
 authors:
   - Carl Hörberg <carl@cloudamqp.com>
+  - Anders Bälter <anders@cloudamqp.com>
 
 dependencies:
   amq-protocol:
-    github: cloudamqp/amq-protocol.cr
-    # path: ../amq-protocol.cr
+    # github: cloudamqp/amq-protocol.cr
+    # branch: master
+    path: ../amq-protocol.cr
 
 crystal: 0.27.0
 
