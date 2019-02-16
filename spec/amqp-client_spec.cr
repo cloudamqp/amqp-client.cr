@@ -25,7 +25,6 @@ describe AMQP::Client do
     ch = c.channel
     q = ch.queue
     q.subscribe do |msg|
-      puts "here"
       msg.should_not be_nil
       s.send nil
     end

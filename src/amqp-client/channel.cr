@@ -95,6 +95,7 @@ class AMQP::Client
     private def read_loop
       loop do
         frame = @incoming.receive
+        puts "Read frame #{frame.inspect}"
         case frame
         when Frame::Channel::Close then close(frame)
         when Frame::Basic::Deliver then process_deliver(frame)
