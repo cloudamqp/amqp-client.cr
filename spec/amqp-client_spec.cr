@@ -106,4 +106,38 @@ describe AMQP::Client do
       end
     end
   end
+
+  it "can publish and consume properties" do
+    AMQP::Client.start("amqp://guest:guest@localhost") do |c|
+      c.channel do |ch|
+        q = ch.queue
+        props = AMQ::Protocol::Properties.new(content_type: "text/plain", delivery_mode: 1_u8)
+        q.publish "hej", props: props
+        if msg = q.get(no_ack: true)
+          msg.properties.should eq props
+        else
+          msg.should_not be_nil
+        end
+      end
+    end
+  end
+
+  it "can get multiple messages" do
+    AMQP::Client.start("amqp://guest:guest@localhost") do |c|
+      ch = c.channel
+      q = ch.queue
+      props1 = AMQ::Protocol::Properties.new(headers: { "h" => "1" } of String => AMQ::Protocol::Field)
+      props2 = AMQ::Protocol::Properties.new(headers: { "h" => "2" } of String => AMQ::Protocol::Field)
+      q.publish_confirm "1", props: props1
+      q.publish_confirm "2", props: props2
+      msg1 = q.get(no_ack: true)
+      msg2 = q.get(no_ack: true)
+      msg1.should_not be_nil
+      msg1.body_io.to_s.should eq "1" if msg1
+      msg1.properties.should eq props1 if msg1
+      msg2.should_not be_nil
+      msg2.body_io.to_s.should eq "2" if msg2
+      msg2.properties.should eq props2 if msg2
+    end
+  end
 end

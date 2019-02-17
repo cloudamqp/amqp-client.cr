@@ -62,7 +62,7 @@ class AMQP::Client
       @closed = true
     end
 
-    @next_body_io = IO::Memory.new(0)
+    @next_body_io = IO::Memory.new(4096)
     @next_body_size = 0_u32
     @next_msg_props = AMQ::Protocol::Properties.new
 
@@ -76,9 +76,9 @@ class AMQP::Client
       when Frame::Basic::Ack, Frame::Basic::Nack
         @confirms.send frame
       when Frame::Header
+        @next_body_io.clear
         @next_msg_props = frame.properties
         @next_body_size = frame.body_size.to_u32
-        @next_body_io = IO::Memory.new(@next_body_size)
         @next_msg_ready.send nil if frame.body_size.zero?
       when Frame::Body
         IO.copy(frame.body, @next_body_io, frame.body_size)
@@ -216,8 +216,11 @@ class AMQP::Client
 
     private def get_message(f) : Message
       @next_msg_ready.receive
+      io = IO::Memory.new(@next_body_io.bytesize)
+      IO.copy(@next_body_io, io, @next_body_io.bytesize)
+      io.rewind
       Message.new(self, f.exchange, f.routing_key,
-                  f.delivery_tag, @next_msg_props, @next_body_io,
+                  f.delivery_tag, @next_msg_props, io,
                   f.redelivered)
     end
 
