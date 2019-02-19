@@ -16,8 +16,9 @@ class AMQP::Client
   def self.start(host = "localhost", port = 5672, vhost = "/",
                  user = "guest", password = "guest", tls = false,
                  channel_max = UInt16::MAX, frame_max = 131_072_u32, heartbeat = 0_u16,
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER,
                  log_level = Logger::WARN, &blk : AMQP::Client::Connection -> Nil)
-    conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, log_level).connect
+    conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, log_level).connect
     yield conn
   ensure
     conn.try &.close
