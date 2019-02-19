@@ -115,6 +115,15 @@ class AMQP::Client
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise UnexpectedFrame.new(f) }
 
       props = Arguments.new
+      props["product"] = "amqp-client.cr"
+      props["platform"] = "Crystal"
+      props["version"] = AMQP::Client::VERSION
+      capabilities = Arguments.new
+      capabilities["publisher_confirms"] = true
+      capabilities["exchange_exchange_bindings"] = true
+      capabilities["basic.nack"] = true
+      capabilities["server_flow"] = true
+      props["capabilities"] = capabilities
       user = URI.unescape(user)
       password = URI.unescape(password)
       response = "\u0000#{user}\u0000#{password}"
