@@ -39,12 +39,17 @@ class AMQP::Client
     @heartbeat = arguments.fetch("heartbeat", 0_u16).to_u16
     @frame_max = arguments.fetch("frame_max", 131_072_u32).to_u32
     @channel_max = arguments.fetch("channel_max", UInt16::MAX).to_u16
+    @verify_mode = case arguments.fetch("verify", "").downcase
+                   when "none" then OpenSSL::SSL::VerifyMode::NONE
+                   else             OpenSSL::SSL::VerifyMode::PEER
+                   end
     @log = Logger.new(STDOUT, level: log_level)
   end
 
+
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
                  @tls = false, @channel_max = UInt16::MAX, @frame_max = 131_072_u32, @heartbeat = 0_u16,
-                 log_level = Logger::WARN)
+                 @verify_mode = OpenSSL::SSL::VerifyMode::PEER, log_level = Logger::WARN)
     @log = Logger.new(STDOUT, level: log_level)
   end
     
@@ -58,7 +63,9 @@ class AMQP::Client
     socket.tcp_keepalive_interval = 10
     socket.write_timeout = 15
     if @tls
-      tls_socket = OpenSSL::SSL::Socket::Client.new(socket, sync_close: true, hostname: @host)
+      ctx = OpenSSL::SSL::Context::Client.new
+      ctx.verify_mode = @verify_mode
+      tls_socket = OpenSSL::SSL::Socket::Client.new(socket, ctx, sync_close: true, hostname: @host)
       Connection.start(tls_socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
     else
       Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
