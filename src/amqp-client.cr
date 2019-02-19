@@ -55,7 +55,6 @@ class AMQP::Client
     
   def connect : Connection
     socket = TCPSocket.new(@host, @port, connect_timeout: 5)
-    socket.sync = false
     socket.keepalive = true
     socket.tcp_nodelay = true
     socket.tcp_keepalive_idle = 60
@@ -66,8 +65,14 @@ class AMQP::Client
       ctx = OpenSSL::SSL::Context::Client.new
       ctx.verify_mode = @verify_mode
       tls_socket = OpenSSL::SSL::Socket::Client.new(socket, ctx, sync_close: true, hostname: @host)
+      socket.sync = true
+      socket.read_buffering = false
+      tls_socket.sync = false
+      tls_socket.read_buffering = true
       Connection.start(tls_socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
     else
+      socket.sync = false
+      socket.read_buffering = true
       Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
     end
   end
