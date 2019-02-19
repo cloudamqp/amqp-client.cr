@@ -33,7 +33,7 @@ class AMQP::Client
              else
                URI.unescape(uri.path.not_nil![1..-1])
              end
-    @user = uri.password || "guest"
+    @user = uri.user || "guest"
     @password = uri.password || "guest"
     arguments = uri.query.try(&.split("&").map(&.split("=")).to_h) || Hash(String, String).new
     @heartbeat = arguments.fetch("heartbeat", 0_u16).to_u16
