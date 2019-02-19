@@ -8,6 +8,7 @@ require "../amqp-client"
 class AMQP::Client
   class Connection
     getter frame_max, log
+    getter? closed = false
 
     def initialize(@io : TCPSocket | OpenSSL::SSL::Socket::Client,
                    @log : Logger, @channel_max : UInt16,
@@ -50,7 +51,7 @@ class AMQP::Client
           @log.debug { "got #{f.inspect}" }
           case f
           when Frame::Connection::Close
-            @log.error("Connection closed by server: #{f.inspect}") unless @on_close
+            @log.info("Connection closed by server: #{f.inspect}") unless @on_close || @closed
             begin
               @on_close.try &.call(f.reply_code, f.reply_text)
             rescue ex
@@ -84,26 +85,26 @@ class AMQP::Client
         break
       end
       @io.close
+      @closed = true
     rescue ex : Errno
+    ensure
+      @channels.each_value &.cleanup
+      @channels.clear
     end
 
     def write(frame, flush = true)
+      return if @closed
       @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
       @io.flush if flush
       @log.debug { "sent #{frame.inspect}" }
     end
 
     def close(msg = "Connection closed")
-      @channels.each_value &.cleanup
-      @channels.clear
       @log.info("Closing connection")
       write Frame::Connection::Close.new(320_u16, msg, 0_u16, 0_u16)
+      @closed = true
     rescue ex : Errno | IO::Error
       @log.info("Socket already closed, can't send close frame")
-    end
-
-    def closed?
-      @io.closed?
     end
 
     def self.start(io : TCPSocket | OpenSSL::SSL::Socket::Client, log,

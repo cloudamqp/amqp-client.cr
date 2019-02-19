@@ -52,6 +52,10 @@ class AMQP::Client
       cleanup
     end
 
+    def flow(active : Bool)
+      write Frame::Channel::Flow.new(@id, active)
+    end
+
     def closed?
       @closed
     end
@@ -101,18 +105,13 @@ class AMQP::Client
         when Frame::Basic::Deliver then process_deliver(frame)
         when Frame::Basic::Return  then process_return(frame)
         when Frame::Basic::Cancel  then process_cancel(frame)
-        when Frame::Channel::Flow  then server_flow(frame.active)
+        when Frame::Channel::Flow  then process_flow(frame.active)
         end
       end
     rescue ::Channel::ClosedError
     end
 
     @on_cancel : Proc(String, Nil)?
-
-    def server_flow(active : Bool)
-      @flow = active
-      write Frame::Channel::FlowOk.new(@id, active)
-    end
 
     def on_cancel(&blk : String -> Nil)
       @on_cancel = blk
@@ -170,6 +169,11 @@ class AMQP::Client
       rescue ex
         @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
       end
+    end
+
+    private def process_flow(active : Bool)
+      @flow = active
+      write Frame::Channel::FlowOk.new(@id, active)
     end
 
     def basic_publish(bytes : Bytes, exchange, routing_key, mandatory = false, immediate = false, props = Properties.new)
