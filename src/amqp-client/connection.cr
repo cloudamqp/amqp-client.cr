@@ -122,6 +122,10 @@ class AMQP::Client
       capabilities["publisher_confirms"] = true
       capabilities["exchange_exchange_bindings"] = true
       capabilities["basic.nack"] = true
+      capabilities["per_consumer_qos"] = true
+      capabilities["authentication_failure_close"] = true
+      capabilities["consumer_cancel_notify"] = true
+      capabilities["connection.blocked"] = true
       props["capabilities"] = capabilities
       user = URI.unescape(user)
       password = URI.unescape(password)
