@@ -133,7 +133,15 @@ class AMQP::Client
       io.write_bytes(Frame::Connection::StartOk.new(props, "PLAIN", response, ""),
         IO::ByteFormat::NetworkEndian)
       io.flush
-      tune = Frame.from_io(io) { |f| f.as?(Frame::Connection::Tune) || raise UnexpectedFrame.new(f) }
+      tune = Frame.from_io(io) do |f|
+        case f
+        when Frame::Connection::Tune then next f
+        when Frame::Connection::Close
+          raise Connection::ClosedException.new(f.as(Frame::Connection::Close))
+        else
+          raise UnexpectedFrame.new(f)
+        end
+      end
       channel_max = tune.channel_max.zero? ? channel_max : tune.channel_max
       frame_max = tune.frame_max.zero? ? frame_max : tune.frame_max
       io.write_bytes Frame::Connection::TuneOk.new(channel_max: channel_max,
