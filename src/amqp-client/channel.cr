@@ -14,7 +14,7 @@ class AMQP::Client
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(1024)
     @next_msg_ready = ::Channel(Nil).new
     @log : Logger
-    @flow = true
+    @server_flow = true
 
     def initialize(@connection : Connection, @id : UInt16)
       @log = @connection.log
@@ -172,7 +172,7 @@ class AMQP::Client
     end
 
     private def process_flow(active : Bool)
-      @flow = active
+      @server_flow = active
       write Frame::Channel::FlowOk.new(@id, active)
     end
 
@@ -232,8 +232,8 @@ class AMQP::Client
       IO.copy(@next_body_io, io, @next_body_io.bytesize)
       io.rewind
       Message.new(self, f.exchange, f.routing_key,
-                  f.delivery_tag, @next_msg_props, io,
-                  f.redelivered)
+        f.delivery_tag, @next_msg_props, io,
+        f.redelivered)
     end
 
     def has_subscriber?(consumer_tag)
