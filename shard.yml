@@ -3,6 +3,7 @@ version: 0.3.6
 
 authors:
   - Carl Hörberg <carl@cloudamqp.com>
+  - Anders Bälter <anders@cloudamqp.com>
 
 dependencies:
   amq-protocol:

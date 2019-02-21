@@ -14,6 +14,7 @@ class AMQP::Client
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(1024)
     @next_msg_ready = ::Channel(Nil).new
     @log : Logger
+    @server_flow = true
 
     def initialize(@connection : Connection, @id : UInt16)
       @log = @connection.log
@@ -26,7 +27,7 @@ class AMQP::Client
       self
     end
 
-    @on_close : Proc((UInt16, String), Nil)? 
+    @on_close : Proc(UInt16, String, Nil)?
 
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
@@ -51,6 +52,10 @@ class AMQP::Client
       cleanup
     end
 
+    def flow(active : Bool)
+      write Frame::Channel::Flow.new(@id, active)
+    end
+
     def closed?
       @closed
     end
@@ -69,6 +74,7 @@ class AMQP::Client
     def incoming(frame)
       case frame
       when Frame::Channel::Close,
+           Frame::Channel::Flow,
            Frame::Basic::Deliver,
            Frame::Basic::Return,
            Frame::Basic::Cancel
@@ -97,8 +103,9 @@ class AMQP::Client
         case frame
         when Frame::Channel::Close then close(frame)
         when Frame::Basic::Deliver then process_deliver(frame)
-        when Frame::Basic::Return then process_return(frame)
-        when Frame::Basic::Cancel then process_cancel(frame)
+        when Frame::Basic::Return  then process_return(frame)
+        when Frame::Basic::Cancel  then process_cancel(frame)
+        when Frame::Channel::Flow  then process_flow(frame.active)
         end
       end
     rescue ::Channel::ClosedError
@@ -126,8 +133,8 @@ class AMQP::Client
     private def process_deliver(f : Frame::Basic::Deliver)
       @next_msg_ready.receive
       msg = Message.new(self, f.exchange, f.routing_key,
-                        f.delivery_tag, @next_msg_props,
-                        @next_body_io, f.redelivered)
+        f.delivery_tag, @next_msg_props,
+        @next_body_io, f.redelivered)
       if consumer = @consumers.fetch(f.consumer_tag, nil)
         begin
           consumer.call(msg)
@@ -148,10 +155,10 @@ class AMQP::Client
     private def process_return(return_frame)
       @next_msg_ready.receive
       msg = ReturnedMessage.new(return_frame.reply_code,
-                                return_frame.reply_text,
-                                return_frame.exchange,
-                                return_frame.routing_key,
-                                @next_msg_props, @next_body_io)
+        return_frame.reply_text,
+        return_frame.exchange,
+        return_frame.routing_key,
+        @next_msg_props, @next_body_io)
       unless @on_return
         @log.error("Message returned but no on_return block defined: #{msg.inspect}")
         return
@@ -162,6 +169,11 @@ class AMQP::Client
       rescue ex
         @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
       end
+    end
+
+    private def process_flow(active : Bool)
+      @server_flow = active
+      write Frame::Channel::FlowOk.new(@id, active)
     end
 
     def basic_publish(bytes : Bytes, exchange, routing_key, mandatory = false, immediate = false, props = Properties.new)
@@ -208,9 +220,9 @@ class AMQP::Client
       write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
       f = next_frame
       case f
-      when Frame::Basic::GetOk then get_message(f)
+      when Frame::Basic::GetOk    then get_message(f)
       when Frame::Basic::GetEmpty then nil
-      else raise UnexpectedFrame.new(f)
+      else                             raise UnexpectedFrame.new(f)
       end
     end
 
@@ -220,8 +232,8 @@ class AMQP::Client
       IO.copy(@next_body_io, io, @next_body_io.bytesize)
       io.rewind
       Message.new(self, f.exchange, f.routing_key,
-                  f.delivery_tag, @next_msg_props, io,
-                  f.redelivered)
+        f.delivery_tag, @next_msg_props, io,
+        f.redelivered)
     end
 
     def has_subscriber?(consumer_tag)
@@ -283,26 +295,26 @@ class AMQP::Client
       auto_delete = true if name.empty?
       no_wait = false
       write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable,
-                                      exclusive, auto_delete, no_wait,
-                                      args)
+        exclusive, auto_delete, no_wait,
+        args)
       f = expect Frame::Queue::DeclareOk
       {
-        queue_name: f.queue_name,
-        message_count: f.message_count,
-        consumer_count: f.consumer_count
+        queue_name:     f.queue_name,
+        message_count:  f.message_count,
+        consumer_count: f.consumer_count,
       }
     end
 
     def queue_delete(name : String, if_unused = false, if_empty = false)
       write Frame::Queue::Delete.new(@id, 0_u16, name, if_unused, if_empty, no_wait: false)
       f = expect Frame::Queue::DeleteOk
-      { message_count: f.message_count }
+      {message_count: f.message_count}
     end
 
     def queue_purge(name : String)
       write Frame::Queue::Purge.new(@id, 0_u16, name, no_wait: false)
       f = expect Frame::Queue::PurgeOk
-      { message_count: f.message_count }
+      {message_count: f.message_count}
     end
 
     def queue_bind(queue : String, exchange : String, routing_key : String, no_wait = false, args = Arguments.new) : Nil
@@ -346,8 +358,8 @@ class AMQP::Client
                          internal = false, auto_delete = false,
                          no_wait = false, args = Arguments.new) : Nil
       write Frame::Exchange::Declare.new(@id, 0_u16, name, type, passive,
-                                         durable, auto_delete, internal,
-                                         no_wait, args)
+        durable, auto_delete, internal,
+        no_wait, args)
       expect Frame::Exchange::DeclareOk unless no_wait
     end
 

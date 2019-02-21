@@ -8,6 +8,7 @@ require "../amqp-client"
 class AMQP::Client
   class Connection
     getter frame_max, log
+    getter? closed = false
 
     def initialize(@io : TCPSocket | OpenSSL::SSL::Socket::Client,
                    @log : Logger, @channel_max : UInt16,
@@ -38,7 +39,7 @@ class AMQP::Client
       ch.close
     end
 
-    @on_close : Proc((UInt16, String), Nil)? 
+    @on_close : Proc(UInt16, String, Nil)?
 
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
@@ -50,7 +51,7 @@ class AMQP::Client
           @log.debug { "got #{f.inspect}" }
           case f
           when Frame::Connection::Close
-            @log.error("Connection closed by server: #{f.inspect}") unless @on_close
+            @log.info("Connection closed by server: #{f.inspect}") unless @on_close || @closed
             begin
               @on_close.try &.call(f.reply_code, f.reply_text)
             rescue ex
@@ -84,26 +85,26 @@ class AMQP::Client
         break
       end
       @io.close
+      @closed = true
     rescue ex : Errno
+    ensure
+      @channels.each_value &.cleanup
+      @channels.clear
     end
 
     def write(frame, flush = true)
+      return if @closed
       @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
       @io.flush if flush
       @log.debug { "sent #{frame.inspect}" }
     end
 
     def close(msg = "Connection closed")
-      @channels.each_value &.cleanup
-      @channels.clear
       @log.info("Closing connection")
       write Frame::Connection::Close.new(320_u16, msg, 0_u16, 0_u16)
+      @closed = true
     rescue ex : Errno | IO::Error
       @log.info("Socket already closed, can't send close frame")
-    end
-
-    def closed?
-      @io.closed?
     end
 
     def self.start(io : TCPSocket | OpenSSL::SSL::Socket::Client, log,
@@ -114,18 +115,30 @@ class AMQP::Client
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise UnexpectedFrame.new(f) }
 
       props = Arguments.new
+      props["product"] = "amqp-client.cr"
+      props["platform"] = "Crystal"
+      props["version"] = AMQP::Client::VERSION
+      capabilities = Arguments.new
+      capabilities["publisher_confirms"] = true
+      capabilities["exchange_exchange_bindings"] = true
+      capabilities["basic.nack"] = true
+      capabilities["per_consumer_qos"] = true
+      capabilities["authentication_failure_close"] = true
+      capabilities["consumer_cancel_notify"] = true
+      capabilities["connection.blocked"] = true
+      props["capabilities"] = capabilities
       user = URI.unescape(user)
       password = URI.unescape(password)
       response = "\u0000#{user}\u0000#{password}"
       io.write_bytes(Frame::Connection::StartOk.new(props, "PLAIN", response, ""),
-                     IO::ByteFormat::NetworkEndian)
+        IO::ByteFormat::NetworkEndian)
       io.flush
       tune = Frame.from_io(io) { |f| f.as?(Frame::Connection::Tune) || raise UnexpectedFrame.new(f) }
       channel_max = tune.channel_max.zero? ? channel_max : tune.channel_max
       frame_max = tune.frame_max.zero? ? frame_max : tune.frame_max
       io.write_bytes Frame::Connection::TuneOk.new(channel_max: channel_max,
-                                                   frame_max: frame_max,
-                                                   heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
+        frame_max: frame_max,
+        heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
       io.write_bytes Frame::Connection::Open.new(vhost), IO::ByteFormat::NetworkEndian
       io.flush
       Frame.from_io(io) do |f|
