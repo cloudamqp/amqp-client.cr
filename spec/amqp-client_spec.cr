@@ -114,7 +114,8 @@ describe AMQP::Client do
         props = AMQ::Protocol::Properties.new(content_type: "text/plain", delivery_mode: 1_u8)
         q.publish "hej", props: props
         if msg = q.get(no_ack: true)
-          msg.properties.should eq props
+          msg.properties.content_type.should eq props.content_type
+          msg.properties.delivery_mode.should eq props.delivery_mode
         else
           msg.should_not be_nil
         end
@@ -126,18 +127,18 @@ describe AMQP::Client do
     AMQP::Client.start("amqp://guest:guest@localhost") do |c|
       ch = c.channel
       q = ch.queue
-      props1 = AMQ::Protocol::Properties.new(headers: { "h" => "1" } of String => AMQ::Protocol::Field)
-      props2 = AMQ::Protocol::Properties.new(headers: { "h" => "2" } of String => AMQ::Protocol::Field)
+      props1 = AMQ::Protocol::Properties.new(headers: {"h" => "1"} of String => AMQ::Protocol::Field)
+      props2 = AMQ::Protocol::Properties.new(headers: {"h" => "2"} of String => AMQ::Protocol::Field)
       q.publish_confirm "1", props: props1
       q.publish_confirm "2", props: props2
       msg1 = q.get(no_ack: true)
       msg2 = q.get(no_ack: true)
       msg1.should_not be_nil
       msg1.body_io.to_s.should eq "1" if msg1
-      msg1.properties.should eq props1 if msg1
+      msg1.properties.headers.should eq props1.headers if msg1
       msg2.should_not be_nil
       msg2.body_io.to_s.should eq "2" if msg2
-      msg2.properties.should eq props2 if msg2
+      msg2.properties.headers.should eq props2.headers if msg2
     end
   end
 end
