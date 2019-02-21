@@ -127,4 +127,18 @@ describe AMQP::Client do
       msg2.properties.headers.should eq props2.headers if msg2
     end
   end
+
+  it "can send consumer flow" do
+    with_channel do |ch|
+      q = ch.queue
+      msg = nil
+      q.subscribe do |m|
+        msg = m
+      end
+      ch.flow(false)
+      q.publish("hej!")
+      sleep 0.05
+      msg.should be_nil
+    end
+  end
 end
