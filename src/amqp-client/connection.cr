@@ -61,6 +61,12 @@ class AMQP::Client
             next false
           when Frame::Connection::CloseOk
             next false
+          when Frame::Connection::Blocked
+            @log.info "Blocked by server, reason: #{f.reason}"
+            @write_lock.lock
+          when Frame::Connection::Unblocked
+            @log.info "Unblocked by server"
+            @write_lock.unlock
           when Frame::Heartbeat
             write f
           else
@@ -84,18 +90,27 @@ class AMQP::Client
         @log.error "read_loop exception: #{ex.inspect}"
         break
       end
-      @io.close
       @closed = true
+      @io.close
     rescue ex : Errno
     ensure
       @channels.each_value &.cleanup
       @channels.clear
     end
 
-    def write(frame, flush = true)
+    @write_lock = Mutex.new
+
+    def with_lock(&blk : Connection -> Nil)
+      @write_lock.synchronize do
+        yield self
+        @io.flush
+      end
+    end
+
+    def write(frame)
       return if @closed
       @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
-      @io.flush if flush
+      @io.flush
       @log.debug { "sent #{frame.inspect}" }
     end
 

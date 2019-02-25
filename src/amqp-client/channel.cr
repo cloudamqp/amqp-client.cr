@@ -186,11 +186,13 @@ class AMQP::Client
 
     def basic_publish(io : IO, exchange : String, routing_key : String,
                       mandatory = false, immediate = false, props = Properties.new) : UInt64?
-      write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate), flush: false
-      write Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, props), flush: io.bytesize.zero?
-      until io.pos == io.bytesize
-        length = Math.min(@connection.frame_max, io.bytesize.to_u32 - io.pos)
-        write Frame::Body.new(@id, length, io), flush: true
+      @connection.with_lock do |c|
+        c.write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
+        c.write Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, props)
+        until io.pos == io.bytesize
+          length = Math.min(@connection.frame_max, io.bytesize.to_u32 - io.pos)
+          c.write Frame::Body.new(@id, length, io)
+        end
       end
       @confirm_id += 1_u64 if @confirm_mode
     end
@@ -232,8 +234,8 @@ class AMQP::Client
       IO.copy(@next_body_io, io, @next_body_io.bytesize)
       io.rewind
       Message.new(self, f.exchange, f.routing_key,
-        f.delivery_tag, @next_msg_props, io,
-        f.redelivered)
+                  f.delivery_tag, @next_msg_props, io,
+                  f.redelivered)
     end
 
     def has_subscriber?(consumer_tag)
@@ -295,8 +297,8 @@ class AMQP::Client
       auto_delete = true if name.empty?
       no_wait = false
       write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable,
-        exclusive, auto_delete, no_wait,
-        args)
+                                      exclusive, auto_delete, no_wait,
+                                      args)
       f = expect Frame::Queue::DeclareOk
       {
         queue_name:     f.queue_name,
@@ -358,8 +360,8 @@ class AMQP::Client
                          internal = false, auto_delete = false,
                          no_wait = false, args = Arguments.new) : Nil
       write Frame::Exchange::Declare.new(@id, 0_u16, name, type, passive,
-        durable, auto_delete, internal,
-        no_wait, args)
+                                         durable, auto_delete, internal,
+                                         no_wait, args)
       expect Frame::Exchange::DeclareOk unless no_wait
     end
 
@@ -390,8 +392,8 @@ class AMQP::Client
       expect Frame::Basic::RecoverOk
     end
 
-    private def write(frame, flush = true)
-      @connection.write frame, flush
+    private def write(frame)
+      @connection.write frame
     end
 
     private def next_frame : Frame
