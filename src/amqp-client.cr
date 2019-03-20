@@ -7,7 +7,7 @@ require "./amqp-client/*"
 
 class AMQP::Client
   def self.start(url : String, log_level = Logger::WARN, &blk : AMQP::Client::Connection -> Nil)
-    conn = self.new(url).connect
+    conn = self.new(url, log_level).connect
     yield conn
   ensure
     conn.try &.close
@@ -47,13 +47,12 @@ class AMQP::Client
     @log = Logger.new(STDOUT, level: log_level)
   end
 
-
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
                  @tls = false, @channel_max = UInt16::MAX, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  @verify_mode = OpenSSL::SSL::VerifyMode::PEER, log_level = Logger::WARN)
     @log = Logger.new(STDOUT, level: log_level)
   end
-    
+
   def connect : Connection
     socket = TCPSocket.new(@host, @port, connect_timeout: 5)
     socket.keepalive = true
@@ -81,10 +80,12 @@ class AMQP::Client
   alias Frame = AMQ::Protocol::Frame
   alias Arguments = Hash(String, AMQ::Protocol::Field)
   alias Properties = AMQ::Protocol::Properties
+
   class UnexpectedFrame < Exception
     def initialize
       super
     end
+
     def initialize(frame : Frame)
       super(frame.inspect)
     end
