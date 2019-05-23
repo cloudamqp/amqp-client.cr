@@ -22,11 +22,13 @@ class AMQP::Client
       if id
         raise "channel_max reached" if @channel_max < id
         return @channels[id] if @channels.has_key? id
-        return @channels[id] = Channel.new(self, id).open
+        ch = @channels[id] = Channel.new(self, id)
+        return ch.open
       end
       1_u16.upto(@channel_max) do |i|
         next if @channels.has_key? i
-        return @channels[i] = Channel.new(self, i).open
+        ch = @channels[i] = Channel.new(self, i)
+        return ch.open
       end
       raise "channel_max reached"
     end
