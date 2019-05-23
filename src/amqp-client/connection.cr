@@ -10,7 +10,7 @@ class AMQP::Client
     getter frame_max, log
     getter? closed = false
 
-    def initialize(@io : TCPSocket | OpenSSL::SSL::Socket::Client,
+    def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
                    @log : Logger, @channel_max : UInt16,
                    @frame_max : UInt32, @heartbeat : UInt16)
       spawn read_loop, name: "AMQP::Client#read_loop"
@@ -26,9 +26,7 @@ class AMQP::Client
       end
       1_u16.upto(@channel_max) do |i|
         next if @channels.has_key? i
-        ch = @channels[i] = Channel.new(self, i)
-        ch.open
-        return ch
+        return @channels[i] = Channel.new(self, i).open
       end
       raise "channel_max reached"
     end
@@ -122,7 +120,7 @@ class AMQP::Client
       @log.info("Socket already closed, can't send close frame")
     end
 
-    def self.start(io : TCPSocket | OpenSSL::SSL::Socket::Client, log,
+    def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client, log,
                    user, password, vhost,
                    channel_max, frame_max, heartbeat)
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice

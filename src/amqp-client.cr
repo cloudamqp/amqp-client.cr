@@ -55,26 +55,47 @@ class AMQP::Client
   end
     
   def connect : Connection
+    if @host.starts_with? '/'
+      socket = connect_unix
+      Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+    elsif @tls
+      socket = connect_tls(connect_tcp)
+      Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+    else
+      socket = connect_tcp
+      Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+    end
+  end
+
+  private def connect_tcp
     socket = TCPSocket.new(@host, @port, connect_timeout: 5)
     socket.keepalive = true
     socket.tcp_nodelay = true
     socket.tcp_keepalive_idle = 60
     socket.tcp_keepalive_count = 3
     socket.tcp_keepalive_interval = 10
+    socket.sync = false
+    socket.read_buffering = true
     socket.write_timeout = 15
-    if @tls
-      ctx = OpenSSL::SSL::Context::Client.new
-      ctx.verify_mode = @verify_mode
-      tls_socket = OpenSSL::SSL::Socket::Client.new(socket, ctx, sync_close: true, hostname: @host)
-      socket.sync = true
-      socket.read_buffering = false
-      tls_socket.sync = false
-      tls_socket.read_buffering = true
-      Connection.start(tls_socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
-    else
+    socket
+  end
+
+  private def connect_tls(socket)
+    socket.sync = true
+    socket.read_buffering = false
+    ctx = OpenSSL::SSL::Context::Client.new
+    ctx.verify_mode = @verify_mode
+    tls_socket = OpenSSL::SSL::Socket::Client.new(socket, ctx, sync_close: true, hostname: @host)
+    tls_socket.sync = false
+    tls_socket.read_buffering = true
+    tls_socket
+  end
+
+  private def connect_unix
+    UNIXSocket.new(@host).tap do |socket|
       socket.sync = false
       socket.read_buffering = true
-      Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+      socket.write_timeout = 15
     end
   end
 
