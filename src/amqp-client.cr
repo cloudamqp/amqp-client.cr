@@ -81,11 +81,11 @@ class AMQP::Client
   end
 
   private def connect_tls(socket)
-    socket.sync = true
-    socket.read_buffering = false
     ctx = OpenSSL::SSL::Context::Client.new
     ctx.verify_mode = @verify_mode
     tls_socket = OpenSSL::SSL::Socket::Client.new(socket, ctx, sync_close: true, hostname: @host)
+    socket.sync = true
+    socket.read_buffering = false
     tls_socket.sync = false
     tls_socket.read_buffering = true
     tls_socket

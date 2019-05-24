@@ -5,6 +5,26 @@ require "amq-protocol"
 require "./channel"
 require "../amqp-client"
 
+abstract class OpenSSL::SSL::Socket
+  def read_timeout=(read_timeout)
+    io = @bio.io
+    if io.responds_to? :read_timeout=
+      io.read_timeout = read_timeout
+    else
+      raise NotImplementedError.new("#{io.class}#read_timeout=")
+    end
+  end
+
+  def write_timeout=(write_timeout)
+    io = @bio.io
+    if io.responds_to? :write_timeout=
+      io.write_timeout = write_timeout
+    else
+      raise NotImplementedError.new("#{io.class}#write_timeout=")
+    end
+  end
+end
+
 class AMQP::Client
   class Connection
     getter frame_max, log
@@ -125,6 +145,7 @@ class AMQP::Client
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client, log,
                    user, password, vhost,
                    channel_max, frame_max, heartbeat)
+      io.read_timeout = 15
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise UnexpectedFrame.new(f) }
@@ -177,6 +198,8 @@ class AMQP::Client
       Connection.new(io, log, channel_max, frame_max, heartbeat)
     rescue ex : IO::EOFError
       raise Connection::ClosedException.new("Connection closed by server", ex)
+    ensure
+      io.read_timeout = nil
     end
 
     class ClosedException < Exception
