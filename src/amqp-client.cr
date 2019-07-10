@@ -100,7 +100,7 @@ class AMQP::Client
   end
 
   alias Frame = AMQ::Protocol::Frame
-  alias Arguments = Hash(String, AMQ::Protocol::Field)
+  alias Arguments = AMQ::Protocol::Table
   alias Properties = AMQ::Protocol::Properties
   class UnexpectedFrame < Exception
     def initialize

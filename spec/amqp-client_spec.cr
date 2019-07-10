@@ -113,8 +113,8 @@ describe AMQP::Client do
   it "can get multiple messages" do
     with_channel do |ch|
       q = ch.queue
-      props1 = AMQ::Protocol::Properties.new(headers: {"h" => "1"} of String => AMQ::Protocol::Field)
-      props2 = AMQ::Protocol::Properties.new(headers: {"h" => "2"} of String => AMQ::Protocol::Field)
+      props1 = AMQ::Protocol::Properties.new(headers: AMQ::Protocol::Table.new({"h" => "1"}))
+      props2 = AMQ::Protocol::Properties.new(headers: AMQ::Protocol::Table.new({"h" => "2"} of String => AMQ::Protocol::Field))
       q.publish_confirm "1", props: props1
       q.publish_confirm "2", props: props2
       msg1 = q.get(no_ack: true)
