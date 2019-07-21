@@ -127,11 +127,15 @@ class AMQP::Client
       end
     end
 
-    def write(frame)
+    def write(frame, flush = true)
       return if @closed
       @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
-      @io.flush
+      @io.flush if flush
       @log.debug { "sent #{frame.inspect}" }
+    end
+
+    def flush
+      @io.flush
     end
 
     def close(msg = "Connection closed")
