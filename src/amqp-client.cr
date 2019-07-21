@@ -70,7 +70,7 @@ class AMQP::Client
   private def connect_tcp
     socket = TCPSocket.new(@host, @port, connect_timeout: 5)
     socket.keepalive = true
-    socket.tcp_nodelay = true
+    socket.tcp_nodelay = false
     socket.tcp_keepalive_idle = 60
     socket.tcp_keepalive_count = 3
     socket.tcp_keepalive_interval = 10
