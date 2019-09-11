@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="generator" content="Crystal Docs 0.27.0">
+<meta name="generator" content="Crystal Docs 0.30.1">
 
 
 <link href="../../css/style.css" rel="stylesheet" type="text/css">
@@ -116,6 +116,11 @@
       
     </li>
   
+  <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/SparseArray" data-name="amqp::client::sparsearray(t)">
+      <a href="../../AMQP/Client/SparseArray.html">SparseArray</a>
+      
+    </li>
+  
   <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/UnexpectedFrame" data-name="amqp::client::unexpectedframe">
       <a href="../../AMQP/Client/UnexpectedFrame.html">UnexpectedFrame</a>
       
@@ -166,7 +171,7 @@
   <h2>Defined in:</h2>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L7" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L7" target="_blank">
         amqp-client/channel.cr
       </a>
     
@@ -181,7 +186,7 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#new%28connection%3AConnection%2Cid%3AUInt16%29-class-method" class="signature"><strong>.new</strong>(connection : Connection, id : UInt16)</a>
+        <a href="#new(connection:Connection,id:UInt16)-class-method" class="signature"><strong>.new</strong>(connection : Connection, id : UInt16)</a>
         
       </li>
     
@@ -195,62 +200,62 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#basic_ack%28delivery_tag%3AUInt64%2Cmultiple%3Dfalse%29%3ANil-instance-method" class="signature"><strong>#basic_ack</strong>(delivery_tag : UInt64, multiple = <span class="n">false</span>) : Nil</a>
+        <a href="#basic_ack(delivery_tag:UInt64,multiple=false):Nil-instance-method" class="signature"><strong>#basic_ack</strong>(delivery_tag : UInt64, multiple = <span class="n">false</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_cancel%28consumer_tag%2Cno_wait%3Dfalse%29%3ANil-instance-method" class="signature"><strong>#basic_cancel</strong>(consumer_tag, no_wait = <span class="n">false</span>) : Nil</a>
+        <a href="#basic_cancel(consumer_tag,no_wait=false):Nil-instance-method" class="signature"><strong>#basic_cancel</strong>(consumer_tag, no_wait = <span class="n">false</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_consume%28queue%2Ctag%3D%26quot%3B%26quot%3B%2Cno_ack%3Dtrue%2Cexclusive%3Dfalse%2Cargs%3DArguments.new%2C%26blk%3AMessage-%3ENil%29-instance-method" class="signature"><strong>#basic_consume</strong>(queue, tag = <span class="s">&quot;&quot;</span>, no_ack = <span class="n">true</span>, exclusive = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>, &blk : Message -> Nil)</a>
+        <a href="#basic_consume(queue,tag=&quot;&quot;,no_ack=true,exclusive=false,args=Arguments.new,&blk:Message-%3ENil)-instance-method" class="signature"><strong>#basic_consume</strong>(queue, tag = <span class="s">&quot;&quot;</span>, no_ack = <span class="n">true</span>, exclusive = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>, &blk : Message -> Nil)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_get%28queue%3AString%2Cno_ack%3ABool%29%3AMessage%3F-instance-method" class="signature"><strong>#basic_get</strong>(queue : String, no_ack : Bool) : Message?</a>
+        <a href="#basic_get(queue:String,no_ack:Bool):Message?-instance-method" class="signature"><strong>#basic_get</strong>(queue : String, no_ack : Bool) : Message?</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_nack%28delivery_tag%3AUInt64%2Crequeue%3Dfalse%2Cmultiple%3Dfalse%29%3ANil-instance-method" class="signature"><strong>#basic_nack</strong>(delivery_tag : UInt64, requeue = <span class="n">false</span>, multiple = <span class="n">false</span>) : Nil</a>
+        <a href="#basic_nack(delivery_tag:UInt64,requeue=false,multiple=false):Nil-instance-method" class="signature"><strong>#basic_nack</strong>(delivery_tag : UInt64, requeue = <span class="n">false</span>, multiple = <span class="n">false</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_publish%28io%3AIO%2Cexchange%3AString%2Crouting_key%3AString%2Cmandatory%3Dfalse%2Cimmediate%3Dfalse%2Cprops%3DProperties.new%29%3AUInt64%3F-instance-method" class="signature"><strong>#basic_publish</strong>(io : IO, exchange : String, routing_key : String, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>) : UInt64?</a>
+        <a href="#basic_publish(io:IO,exchange:String,routing_key:String,mandatory=false,immediate=false,props=Properties.new):UInt64?-instance-method" class="signature"><strong>#basic_publish</strong>(io : IO, exchange : String, routing_key : String, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>) : UInt64?</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_publish%28str%3AString%2Cexchange%2Crouting_key%2Cmandatory%3Dfalse%2Cimmediate%3Dfalse%2Cprops%3DProperties.new%29-instance-method" class="signature"><strong>#basic_publish</strong>(str : String, exchange, routing_key, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)</a>
+        <a href="#basic_publish(str:String,exchange,routing_key,mandatory=false,immediate=false,props=Properties.new)-instance-method" class="signature"><strong>#basic_publish</strong>(str : String, exchange, routing_key, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_publish%28bytes%3ABytes%2Cexchange%2Crouting_key%2Cmandatory%3Dfalse%2Cimmediate%3Dfalse%2Cprops%3DProperties.new%29-instance-method" class="signature"><strong>#basic_publish</strong>(bytes : Bytes, exchange, routing_key, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)</a>
+        <a href="#basic_publish(bytes:Bytes,exchange,routing_key,mandatory=false,immediate=false,props=Properties.new)-instance-method" class="signature"><strong>#basic_publish</strong>(bytes : Bytes, exchange, routing_key, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_publish_confirm%28msg%2Cexchange%2Crouting_key%2Cmandatory%3Dfalse%2Cimmediate%3Dfalse%2Cprops%3DProperties.new%29%3ABool-instance-method" class="signature"><strong>#basic_publish_confirm</strong>(msg, exchange, routing_key, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>) : Bool</a>
+        <a href="#basic_publish_confirm(msg,exchange,routing_key,mandatory=false,immediate=false,props=Properties.new):Bool-instance-method" class="signature"><strong>#basic_publish_confirm</strong>(msg, exchange, routing_key, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>) : Bool</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_qos%28count%2Cglobal%3Dfalse%29%3ANil-instance-method" class="signature"><strong>#basic_qos</strong>(count, global = <span class="n">false</span>) : Nil</a>
+        <a href="#basic_qos(count,global=false):Nil-instance-method" class="signature"><strong>#basic_qos</strong>(count, global = <span class="n">false</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_recover%28requeue%29%3ANil-instance-method" class="signature"><strong>#basic_recover</strong>(requeue) : Nil</a>
+        <a href="#basic_recover(requeue):Nil-instance-method" class="signature"><strong>#basic_recover</strong>(requeue) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#basic_reject%28delivery_tag%3AUInt64%2Crequeue%3Dfalse%29%3ANil-instance-method" class="signature"><strong>#basic_reject</strong>(delivery_tag : UInt64, requeue = <span class="n">false</span>) : Nil</a>
+        <a href="#basic_reject(delivery_tag:UInt64,requeue=false):Nil-instance-method" class="signature"><strong>#basic_reject</strong>(delivery_tag : UInt64, requeue = <span class="n">false</span>) : Nil</a>
         
       </li>
     
@@ -260,22 +265,22 @@
       </li>
     
       <li class="entry-summary">
-        <a href="#close%3ABool-instance-method" class="signature"><strong>#close</strong> : Bool</a>
+        <a href="#close(frame:Frame::Channel::Close):Bool-instance-method" class="signature"><strong>#close</strong>(frame : Frame::Channel::Close) : Bool</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#close%28frame%3AFrame%3A%3AChannel%3A%3AClose%29%3ABool-instance-method" class="signature"><strong>#close</strong>(frame : Frame::Channel::Close) : Bool</a>
+        <a href="#close:Bool-instance-method" class="signature"><strong>#close</strong> : Bool</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#closed%3F%3ABool%3F-instance-method" class="signature"><strong>#closed?</strong> : Bool?</a>
+        <a href="#closed?:Bool?-instance-method" class="signature"><strong>#closed?</strong> : Bool?</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#confirm_select%28no_wait%3Dfalse%29%3ANil-instance-method" class="signature"><strong>#confirm_select</strong>(no_wait = <span class="n">false</span>) : Nil</a>
+        <a href="#confirm_select(no_wait=false):Nil-instance-method" class="signature"><strong>#confirm_select</strong>(no_wait = <span class="n">false</span>) : Nil</a>
         
       </li>
     
@@ -285,72 +290,77 @@
       </li>
     
       <li class="entry-summary">
-        <a href="#direct_exchange%28name%3D%26quot%3Bamq.direct%26quot%3B%2Cpassive%3Dtrue%29-instance-method" class="signature"><strong>#direct_exchange</strong>(name = <span class="s">&quot;amq.direct&quot;</span>, passive = <span class="n">true</span>)</a>
+        <a href="#direct_exchange(name=&quot;amq.direct&quot;,passive=true)-instance-method" class="signature"><strong>#direct_exchange</strong>(name = <span class="s">&quot;amq.direct&quot;</span>, passive = <span class="n">true</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#exchange%28name%2Ctype%2Cpassive%3Dfalse%2Cdurable%3Dtrue%2Cexclusive%3Dfalse%2Cinternal%3Dfalse%2Cauto_delete%3Dfalse%2Cargs%3DArguments.new%29-instance-method" class="signature"><strong>#exchange</strong>(name, type, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, internal = <span class="n">false</span>, auto_delete = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>)</a>
+        <a href="#exchange(name,type,passive=false,durable=true,exclusive=false,internal=false,auto_delete=false,args=Arguments.new)-instance-method" class="signature"><strong>#exchange</strong>(name, type, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, internal = <span class="n">false</span>, auto_delete = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#exchange_bind%28source%3AString%2Cdestination%3AString%2Crouting_key%3AString%2Cno_wait%3Dfalse%2Cargs%3DArguments.new%29%3ANil-instance-method" class="signature"><strong>#exchange_bind</strong>(source : String, destination : String, routing_key : String, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
+        <a href="#exchange_bind(source:String,destination:String,routing_key:String,no_wait=false,args=Arguments.new):Nil-instance-method" class="signature"><strong>#exchange_bind</strong>(source : String, destination : String, routing_key : String, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#exchange_declare%28name%3AString%2Ctype%3AString%2Cpassive%3Dfalse%2Cdurable%3Dtrue%2Cexclusive%3Dfalse%2Cinternal%3Dfalse%2Cauto_delete%3Dfalse%2Cno_wait%3Dfalse%2Cargs%3DArguments.new%29%3ANil-instance-method" class="signature"><strong>#exchange_declare</strong>(name : String, type : String, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, internal = <span class="n">false</span>, auto_delete = <span class="n">false</span>, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
+        <a href="#exchange_declare(name:String,type:String,passive=false,durable=true,exclusive=false,internal=false,auto_delete=false,no_wait=false,args=Arguments.new):Nil-instance-method" class="signature"><strong>#exchange_declare</strong>(name : String, type : String, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, internal = <span class="n">false</span>, auto_delete = <span class="n">false</span>, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#exchange_delete%28name%2Cif_unused%3Dfalse%2Cno_wait%3Dfalse%29%3ANil-instance-method" class="signature"><strong>#exchange_delete</strong>(name, if_unused = <span class="n">false</span>, no_wait = <span class="n">false</span>) : Nil</a>
+        <a href="#exchange_delete(name,if_unused=false,no_wait=false):Nil-instance-method" class="signature"><strong>#exchange_delete</strong>(name, if_unused = <span class="n">false</span>, no_wait = <span class="n">false</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#exchange_unbind%28source%3AString%2Cdestination%3AString%2Crouting_key%3AString%2Cno_wait%3Dfalse%2Cargs%3DArguments.new%29%3ANil-instance-method" class="signature"><strong>#exchange_unbind</strong>(source : String, destination : String, routing_key : String, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
+        <a href="#exchange_unbind(source:String,destination:String,routing_key:String,no_wait=false,args=Arguments.new):Nil-instance-method" class="signature"><strong>#exchange_unbind</strong>(source : String, destination : String, routing_key : String, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#fanout_exchange%28name%3D%26quot%3Bamq.fanout%26quot%3B%2Cpassive%3Dtrue%29-instance-method" class="signature"><strong>#fanout_exchange</strong>(name = <span class="s">&quot;amq.fanout&quot;</span>, passive = <span class="n">true</span>)</a>
+        <a href="#fanout_exchange(name=&quot;amq.fanout&quot;,passive=true)-instance-method" class="signature"><strong>#fanout_exchange</strong>(name = <span class="s">&quot;amq.fanout&quot;</span>, passive = <span class="n">true</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#has_subscriber%3F%28consumer_tag%29-instance-method" class="signature"><strong>#has_subscriber?</strong>(consumer_tag)</a>
+        <a href="#flow(active:Bool)-instance-method" class="signature"><strong>#flow</strong>(active : Bool)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#header_exchange%28name%3D%26quot%3Bamq.header%26quot%3B%2Cpassive%3Dtrue%29-instance-method" class="signature"><strong>#header_exchange</strong>(name = <span class="s">&quot;amq.header&quot;</span>, passive = <span class="n">true</span>)</a>
+        <a href="#has_subscriber?(consumer_tag)-instance-method" class="signature"><strong>#has_subscriber?</strong>(consumer_tag)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#id%3AUInt16-instance-method" class="signature"><strong>#id</strong> : UInt16</a>
+        <a href="#header_exchange(name=&quot;amq.header&quot;,passive=true)-instance-method" class="signature"><strong>#header_exchange</strong>(name = <span class="s">&quot;amq.header&quot;</span>, passive = <span class="n">true</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#incoming%28frame%29-instance-method" class="signature"><strong>#incoming</strong>(frame)</a>
+        <a href="#id:UInt16-instance-method" class="signature"><strong>#id</strong> : UInt16</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#on_cancel%28%26blk%3AString-%3ENil%29-instance-method" class="signature"><strong>#on_cancel</strong>(&blk : String -> Nil)</a>
+        <a href="#incoming(frame)-instance-method" class="signature"><strong>#incoming</strong>(frame)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#on_close%28%26blk%3AUInt16%2CString-%3E%29-instance-method" class="signature"><strong>#on_close</strong>(&blk : UInt16, String -> )</a>
+        <a href="#on_cancel(&blk:String-%3ENil)-instance-method" class="signature"><strong>#on_cancel</strong>(&blk : String -> Nil)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#on_return%28%26blk%3AReturnedMessage-%3ENil%29-instance-method" class="signature"><strong>#on_return</strong>(&blk : ReturnedMessage -> Nil)</a>
+        <a href="#on_close(&blk:UInt16,String-%3E)-instance-method" class="signature"><strong>#on_close</strong>(&blk : UInt16, String -> )</a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#on_return(&blk:ReturnedMessage-%3ENil)-instance-method" class="signature"><strong>#on_return</strong>(&blk : ReturnedMessage -> Nil)</a>
         
       </li>
     
@@ -360,7 +370,7 @@
       </li>
     
       <li class="entry-summary">
-        <a href="#prefetch%28count%2Cglobal%3Dfalse%29%3ANil-instance-method" class="signature"><strong>#prefetch</strong>(count, global = <span class="n">false</span>) : Nil</a>
+        <a href="#prefetch(count,global=false):Nil-instance-method" class="signature"><strong>#prefetch</strong>(count, global = <span class="n">false</span>) : Nil</a>
         
       </li>
     
@@ -372,39 +382,39 @@
       </li>
     
       <li class="entry-summary">
-        <a href="#queue%28name%3AString%2Cpassive%3Dfalse%2Cdurable%3Dtrue%2Cexclusive%3Dfalse%2Cauto_delete%3Dfalse%2Cargs%3DArguments.new%29-instance-method" class="signature"><strong>#queue</strong>(name : String, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, auto_delete = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>)</a>
+        <a href="#queue(name:String,passive=false,durable=true,exclusive=false,auto_delete=false,args=Arguments.new)-instance-method" class="signature"><strong>#queue</strong>(name : String, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, auto_delete = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>)</a>
         
           <div class="summary"><p>Declares a queue with a name, by default durable and not auto-deleted</p></div>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#queue_bind%28queue%3AString%2Cexchange%3AString%2Crouting_key%3AString%2Cno_wait%3Dfalse%2Cargs%3DArguments.new%29%3ANil-instance-method" class="signature"><strong>#queue_bind</strong>(queue : String, exchange : String, routing_key : String, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
+        <a href="#queue_bind(queue:String,exchange:String,routing_key:String,no_wait=false,args=Arguments.new):Nil-instance-method" class="signature"><strong>#queue_bind</strong>(queue : String, exchange : String, routing_key : String, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#queue_declare%28name%3AString%2Cpassive%3Dfalse%2Cdurable%3Dtrue%2Cexclusive%3Dfalse%2Cauto_delete%3Dfalse%2Cargs%3DArguments.new%29-instance-method" class="signature"><strong>#queue_declare</strong>(name : String, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, auto_delete = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>)</a>
+        <a href="#queue_declare(name:String,passive=false,durable=true,exclusive=false,auto_delete=false,args=Arguments.new)-instance-method" class="signature"><strong>#queue_declare</strong>(name : String, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, auto_delete = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#queue_delete%28name%3AString%2Cif_unused%3Dfalse%2Cif_empty%3Dfalse%29-instance-method" class="signature"><strong>#queue_delete</strong>(name : String, if_unused = <span class="n">false</span>, if_empty = <span class="n">false</span>)</a>
+        <a href="#queue_delete(name:String,if_unused=false,if_empty=false)-instance-method" class="signature"><strong>#queue_delete</strong>(name : String, if_unused = <span class="n">false</span>, if_empty = <span class="n">false</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#queue_purge%28name%3AString%29-instance-method" class="signature"><strong>#queue_purge</strong>(name : String)</a>
+        <a href="#queue_purge(name:String)-instance-method" class="signature"><strong>#queue_purge</strong>(name : String)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#queue_unbind%28queue%3AString%2Cexchange%3AString%2Crouting_key%3AString%2Cargs%3DArguments.new%29%3ANil-instance-method" class="signature"><strong>#queue_unbind</strong>(queue : String, exchange : String, routing_key : String, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
+        <a href="#queue_unbind(queue:String,exchange:String,routing_key:String,args=Arguments.new):Nil-instance-method" class="signature"><strong>#queue_unbind</strong>(queue : String, exchange : String, routing_key : String, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#topic_exchange%28name%3D%26quot%3Bamq.topic%26quot%3B%2Cpassive%3Dtrue%29-instance-method" class="signature"><strong>#topic_exchange</strong>(name = <span class="s">&quot;amq.topic&quot;</span>, passive = <span class="n">true</span>)</a>
+        <a href="#topic_exchange(name=&quot;amq.topic&quot;,passive=true)-instance-method" class="signature"><strong>#topic_exchange</strong>(name = <span class="s">&quot;amq.topic&quot;</span>, passive = <span class="n">true</span>)</a>
         
       </li>
     
@@ -416,7 +426,7 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#expect%28clz%29-macro" class="signature"><strong>expect</strong>(clz)</a>
+        <a href="#expect(clz)-macro" class="signature"><strong>expect</strong>(clz)</a>
         
       </li>
     
@@ -456,13 +466,13 @@
         
         def self.<strong>new</strong>(connection : <a href="../../AMQP/Client/Connection.html">Connection</a>, id : UInt16)
 
-        <a class="method-permalink" href="#new%28connection%3AConnection%2Cid%3AUInt16%29-class-method">#</a>
+        <a class="method-permalink" href="#new(connection:Connection,id:UInt16)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L17" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L19" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -479,13 +489,13 @@
         
         def <strong>basic_ack</strong>(delivery_tag : UInt64, multiple = <span class="n">false</span>) : Nil
 
-        <a class="method-permalink" href="#basic_ack%28delivery_tag%3AUInt64%2Cmultiple%3Dfalse%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#basic_ack(delivery_tag:UInt64,multiple=false):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L237" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L260" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -495,13 +505,13 @@
         
         def <strong>basic_cancel</strong>(consumer_tag, no_wait = <span class="n">false</span>) : Nil
 
-        <a class="method-permalink" href="#basic_cancel%28consumer_tag%2Cno_wait%3Dfalse%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#basic_cancel(consumer_tag,no_wait=false):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L231" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L254" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -511,13 +521,13 @@
         
         def <strong>basic_consume</strong>(queue, tag = <span class="s">&quot;&quot;</span>, no_ack = <span class="n">true</span>, exclusive = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>, &blk : <a href="../../AMQP/Client/Message.html">Message</a> -> Nil)
 
-        <a class="method-permalink" href="#basic_consume%28queue%2Ctag%3D%26quot%3B%26quot%3B%2Cno_ack%3Dtrue%2Cexclusive%3Dfalse%2Cargs%3DArguments.new%2C%26blk%3AMessage-%3ENil%29-instance-method">#</a>
+        <a class="method-permalink" href="#basic_consume(queue,tag=&quot;&quot;,no_ack=true,exclusive=false,args=Arguments.new,&blk:Message-%3ENil)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L223" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L246" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -527,13 +537,13 @@
         
         def <strong>basic_get</strong>(queue : String, no_ack : Bool) : <a href="../../AMQP/Client/Message.html">Message</a>?
 
-        <a class="method-permalink" href="#basic_get%28queue%3AString%2Cno_ack%3ABool%29%3AMessage%3F-instance-method">#</a>
+        <a class="method-permalink" href="#basic_get(queue:String,no_ack:Bool):Message?-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L194" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L220" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -543,13 +553,13 @@
         
         def <strong>basic_nack</strong>(delivery_tag : UInt64, requeue = <span class="n">false</span>, multiple = <span class="n">false</span>) : Nil
 
-        <a class="method-permalink" href="#basic_nack%28delivery_tag%3AUInt64%2Crequeue%3Dfalse%2Cmultiple%3Dfalse%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#basic_nack(delivery_tag:UInt64,requeue=false,multiple=false):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L245" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L268" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -559,13 +569,13 @@
         
         def <strong>basic_publish</strong>(io : IO, exchange : String, routing_key : String, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>) : UInt64?
 
-        <a class="method-permalink" href="#basic_publish%28io%3AIO%2Cexchange%3AString%2Crouting_key%3AString%2Cmandatory%3Dfalse%2Cimmediate%3Dfalse%2Cprops%3DProperties.new%29%3AUInt64%3F-instance-method">#</a>
+        <a class="method-permalink" href="#basic_publish(io:IO,exchange:String,routing_key:String,mandatory=false,immediate=false,props=Properties.new):UInt64?-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L162" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L187" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -575,13 +585,13 @@
         
         def <strong>basic_publish</strong>(str : String, exchange, routing_key, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)
 
-        <a class="method-permalink" href="#basic_publish%28str%3AString%2Cexchange%2Crouting_key%2Cmandatory%3Dfalse%2Cimmediate%3Dfalse%2Cprops%3DProperties.new%29-instance-method">#</a>
+        <a class="method-permalink" href="#basic_publish(str:String,exchange,routing_key,mandatory=false,immediate=false,props=Properties.new)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L158" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L183" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -591,13 +601,13 @@
         
         def <strong>basic_publish</strong>(bytes : Bytes, exchange, routing_key, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)
 
-        <a class="method-permalink" href="#basic_publish%28bytes%3ABytes%2Cexchange%2Crouting_key%2Cmandatory%3Dfalse%2Cimmediate%3Dfalse%2Cprops%3DProperties.new%29-instance-method">#</a>
+        <a class="method-permalink" href="#basic_publish(bytes:Bytes,exchange,routing_key,mandatory=false,immediate=false,props=Properties.new)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L154" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L179" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -607,13 +617,13 @@
         
         def <strong>basic_publish_confirm</strong>(msg, exchange, routing_key, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>) : Bool
 
-        <a class="method-permalink" href="#basic_publish_confirm%28msg%2Cexchange%2Crouting_key%2Cmandatory%3Dfalse%2Cimmediate%3Dfalse%2Cprops%3DProperties.new%29%3ABool-instance-method">#</a>
+        <a class="method-permalink" href="#basic_publish_confirm(msg,exchange,routing_key,mandatory=false,immediate=false,props=Properties.new):Bool-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L173" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L199" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -623,13 +633,13 @@
         
         def <strong>basic_qos</strong>(count, global = <span class="n">false</span>) : Nil
 
-        <a class="method-permalink" href="#basic_qos%28count%2Cglobal%3Dfalse%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#basic_qos(count,global=false):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L249" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L272" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -639,13 +649,13 @@
         
         def <strong>basic_recover</strong>(requeue) : Nil
 
-        <a class="method-permalink" href="#basic_recover%28requeue%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#basic_recover(requeue):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L366" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L389" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -655,13 +665,13 @@
         
         def <strong>basic_reject</strong>(delivery_tag : UInt64, requeue = <span class="n">false</span>) : Nil
 
-        <a class="method-permalink" href="#basic_reject%28delivery_tag%3AUInt64%2Crequeue%3Dfalse%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#basic_reject(delivery_tag:UInt64,requeue=false):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L241" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L264" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -677,23 +687,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L57" target="_blank">View source</a>]
-        
-      </div>
-    </div>
-  
-    <div class="entry-detail" id="close:Bool-instance-method">
-      <div class="signature">
-        
-        def <strong>close</strong> : Bool
-
-        <a class="method-permalink" href="#close%3ABool-instance-method">#</a>
-      </div>
-      
-      <br/>
-      <div>
-        
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L34" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L63" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -703,13 +697,29 @@
         
         def <strong>close</strong>(frame : Frame::Channel::Close) : Bool
 
-        <a class="method-permalink" href="#close%28frame%3AFrame%3A%3AChannel%3A%3AClose%29%3ABool-instance-method">#</a>
+        <a class="method-permalink" href="#close(frame:Frame::Channel::Close):Bool-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L41" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L43" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="close:Bool-instance-method">
+      <div class="signature">
+        
+        def <strong>close</strong> : Bool
+
+        <a class="method-permalink" href="#close:Bool-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L36" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -719,13 +729,13 @@
         
         def <strong>closed?</strong> : Bool?
 
-        <a class="method-permalink" href="#closed%3F%3ABool%3F-instance-method">#</a>
+        <a class="method-permalink" href="#closed?:Bool?-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L53" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L59" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -735,13 +745,13 @@
         
         def <strong>confirm_select</strong>(no_wait = <span class="n">false</span>) : Nil
 
-        <a class="method-permalink" href="#confirm_select%28no_wait%3Dfalse%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#confirm_select(no_wait=false):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L359" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L382" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -757,7 +767,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L324" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L347" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -767,13 +777,13 @@
         
         def <strong>direct_exchange</strong>(name = <span class="s">&quot;amq.direct&quot;</span>, passive = <span class="n">true</span>)
 
-        <a class="method-permalink" href="#direct_exchange%28name%3D%26quot%3Bamq.direct%26quot%3B%2Cpassive%3Dtrue%29-instance-method">#</a>
+        <a class="method-permalink" href="#direct_exchange(name=&quot;amq.direct&quot;,passive=true)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L320" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L343" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -783,13 +793,13 @@
         
         def <strong>exchange</strong>(name, type, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, internal = <span class="n">false</span>, auto_delete = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>)
 
-        <a class="method-permalink" href="#exchange%28name%2Ctype%2Cpassive%3Dfalse%2Cdurable%3Dtrue%2Cexclusive%3Dfalse%2Cinternal%3Dfalse%2Cauto_delete%3Dfalse%2Cargs%3DArguments.new%29-instance-method">#</a>
+        <a class="method-permalink" href="#exchange(name,type,passive=false,durable=true,exclusive=false,internal=false,auto_delete=false,args=Arguments.new)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L328" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L351" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -799,13 +809,13 @@
         
         def <strong>exchange_bind</strong>(source : String, destination : String, routing_key : String, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil
 
-        <a class="method-permalink" href="#exchange_bind%28source%3AString%2Cdestination%3AString%2Crouting_key%3AString%2Cno_wait%3Dfalse%2Cargs%3DArguments.new%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#exchange_bind(source:String,destination:String,routing_key:String,no_wait=false,args=Arguments.new):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L349" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L372" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -815,13 +825,13 @@
         
         def <strong>exchange_declare</strong>(name : String, type : String, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, internal = <span class="n">false</span>, auto_delete = <span class="n">false</span>, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil
 
-        <a class="method-permalink" href="#exchange_declare%28name%3AString%2Ctype%3AString%2Cpassive%3Dfalse%2Cdurable%3Dtrue%2Cexclusive%3Dfalse%2Cinternal%3Dfalse%2Cauto_delete%3Dfalse%2Cno_wait%3Dfalse%2Cargs%3DArguments.new%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#exchange_declare(name:String,type:String,passive=false,durable=true,exclusive=false,internal=false,auto_delete=false,no_wait=false,args=Arguments.new):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L334" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L357" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -831,13 +841,13 @@
         
         def <strong>exchange_delete</strong>(name, if_unused = <span class="n">false</span>, no_wait = <span class="n">false</span>) : Nil
 
-        <a class="method-permalink" href="#exchange_delete%28name%2Cif_unused%3Dfalse%2Cno_wait%3Dfalse%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#exchange_delete(name,if_unused=false,no_wait=false):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L344" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L367" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -847,13 +857,13 @@
         
         def <strong>exchange_unbind</strong>(source : String, destination : String, routing_key : String, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil
 
-        <a class="method-permalink" href="#exchange_unbind%28source%3AString%2Cdestination%3AString%2Crouting_key%3AString%2Cno_wait%3Dfalse%2Cargs%3DArguments.new%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#exchange_unbind(source:String,destination:String,routing_key:String,no_wait=false,args=Arguments.new):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L354" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L377" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -863,13 +873,29 @@
         
         def <strong>fanout_exchange</strong>(name = <span class="s">&quot;amq.fanout&quot;</span>, passive = <span class="n">true</span>)
 
-        <a class="method-permalink" href="#fanout_exchange%28name%3D%26quot%3Bamq.fanout%26quot%3B%2Cpassive%3Dtrue%29-instance-method">#</a>
+        <a class="method-permalink" href="#fanout_exchange(name=&quot;amq.fanout&quot;,passive=true)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L312" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L335" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="flow(active:Bool)-instance-method">
+      <div class="signature">
+        
+        def <strong>flow</strong>(active : Bool)
+
+        <a class="method-permalink" href="#flow(active:Bool)-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L55" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -879,13 +905,13 @@
         
         def <strong>has_subscriber?</strong>(consumer_tag)
 
-        <a class="method-permalink" href="#has_subscriber%3F%28consumer_tag%29-instance-method">#</a>
+        <a class="method-permalink" href="#has_subscriber?(consumer_tag)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L217" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L240" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -895,13 +921,13 @@
         
         def <strong>header_exchange</strong>(name = <span class="s">&quot;amq.header&quot;</span>, passive = <span class="n">true</span>)
 
-        <a class="method-permalink" href="#header_exchange%28name%3D%26quot%3Bamq.header%26quot%3B%2Cpassive%3Dtrue%29-instance-method">#</a>
+        <a class="method-permalink" href="#header_exchange(name=&quot;amq.header&quot;,passive=true)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L316" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L339" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -911,13 +937,13 @@
         
         def <strong>id</strong> : UInt16
 
-        <a class="method-permalink" href="#id%3AUInt16-instance-method">#</a>
+        <a class="method-permalink" href="#id:UInt16-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L8" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L8" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -927,13 +953,13 @@
         
         def <strong>incoming</strong>(frame)
 
-        <a class="method-permalink" href="#incoming%28frame%29-instance-method">#</a>
+        <a class="method-permalink" href="#incoming(frame)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L64" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L74" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -943,13 +969,13 @@
         
         def <strong>on_cancel</strong>(&blk : String -> Nil)
 
-        <a class="method-permalink" href="#on_cancel%28%26blk%3AString-%3ENil%29-instance-method">#</a>
+        <a class="method-permalink" href="#on_cancel(&blk:String-%3ENil)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L87" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L116" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -959,13 +985,13 @@
         
         def <strong>on_close</strong>(&blk : UInt16, String -> )
 
-        <a class="method-permalink" href="#on_close%28%26blk%3AUInt16%2CString-%3E%29-instance-method">#</a>
+        <a class="method-permalink" href="#on_close(&blk:UInt16,String-%3E)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L30" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L32" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -975,13 +1001,13 @@
         
         def <strong>on_return</strong>(&blk : <a href="../../AMQP/Client/ReturnedMessage.html">ReturnedMessage</a> -> Nil)
 
-        <a class="method-permalink" href="#on_return%28%26blk%3AReturnedMessage-%3ENil%29-instance-method">#</a>
+        <a class="method-permalink" href="#on_return(&blk:ReturnedMessage-%3ENil)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L125" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L151" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -997,7 +1023,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L22" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L24" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1007,13 +1033,13 @@
         
         def <strong>prefetch</strong>(count, global = <span class="n">false</span>) : Nil
 
-        <a class="method-permalink" href="#prefetch%28count%2Cglobal%3Dfalse%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#prefetch(count,global=false):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L254" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L277" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1031,7 +1057,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L259" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L282" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1041,7 +1067,7 @@
         
         def <strong>queue</strong>(name : String, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, auto_delete = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>)
 
-        <a class="method-permalink" href="#queue%28name%3AString%2Cpassive%3Dfalse%2Cdurable%3Dtrue%2Cexclusive%3Dfalse%2Cauto_delete%3Dfalse%2Cargs%3DArguments.new%29-instance-method">#</a>
+        <a class="method-permalink" href="#queue(name:String,passive=false,durable=true,exclusive=false,auto_delete=false,args=Arguments.new)-instance-method">#</a>
       </div>
       
         <div class="doc"><p>Declares a queue with a name, by default durable and not auto-deleted</p></div>
@@ -1049,7 +1075,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L265" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L288" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1059,13 +1085,13 @@
         
         def <strong>queue_bind</strong>(queue : String, exchange : String, routing_key : String, no_wait = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil
 
-        <a class="method-permalink" href="#queue_bind%28queue%3AString%2Cexchange%3AString%2Crouting_key%3AString%2Cno_wait%3Dfalse%2Cargs%3DArguments.new%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#queue_bind(queue:String,exchange:String,routing_key:String,no_wait=false,args=Arguments.new):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L298" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L321" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1075,13 +1101,13 @@
         
         def <strong>queue_declare</strong>(name : String, passive = <span class="n">false</span>, durable = <span class="n">true</span>, exclusive = <span class="n">false</span>, auto_delete = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>)
 
-        <a class="method-permalink" href="#queue_declare%28name%3AString%2Cpassive%3Dfalse%2Cdurable%3Dtrue%2Cexclusive%3Dfalse%2Cauto_delete%3Dfalse%2Cargs%3DArguments.new%29-instance-method">#</a>
+        <a class="method-permalink" href="#queue_declare(name:String,passive=false,durable=true,exclusive=false,auto_delete=false,args=Arguments.new)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L270" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L293" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1091,13 +1117,13 @@
         
         def <strong>queue_delete</strong>(name : String, if_unused = <span class="n">false</span>, if_empty = <span class="n">false</span>)
 
-        <a class="method-permalink" href="#queue_delete%28name%3AString%2Cif_unused%3Dfalse%2Cif_empty%3Dfalse%29-instance-method">#</a>
+        <a class="method-permalink" href="#queue_delete(name:String,if_unused=false,if_empty=false)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L286" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L309" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1107,13 +1133,13 @@
         
         def <strong>queue_purge</strong>(name : String)
 
-        <a class="method-permalink" href="#queue_purge%28name%3AString%29-instance-method">#</a>
+        <a class="method-permalink" href="#queue_purge(name:String)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L292" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L315" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1123,13 +1149,13 @@
         
         def <strong>queue_unbind</strong>(queue : String, exchange : String, routing_key : String, args = <span class="t">Arguments</span>.<span class="k">new</span>) : Nil
 
-        <a class="method-permalink" href="#queue_unbind%28queue%3AString%2Cexchange%3AString%2Crouting_key%3AString%2Cargs%3DArguments.new%29%3ANil-instance-method">#</a>
+        <a class="method-permalink" href="#queue_unbind(queue:String,exchange:String,routing_key:String,args=Arguments.new):Nil-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L303" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L326" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1139,13 +1165,13 @@
         
         def <strong>topic_exchange</strong>(name = <span class="s">&quot;amq.topic&quot;</span>, passive = <span class="n">true</span>)
 
-        <a class="method-permalink" href="#topic_exchange%28name%3D%26quot%3Bamq.topic%26quot%3B%2Cpassive%3Dtrue%29-instance-method">#</a>
+        <a class="method-permalink" href="#topic_exchange(name=&quot;amq.topic&quot;,passive=true)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L308" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L331" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -1160,13 +1186,13 @@
         
         macro <strong>expect</strong>(clz)
 
-        <a class="method-permalink" href="#expect%28clz%29-macro">#</a>
+        <a class="method-permalink" href="#expect(clz)-macro">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/channel.cr#L381" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L404" target="_blank">View source</a>]
         
       </div>
     </div>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="generator" content="Crystal Docs 0.27.0">
+<meta name="generator" content="Crystal Docs 0.30.1">
 
 
 <link href="../../css/style.css" rel="stylesheet" type="text/css">
@@ -116,6 +116,11 @@
       
     </li>
   
+  <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/SparseArray" data-name="amqp::client::sparsearray(t)">
+      <a href="../../AMQP/Client/SparseArray.html">SparseArray</a>
+      
+    </li>
+  
   <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/UnexpectedFrame" data-name="amqp::client::unexpectedframe">
       <a href="../../AMQP/Client/UnexpectedFrame.html">UnexpectedFrame</a>
       
@@ -175,7 +180,7 @@
   <h2>Defined in:</h2>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L5" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L5" target="_blank">
         amqp-client/message.cr
       </a>
     
@@ -190,7 +195,7 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#new%28exchange%3AString%2Crouting_key%3AString%2Cproperties%3AAMQ%3A%3AProtocol%3A%3AProperties%2Cbody_io%3AIO%3A%3AMemory%29-class-method" class="signature"><strong>.new</strong>(exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)</a>
+        <a href="#new(exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method" class="signature"><strong>.new</strong>(exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)</a>
         
       </li>
     
@@ -204,22 +209,22 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#body_io%3AIO%3A%3AMemory-instance-method" class="signature"><strong>#body_io</strong> : IO::Memory</a>
+        <a href="#body_io:IO::Memory-instance-method" class="signature"><strong>#body_io</strong> : IO::Memory</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#exchange%3AString-instance-method" class="signature"><strong>#exchange</strong> : String</a>
+        <a href="#exchange:String-instance-method" class="signature"><strong>#exchange</strong> : String</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#properties%3AAMQ%3A%3AProtocol%3A%3AProperties-instance-method" class="signature"><strong>#properties</strong> : AMQ::Protocol::Properties</a>
+        <a href="#properties:AMQ::Protocol::Properties-instance-method" class="signature"><strong>#properties</strong> : AMQ::Protocol::Properties</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#routing_key%3AString-instance-method" class="signature"><strong>#routing_key</strong> : String</a>
+        <a href="#routing_key:String-instance-method" class="signature"><strong>#routing_key</strong> : String</a>
         
       </li>
     
@@ -271,13 +276,13 @@
         
         def self.<strong>new</strong>(exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)
 
-        <a class="method-permalink" href="#new%28exchange%3AString%2Crouting_key%3AString%2Cproperties%3AAMQ%3A%3AProtocol%3A%3AProperties%2Cbody_io%3AIO%3A%3AMemory%29-class-method">#</a>
+        <a class="method-permalink" href="#new(exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L8" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L8" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -294,13 +299,13 @@
         
         def <strong>body_io</strong> : IO::Memory
 
-        <a class="method-permalink" href="#body_io%3AIO%3A%3AMemory-instance-method">#</a>
+        <a class="method-permalink" href="#body_io:IO::Memory-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -310,13 +315,13 @@
         
         def <strong>exchange</strong> : String
 
-        <a class="method-permalink" href="#exchange%3AString-instance-method">#</a>
+        <a class="method-permalink" href="#exchange:String-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -326,13 +331,13 @@
         
         def <strong>properties</strong> : AMQ::Protocol::Properties
 
-        <a class="method-permalink" href="#properties%3AAMQ%3A%3AProtocol%3A%3AProperties-instance-method">#</a>
+        <a class="method-permalink" href="#properties:AMQ::Protocol::Properties-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -342,13 +347,13 @@
         
         def <strong>routing_key</strong> : String
 
-        <a class="method-permalink" href="#routing_key%3AString-instance-method">#</a>
+        <a class="method-permalink" href="#routing_key:String-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
         
       </div>
     </div>

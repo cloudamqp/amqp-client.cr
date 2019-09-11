@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="generator" content="Crystal Docs 0.27.0">
+<meta name="generator" content="Crystal Docs 0.30.1">
 
 
 <link href="../../css/style.css" rel="stylesheet" type="text/css">
@@ -116,6 +116,11 @@
       
     </li>
   
+  <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/SparseArray" data-name="amqp::client::sparsearray(t)">
+      <a href="../../AMQP/Client/SparseArray.html">SparseArray</a>
+      
+    </li>
+  
   <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/UnexpectedFrame" data-name="amqp::client::unexpectedframe">
       <a href="../../AMQP/Client/UnexpectedFrame.html">UnexpectedFrame</a>
       
@@ -166,7 +171,7 @@
   <h2>Defined in:</h2>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L14" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L14" target="_blank">
         amqp-client/message.cr
       </a>
     
@@ -181,7 +186,7 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#new%28reply_code%3AUInt16%2Creply_text%3AString%2Cexchange%3AString%2Crouting_key%3AString%2Cproperties%3AAMQ%3A%3AProtocol%3A%3AProperties%2Cbody_io%3AIO%3A%3AMemory%29-class-method" class="signature"><strong>.new</strong>(reply_code : UInt16, reply_text : String, exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)</a>
+        <a href="#new(reply_code:UInt16,reply_text:String,exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method" class="signature"><strong>.new</strong>(reply_code : UInt16, reply_text : String, exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)</a>
         
       </li>
     
@@ -195,12 +200,12 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#reply_code%3AUInt16-instance-method" class="signature"><strong>#reply_code</strong> : UInt16</a>
+        <a href="#reply_code:UInt16-instance-method" class="signature"><strong>#reply_code</strong> : UInt16</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#reply_text%3AString-instance-method" class="signature"><strong>#reply_text</strong> : String</a>
+        <a href="#reply_text:String-instance-method" class="signature"><strong>#reply_text</strong> : String</a>
         
       </li>
     
@@ -217,22 +222,22 @@
   <h3>Instance methods inherited from struct <code><a href="../../AMQP/Client/BaseMessage.html">AMQP::Client::BaseMessage</a></code></h3>
   
   
-    <a href="../../AMQP/Client/BaseMessage.html#body_io%3AIO%3A%3AMemory-instance-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#body_io:IO::Memory-instance-method" class="tooltip">
       <span>body_io : IO::Memory</span>
     body_io</a>, 
     
   
-    <a href="../../AMQP/Client/BaseMessage.html#exchange%3AString-instance-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#exchange:String-instance-method" class="tooltip">
       <span>exchange : String</span>
     exchange</a>, 
     
   
-    <a href="../../AMQP/Client/BaseMessage.html#properties%3AAMQ%3A%3AProtocol%3A%3AProperties-instance-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#properties:AMQ::Protocol::Properties-instance-method" class="tooltip">
       <span>properties : AMQ::Protocol::Properties</span>
     properties</a>, 
     
   
-    <a href="../../AMQP/Client/BaseMessage.html#routing_key%3AString-instance-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#routing_key:String-instance-method" class="tooltip">
       <span>routing_key : String</span>
     routing_key</a>
     
@@ -244,7 +249,7 @@
   <h3>Constructor methods inherited from struct <code><a href="../../AMQP/Client/BaseMessage.html">AMQP::Client::BaseMessage</a></code></h3>
   
   
-    <a href="../../AMQP/Client/BaseMessage.html#new%28exchange%3AString%2Crouting_key%3AString%2Cproperties%3AAMQ%3A%3AProtocol%3A%3AProperties%2Cbody_io%3AIO%3A%3AMemory%29-class-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#new(exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method" class="tooltip">
       <span>new(exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)</span>
     new</a>
     
@@ -295,13 +300,13 @@
         
         def self.<strong>new</strong>(reply_code : UInt16, reply_text : String, exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)
 
-        <a class="method-permalink" href="#new%28reply_code%3AUInt16%2Creply_text%3AString%2Cexchange%3AString%2Crouting_key%3AString%2Cproperties%3AAMQ%3A%3AProtocol%3A%3AProperties%2Cbody_io%3AIO%3A%3AMemory%29-class-method">#</a>
+        <a class="method-permalink" href="#new(reply_code:UInt16,reply_text:String,exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L17" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L17" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -318,13 +323,13 @@
         
         def <strong>reply_code</strong> : UInt16
 
-        <a class="method-permalink" href="#reply_code%3AUInt16-instance-method">#</a>
+        <a class="method-permalink" href="#reply_code:UInt16-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L15" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L15" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -334,13 +339,13 @@
         
         def <strong>reply_text</strong> : String
 
-        <a class="method-permalink" href="#reply_text%3AString-instance-method">#</a>
+        <a class="method-permalink" href="#reply_text:String-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L15" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L15" target="_blank">View source</a>]
         
       </div>
     </div>

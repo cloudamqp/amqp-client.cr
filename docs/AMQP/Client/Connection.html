@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="generator" content="Crystal Docs 0.27.0">
+<meta name="generator" content="Crystal Docs 0.30.1">
 
 
 <link href="../../css/style.css" rel="stylesheet" type="text/css">
@@ -116,6 +116,11 @@
       
     </li>
   
+  <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/SparseArray" data-name="amqp::client::sparsearray(t)">
+      <a href="../../AMQP/Client/SparseArray.html">SparseArray</a>
+      
+    </li>
+  
   <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/UnexpectedFrame" data-name="amqp::client::unexpectedframe">
       <a href="../../AMQP/Client/UnexpectedFrame.html">UnexpectedFrame</a>
       
@@ -166,7 +171,7 @@
   <h2>Defined in:</h2>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L9" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L30" target="_blank">
         amqp-client/connection.cr
       </a>
     
@@ -181,7 +186,7 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#new%28io%3ATCPSocket%7COpenSSL%3A%3ASSL%3A%3ASocket%3A%3AClient%2Clog%3ALogger%2Cchannel_max%3AUInt16%2Cframe_max%3AUInt32%2Cheartbeat%3AUInt16%29-class-method" class="signature"><strong>.new</strong>(io : TCPSocket | OpenSSL::SSL::Socket::Client, log : Logger, channel_max : UInt16, frame_max : UInt32, heartbeat : UInt16)</a>
+        <a href="#new(io:UNIXSocket%7CTCPSocket%7COpenSSL::SSL::Socket::Client,log:Logger,channel_max:UInt16,frame_max:UInt32,heartbeat:UInt16)-class-method" class="signature"><strong>.new</strong>(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client, log : Logger, channel_max : UInt16, frame_max : UInt32, heartbeat : UInt16)</a>
         
       </li>
     
@@ -193,7 +198,7 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#start%28io%3ATCPSocket%7COpenSSL%3A%3ASSL%3A%3ASocket%3A%3AClient%2Clog%2Cuser%2Cpassword%2Cvhost%2Cchannel_max%2Cframe_max%2Cheartbeat%29-class-method" class="signature"><strong>.start</strong>(io : TCPSocket | OpenSSL::SSL::Socket::Client, log, user, password, vhost, channel_max, frame_max, heartbeat)</a>
+        <a href="#start(io:UNIXSocket%7CTCPSocket%7COpenSSL::SSL::Socket::Client,log,user,password,vhost,channel_max,frame_max,heartbeat)-class-method" class="signature"><strong>.start</strong>(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client, log, user, password, vhost, channel_max, frame_max, heartbeat)</a>
         
       </li>
     
@@ -205,42 +210,52 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#channel%28id%3AUInt16%3F%3Dnil%29-instance-method" class="signature"><strong>#channel</strong>(id : UInt16? = <span class="n">nil</span>)</a>
+        <a href="#channel(id:UInt16?=nil)-instance-method" class="signature"><strong>#channel</strong>(id : UInt16? = <span class="n">nil</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#channel%28%26blk%3AChannel-%3EUNDERSCORE%29-instance-method" class="signature"><strong>#channel</strong>(&blk : Channel -> UNDERSCORE)</a>
+        <a href="#channel(&blk:Channel-%3EUNDERSCORE)-instance-method" class="signature"><strong>#channel</strong>(&blk : Channel -> UNDERSCORE)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#close%28msg%3D%26quot%3BConnectionclosed%26quot%3B%29-instance-method" class="signature"><strong>#close</strong>(msg = <span class="s">&quot;Connection closed&quot;</span>)</a>
+        <a href="#close(msg=&quot;Connectionclosed&quot;)-instance-method" class="signature"><strong>#close</strong>(msg = <span class="s">&quot;Connection closed&quot;</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#closed%3F-instance-method" class="signature"><strong>#closed?</strong></a>
+        <a href="#closed?:Bool-instance-method" class="signature"><strong>#closed?</strong> : Bool</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#frame_max%3AUInt32-instance-method" class="signature"><strong>#frame_max</strong> : UInt32</a>
+        <a href="#flush-instance-method" class="signature"><strong>#flush</strong></a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#log%3ALogger-instance-method" class="signature"><strong>#log</strong> : Logger</a>
+        <a href="#frame_max:UInt32-instance-method" class="signature"><strong>#frame_max</strong> : UInt32</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#on_close%28%26blk%3AUInt16%2CString-%3E%29-instance-method" class="signature"><strong>#on_close</strong>(&blk : UInt16, String -> )</a>
+        <a href="#log:Logger-instance-method" class="signature"><strong>#log</strong> : Logger</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#write%28frame%2Cflush%3Dtrue%29-instance-method" class="signature"><strong>#write</strong>(frame, flush = <span class="n">true</span>)</a>
+        <a href="#on_close(&blk:UInt16,String-%3E)-instance-method" class="signature"><strong>#on_close</strong>(&blk : UInt16, String -> )</a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#with_lock(&blk:Connection-%3ENil)-instance-method" class="signature"><strong>#with_lock</strong>(&blk : Connection -> Nil)</a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#write(frame,flush=true)-instance-method" class="signature"><strong>#write</strong>(frame, flush = <span class="n">true</span>)</a>
         
       </li>
     
@@ -277,18 +292,18 @@
 
   <h2>Constructor Detail</h2>
   
-    <div class="entry-detail" id="new(io:TCPSocket|OpenSSL::SSL::Socket::Client,log:Logger,channel_max:UInt16,frame_max:UInt32,heartbeat:UInt16)-class-method">
+    <div class="entry-detail" id="new(io:UNIXSocket|TCPSocket|OpenSSL::SSL::Socket::Client,log:Logger,channel_max:UInt16,frame_max:UInt32,heartbeat:UInt16)-class-method">
       <div class="signature">
         
-        def self.<strong>new</strong>(io : TCPSocket | OpenSSL::SSL::Socket::Client, log : Logger, channel_max : UInt16, frame_max : UInt32, heartbeat : UInt16)
+        def self.<strong>new</strong>(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client, log : Logger, channel_max : UInt16, frame_max : UInt32, heartbeat : UInt16)
 
-        <a class="method-permalink" href="#new%28io%3ATCPSocket%7COpenSSL%3A%3ASSL%3A%3ASocket%3A%3AClient%2Clog%3ALogger%2Cchannel_max%3AUInt16%2Cframe_max%3AUInt32%2Cheartbeat%3AUInt16%29-class-method">#</a>
+        <a class="method-permalink" href="#new(io:UNIXSocket%7CTCPSocket%7COpenSSL::SSL::Socket::Client,log:Logger,channel_max:UInt16,frame_max:UInt32,heartbeat:UInt16)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L12" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L34" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -298,18 +313,18 @@
 
   <h2>Class Method Detail</h2>
   
-    <div class="entry-detail" id="start(io:TCPSocket|OpenSSL::SSL::Socket::Client,log,user,password,vhost,channel_max,frame_max,heartbeat)-class-method">
+    <div class="entry-detail" id="start(io:UNIXSocket|TCPSocket|OpenSSL::SSL::Socket::Client,log,user,password,vhost,channel_max,frame_max,heartbeat)-class-method">
       <div class="signature">
         
-        def self.<strong>start</strong>(io : TCPSocket | OpenSSL::SSL::Socket::Client, log, user, password, vhost, channel_max, frame_max, heartbeat)
+        def self.<strong>start</strong>(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client, log, user, password, vhost, channel_max, frame_max, heartbeat)
 
-        <a class="method-permalink" href="#start%28io%3ATCPSocket%7COpenSSL%3A%3ASSL%3A%3ASocket%3A%3AClient%2Clog%2Cuser%2Cpassword%2Cvhost%2Cchannel_max%2Cframe_max%2Cheartbeat%29-class-method">#</a>
+        <a class="method-permalink" href="#start(io:UNIXSocket%7CTCPSocket%7COpenSSL::SSL::Socket::Client,log,user,password,vhost,channel_max,frame_max,heartbeat)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L108" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L150" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -324,13 +339,13 @@
         
         def <strong>channel</strong>(id : UInt16? = <span class="n">nil</span>)
 
-        <a class="method-permalink" href="#channel%28id%3AUInt16%3F%3Dnil%29-instance-method">#</a>
+        <a class="method-permalink" href="#channel(id:UInt16?=nil)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L19" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L42" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -340,13 +355,13 @@
         
         def <strong>channel</strong>(&blk : <a href="../../AMQP/Client/Channel.html">Channel</a> -> UNDERSCORE)
 
-        <a class="method-permalink" href="#channel%28%26blk%3AChannel-%3EUNDERSCORE%29-instance-method">#</a>
+        <a class="method-permalink" href="#channel(&blk:Channel-%3EUNDERSCORE)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L34" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L57" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -356,29 +371,45 @@
         
         def <strong>close</strong>(msg = <span class="s">&quot;Connection closed&quot;</span>)
 
-        <a class="method-permalink" href="#close%28msg%3D%26quot%3BConnectionclosed%26quot%3B%29-instance-method">#</a>
+        <a class="method-permalink" href="#close(msg=&quot;Connectionclosed&quot;)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L95" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L142" target="_blank">View source</a>]
         
       </div>
     </div>
   
-    <div class="entry-detail" id="closed?-instance-method">
+    <div class="entry-detail" id="closed?:Bool-instance-method">
       <div class="signature">
         
-        def <strong>closed?</strong>
+        def <strong>closed?</strong> : Bool
 
-        <a class="method-permalink" href="#closed%3F-instance-method">#</a>
+        <a class="method-permalink" href="#closed?:Bool-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L104" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L34" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="flush-instance-method">
+      <div class="signature">
+        
+        def <strong>flush</strong>
+
+        <a class="method-permalink" href="#flush-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L138" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -388,13 +419,13 @@
         
         def <strong>frame_max</strong> : UInt32
 
-        <a class="method-permalink" href="#frame_max%3AUInt32-instance-method">#</a>
+        <a class="method-permalink" href="#frame_max:UInt32-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L10" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L31" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -404,13 +435,13 @@
         
         def <strong>log</strong> : Logger
 
-        <a class="method-permalink" href="#log%3ALogger-instance-method">#</a>
+        <a class="method-permalink" href="#log:Logger-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L10" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L31" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -420,13 +451,29 @@
         
         def <strong>on_close</strong>(&blk : UInt16, String -> )
 
-        <a class="method-permalink" href="#on_close%28%26blk%3AUInt16%2CString-%3E%29-instance-method">#</a>
+        <a class="method-permalink" href="#on_close(&blk:UInt16,String-%3E)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L42" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L65" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="with_lock(&amp;blk:Connection-&gt;Nil)-instance-method">
+      <div class="signature">
+        
+        def <strong>with_lock</strong>(&blk : <a href="../../AMQP/Client/Connection.html">Connection</a> -> Nil)
+
+        <a class="method-permalink" href="#with_lock(&blk:Connection-%3ENil)-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L124" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -436,13 +483,13 @@
         
         def <strong>write</strong>(frame, flush = <span class="n">true</span>)
 
-        <a class="method-permalink" href="#write%28frame%2Cflush%3Dtrue%29-instance-method">#</a>
+        <a class="method-permalink" href="#write(frame,flush=true)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/connection.cr#L89" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L131" target="_blank">View source</a>]
         
       </div>
     </div>

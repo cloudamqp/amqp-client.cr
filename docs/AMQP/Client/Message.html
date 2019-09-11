@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="generator" content="Crystal Docs 0.27.0">
+<meta name="generator" content="Crystal Docs 0.30.1">
 
 
 <link href="../../css/style.css" rel="stylesheet" type="text/css">
@@ -116,6 +116,11 @@
       
     </li>
   
+  <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/SparseArray" data-name="amqp::client::sparsearray(t)">
+      <a href="../../AMQP/Client/SparseArray.html">SparseArray</a>
+      
+    </li>
+  
   <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/UnexpectedFrame" data-name="amqp::client::unexpectedframe">
       <a href="../../AMQP/Client/UnexpectedFrame.html">UnexpectedFrame</a>
       
@@ -166,7 +171,7 @@
   <h2>Defined in:</h2>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L24" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L24" target="_blank">
         amqp-client/message.cr
       </a>
     
@@ -181,7 +186,7 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#new%28channel%3AChannel%2Cexchange%3AString%2Crouting_key%3AString%2Cdelivery_tag%3AUInt64%2Cproperties%3AAMQ%3A%3AProtocol%3A%3AProperties%2Cbody_io%3AIO%3A%3AMemory%2Credelivered%3ABool%29-class-method" class="signature"><strong>.new</strong>(channel : Channel, exchange : String, routing_key : String, delivery_tag : UInt64, properties : AMQ::Protocol::Properties, body_io : IO::Memory, redelivered : Bool)</a>
+        <a href="#new(channel:Channel,exchange:String,routing_key:String,delivery_tag:UInt64,properties:AMQ::Protocol::Properties,body_io:IO::Memory,redelivered:Bool)-class-method" class="signature"><strong>.new</strong>(channel : Channel, exchange : String, routing_key : String, delivery_tag : UInt64, properties : AMQ::Protocol::Properties, body_io : IO::Memory, redelivered : Bool)</a>
         
       </li>
     
@@ -195,27 +200,27 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#ack%28multiple%3Dfalse%29-instance-method" class="signature"><strong>#ack</strong>(multiple = <span class="n">false</span>)</a>
+        <a href="#ack(multiple=false)-instance-method" class="signature"><strong>#ack</strong>(multiple = <span class="n">false</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#delivery_tag%3AUInt64-instance-method" class="signature"><strong>#delivery_tag</strong> : UInt64</a>
+        <a href="#delivery_tag:UInt64-instance-method" class="signature"><strong>#delivery_tag</strong> : UInt64</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#nack%28multiple%3Dfalse%2Crequeue%3Dfalse%29-instance-method" class="signature"><strong>#nack</strong>(multiple = <span class="n">false</span>, requeue = <span class="n">false</span>)</a>
+        <a href="#nack(multiple=false,requeue=false)-instance-method" class="signature"><strong>#nack</strong>(multiple = <span class="n">false</span>, requeue = <span class="n">false</span>)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#redelivered%3ABool-instance-method" class="signature"><strong>#redelivered</strong> : Bool</a>
+        <a href="#redelivered:Bool-instance-method" class="signature"><strong>#redelivered</strong> : Bool</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#reject%28requeue%3Dfalse%29-instance-method" class="signature"><strong>#reject</strong>(requeue = <span class="n">false</span>)</a>
+        <a href="#reject(requeue=false)-instance-method" class="signature"><strong>#reject</strong>(requeue = <span class="n">false</span>)</a>
         
       </li>
     
@@ -232,22 +237,22 @@
   <h3>Instance methods inherited from struct <code><a href="../../AMQP/Client/BaseMessage.html">AMQP::Client::BaseMessage</a></code></h3>
   
   
-    <a href="../../AMQP/Client/BaseMessage.html#body_io%3AIO%3A%3AMemory-instance-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#body_io:IO::Memory-instance-method" class="tooltip">
       <span>body_io : IO::Memory</span>
     body_io</a>, 
     
   
-    <a href="../../AMQP/Client/BaseMessage.html#exchange%3AString-instance-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#exchange:String-instance-method" class="tooltip">
       <span>exchange : String</span>
     exchange</a>, 
     
   
-    <a href="../../AMQP/Client/BaseMessage.html#properties%3AAMQ%3A%3AProtocol%3A%3AProperties-instance-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#properties:AMQ::Protocol::Properties-instance-method" class="tooltip">
       <span>properties : AMQ::Protocol::Properties</span>
     properties</a>, 
     
   
-    <a href="../../AMQP/Client/BaseMessage.html#routing_key%3AString-instance-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#routing_key:String-instance-method" class="tooltip">
       <span>routing_key : String</span>
     routing_key</a>
     
@@ -259,7 +264,7 @@
   <h3>Constructor methods inherited from struct <code><a href="../../AMQP/Client/BaseMessage.html">AMQP::Client::BaseMessage</a></code></h3>
   
   
-    <a href="../../AMQP/Client/BaseMessage.html#new%28exchange%3AString%2Crouting_key%3AString%2Cproperties%3AAMQ%3A%3AProtocol%3A%3AProperties%2Cbody_io%3AIO%3A%3AMemory%29-class-method" class="tooltip">
+    <a href="../../AMQP/Client/BaseMessage.html#new(exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method" class="tooltip">
       <span>new(exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)</span>
     new</a>
     
@@ -310,13 +315,13 @@
         
         def self.<strong>new</strong>(channel : <a href="../../AMQP/Client/Channel.html">Channel</a>, exchange : String, routing_key : String, delivery_tag : UInt64, properties : AMQ::Protocol::Properties, body_io : IO::Memory, redelivered : Bool)
 
-        <a class="method-permalink" href="#new%28channel%3AChannel%2Cexchange%3AString%2Crouting_key%3AString%2Cdelivery_tag%3AUInt64%2Cproperties%3AAMQ%3A%3AProtocol%3A%3AProperties%2Cbody_io%3AIO%3A%3AMemory%2Credelivered%3ABool%29-class-method">#</a>
+        <a class="method-permalink" href="#new(channel:Channel,exchange:String,routing_key:String,delivery_tag:UInt64,properties:AMQ::Protocol::Properties,body_io:IO::Memory,redelivered:Bool)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L27" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L27" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -333,13 +338,13 @@
         
         def <strong>ack</strong>(multiple = <span class="n">false</span>)
 
-        <a class="method-permalink" href="#ack%28multiple%3Dfalse%29-instance-method">#</a>
+        <a class="method-permalink" href="#ack(multiple=false)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L33" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L33" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -349,13 +354,13 @@
         
         def <strong>delivery_tag</strong> : UInt64
 
-        <a class="method-permalink" href="#delivery_tag%3AUInt64-instance-method">#</a>
+        <a class="method-permalink" href="#delivery_tag:UInt64-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L25" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L25" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -365,13 +370,13 @@
         
         def <strong>nack</strong>(multiple = <span class="n">false</span>, requeue = <span class="n">false</span>)
 
-        <a class="method-permalink" href="#nack%28multiple%3Dfalse%2Crequeue%3Dfalse%29-instance-method">#</a>
+        <a class="method-permalink" href="#nack(multiple=false,requeue=false)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L37" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L37" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -381,13 +386,13 @@
         
         def <strong>redelivered</strong> : Bool
 
-        <a class="method-permalink" href="#redelivered%3ABool-instance-method">#</a>
+        <a class="method-permalink" href="#redelivered:Bool-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L25" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L25" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -397,13 +402,13 @@
         
         def <strong>reject</strong>(requeue = <span class="n">false</span>)
 
-        <a class="method-permalink" href="#reject%28requeue%3Dfalse%29-instance-method">#</a>
+        <a class="method-permalink" href="#reject(requeue=false)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/392b82c209f1856de80923b0fd4f1bf227ac4b32/src/amqp-client/message.cr#L41" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L41" target="_blank">View source</a>]
         
       </div>
     </div>
