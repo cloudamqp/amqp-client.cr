@@ -266,7 +266,7 @@ class AMQP::Client
     end
 
     def basic_nack(delivery_tag : UInt64, requeue = false, multiple = false) : Nil
-      write Frame::Basic::Reject.new(@id, delivery_tag, multiple, requeue)
+      write Frame::Basic::Nack.new(@id, delivery_tag, multiple, requeue)
     end
 
     def basic_qos(count, global = false) : Nil
