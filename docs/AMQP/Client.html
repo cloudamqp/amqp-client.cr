@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="generator" content="Crystal Docs 0.30.1">
+<meta name="generator" content="Crystal Docs 0.29.0">
 
 
 <link href="../css/style.css" rel="stylesheet" type="text/css">
@@ -171,56 +171,63 @@
   <h2>Defined in:</h2>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/sparse_array.cr#L1" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/sparse_array.cr#L1" target="_blank">
         amqp-client/sparse_array.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/connection.cr#L29" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/connection.cr#L29" target="_blank">
         amqp-client/connection.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/message.cr#L4" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/message.cr#L4" target="_blank">
         amqp-client/message.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/queue.cr#L3" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/queue.cr#L3" target="_blank">
         amqp-client/queue.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/exchange.cr#L3" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/exchange.cr#L3" target="_blank">
         amqp-client/exchange.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/channel.cr#L6" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/channel.cr#L6" target="_blank">
         amqp-client/channel.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client/version.cr#L1" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/high-level.cr#L3" target="_blank">
+        amqp-client/high-level.cr
+      </a>
+    
+    <br/>
+  
+    
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/version.cr#L1" target="_blank">
         amqp-client/version.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client.cr#L8" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client.cr#L8" target="_blank">
         amqp-client.cr
       </a>
     
@@ -235,7 +242,7 @@
   <dl>
     
       <dt class="entry-const" id="VERSION">
-        <strong>VERSION</strong> = <code><span class="s">&quot;0.4.2&quot;</span></code>
+        <strong>VERSION</strong> = <code><span class="s">&quot;0.4.3&quot;</span></code>
       </dt>
       
     
@@ -285,6 +292,21 @@
         
       </li>
     
+      <li class="entry-summary">
+        <a href="#publish(data,exchange,routing_key,props=Properties.new)-instance-method" class="signature"><strong>#publish</strong>(data, exchange, routing_key, props = <span class="t">Properties</span>.<span class="k">new</span>)</a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#publish_loop-instance-method" class="signature"><strong>#publish_loop</strong></a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#subscribe(queue_name,&blk:Message-%3EUNDERSCORE)-instance-method" class="signature"><strong>#subscribe</strong>(queue_name, &blk : Message -> UNDERSCORE)</a>
+        
+      </li>
+    
   </ul>
 
 
@@ -329,7 +351,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client.cr#L27" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client.cr#L27" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -345,7 +367,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client.cr#L51" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client.cr#L51" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -366,7 +388,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client.cr#L9" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client.cr#L9" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -382,7 +404,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client.cr#L16" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client.cr#L16" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -403,7 +425,55 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/ce6ab14ba3a148765937367b888494742b7e5421/src/amqp-client.cr#L57" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client.cr#L57" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="publish(data,exchange,routing_key,props=Properties.new)-instance-method">
+      <div class="signature">
+        
+        def <strong>publish</strong>(data, exchange, routing_key, props = <span class="t">Properties</span>.<span class="k">new</span>)
+
+        <a class="method-permalink" href="#publish(data,exchange,routing_key,props=Properties.new)-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/high-level.cr#L6" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="publish_loop-instance-method">
+      <div class="signature">
+        
+        def <strong>publish_loop</strong>
+
+        <a class="method-permalink" href="#publish_loop-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/high-level.cr#L10" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="subscribe(queue_name,&amp;blk:Message-&gt;UNDERSCORE)-instance-method">
+      <div class="signature">
+        
+        def <strong>subscribe</strong>(queue_name, &blk : <a href="../AMQP/Client/Message.html">Message</a> -> UNDERSCORE)
+
+        <a class="method-permalink" href="#subscribe(queue_name,&blk:Message-%3EUNDERSCORE)-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/84e2534b28934cae18b627e7ea906ceba01db374/src/amqp-client/high-level.cr#L21" target="_blank">View source</a>]
         
       </div>
     </div>
