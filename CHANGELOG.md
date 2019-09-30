@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2019-09-30
+
+### Fixes
+- Crystal 0.31.x deprecated URI.unescape, replaced with URI.decode_www_form
+
 ## [0.4.3] - 2019-09-23
 
 ### Fixed

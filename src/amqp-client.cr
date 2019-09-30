@@ -32,7 +32,7 @@ class AMQP::Client
     @vhost = if uri.path.nil? || uri.path.not_nil!.empty?
                "/"
              else
-               URI.unescape(uri.path.not_nil![1..-1])
+               URI.decode_www_form(uri.path.not_nil![1..-1])
              end
     @user = uri.user || "guest"
     @password = uri.password || "guest"

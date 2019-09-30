@@ -168,8 +168,8 @@ class AMQP::Client
       capabilities["consumer_cancel_notify"] = true
       capabilities["connection.blocked"] = true
       props["capabilities"] = capabilities
-      user = URI.unescape(user)
-      password = URI.unescape(password)
+      user = URI.decode_www_form(user)
+      password = URI.decode_www_form(password)
       response = "\u0000#{user}\u0000#{password}"
       io.write_bytes(Frame::Connection::StartOk.new(props, "PLAIN", response, ""),
         IO::ByteFormat::NetworkEndian)
