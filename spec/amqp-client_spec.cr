@@ -30,6 +30,21 @@ describe AMQP::Client do
     end
   end
 
+  it "can block subscribe" do
+    with_channel do |ch|
+      q = ch.queue
+      tag = "block"
+      q.publish("hej!")
+      b = false
+      c = q.subscribe(tag: tag, block: true) do |msg|
+        b.should be_false
+        b = true
+        q.unsubscribe(tag)
+      end
+      b.should be_true
+    end
+  end
+
   it "can publish msg larger than frame_max" do
     with_channel do |ch|
       q = ch.queue

@@ -29,9 +29,9 @@ class AMQP::Client
       @channel.basic_get(@name, no_ack)
     end
 
-    def subscribe(tag = "", no_ack = true, exclusive = false,
+    def subscribe(tag = "", no_ack = true, exclusive = false, block = false,
                   args = Arguments.new, &blk : Message -> Nil)
-      @channel.basic_consume(@name, tag, no_ack, exclusive, args, &blk)
+      @channel.basic_consume(@name, tag, no_ack, exclusive, block, args, &blk)
     end
 
     def unsubscribe(consumer_tag, no_wait = false)

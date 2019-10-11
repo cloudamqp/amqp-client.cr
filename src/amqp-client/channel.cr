@@ -126,6 +126,9 @@ class AMQP::Client
         @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
       end
 
+      if ch = @consumer_blocks.delete f.consumer_tag
+        ch.send nil
+      end
       write Frame::Basic::CancelOk.new(@id, f.consumer_tag) unless f.no_wait
       @consumers.delete(f.consumer_tag)
     end
@@ -242,18 +245,27 @@ class AMQP::Client
     end
 
     @consumers = Hash(String, Proc(Message, Nil)).new
+    @consumer_blocks = Hash(String, ::Channel(Nil)).new
 
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
+                      block = false,
                       args = Arguments.new, &blk : Message -> Nil)
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, args)
       ok = expect Frame::Basic::ConsumeOk
       @consumers[ok.consumer_tag] = blk
+      if block
+        ch = @consumer_blocks[ok.consumer_tag] = ::Channel(Nil).new
+        ch.receive?
+      end
       ok.consumer_tag
     end
 
     def basic_cancel(consumer_tag, no_wait = false) : Nil
       write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
       expect Frame::Basic::CancelOk unless no_wait
+      if ch = @consumer_blocks.delete consumer_tag
+        ch.send nil
+      end
       @consumers.delete(consumer_tag)
     end
 
