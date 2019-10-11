@@ -202,6 +202,10 @@ class AMQP::Client
     def basic_publish_confirm(msg, exchange, routing_key, mandatory = false, immediate = false, props = Properties.new) : Bool
       confirm_select
       msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, props).not_nil!
+      wait_for_confirm(msgid)
+    end
+
+    def wait_for_confirm(msgid) : Bool
       loop do
         confirm = @confirms.receive
         case confirm
