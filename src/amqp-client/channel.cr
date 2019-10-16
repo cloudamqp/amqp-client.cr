@@ -15,6 +15,7 @@ class AMQP::Client
     @next_msg_ready = ::Channel(Nil).new
     @log : Logger
     @server_flow = true
+    @closed = false
 
     def initialize(@connection : Connection, @id : UInt16)
       @log = @connection.log
@@ -40,7 +41,7 @@ class AMQP::Client
       cleanup
     end
 
-    def close(frame : Frame::Channel::Close) : Bool
+    def close(frame : Frame::Channel::Close) : Nil
       @closing_frame = frame
       @log.info "Channel #{@id} closed by server: #{frame.inspect}" unless @on_close
       begin
@@ -61,10 +62,10 @@ class AMQP::Client
     end
 
     def cleanup
+      @closed = true
       @confirms.close
       @frames.close
       @incoming.close
-      @closed = true
     end
 
     @next_body_io = IO::Memory.new(4096)
