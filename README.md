@@ -49,11 +49,11 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
     ch.basic_consume("queue", tag: "consumer-tag", no_ack: false, exclusive: false, block: false) do |msg|
       case msg.body_io.to_s
       when "ack"
-        ch.ack(msg.delivery_tag)
+        ch.basic_ack(msg.delivery_tag)
       when "reject"
-        ch.reject(msg.delivery_tag, requeue: true)
+        ch.basic_reject(msg.delivery_tag, requeue: true)
       when "nack"
-        ch.nack(msg.delivery_tag, requeue: true, multiple: true)
+        ch.basic_nack(msg.delivery_tag, requeue: true, multiple: true)
       end
     end
 
