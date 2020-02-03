@@ -156,4 +156,20 @@ describe AMQP::Client do
       msg.should be_nil
     end
   end
+
+  it "can publish in a consume block" do
+    with_channel do |ch|
+      tag = "block"
+      q = ch.queue
+      5.times { q.publish("") }
+      b = false
+      c = q.subscribe(tag: tag, no_ack: false, block: true) do |msg|
+        q.publish "again"
+        msg.ack
+        b = true
+        q.unsubscribe(tag)
+      end
+      b.should be_true
+    end
+  end
 end
