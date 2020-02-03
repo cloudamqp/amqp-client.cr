@@ -157,6 +157,19 @@ describe AMQP::Client do
     end
   end
 
+  it "can have many unprocessed confirms" do
+    with_channel do |ch|
+      q = ch.queue
+      ch.confirm_select
+      body = IO::Memory.new(0)
+      4000.times do
+        msgid = q.publish body
+      end
+      d = q.delete
+      d[:message_count].should eq 4000
+    end
+  end
+
   it "can publish in a consume block" do
     with_channel do |ch|
       tag = "block"
