@@ -9,8 +9,8 @@ class AMQP::Client
 
     @confirm_mode = false
     @confirm_id = 0_u64
-    @server_frames = ::Channel(Frame).new(1024)
-    @reply_frames = ::Channel(Frame).new(1024)
+    @server_frames = ::Channel(Frame).new
+    @reply_frames = ::Channel(Frame).new
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(1024)
     @next_msg_ready = ::Channel(Nil).new
     @log : Logger
