@@ -9,8 +9,8 @@ class AMQP::Client
 
     @confirm_mode = false
     @confirm_id = 0_u64
-    @incoming = ::Channel(Frame).new
-    @frames = ::Channel(Frame).new
+    @server_frames = ::Channel(Frame).new(1024)
+    @reply_frames = ::Channel(Frame).new(1024)
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(1024)
     @next_msg_ready = ::Channel(Nil).new
     @log : Logger
@@ -64,8 +64,8 @@ class AMQP::Client
     def cleanup
       @closed = true
       @confirms.close
-      @frames.close
-      @incoming.close
+      @reply_frames.close
+      @server_frames.close
     end
 
     @next_body_io = IO::Memory.new(4096)
@@ -79,7 +79,7 @@ class AMQP::Client
            Frame::Basic::Deliver,
            Frame::Basic::Return,
            Frame::Basic::Cancel
-        @incoming.send frame
+        @server_frames.send frame
       when Frame::Basic::Ack, Frame::Basic::Nack
         @confirms.send frame
       when Frame::Header
@@ -94,19 +94,19 @@ class AMQP::Client
           @next_msg_ready.send nil
         end
       else
-        @frames.send frame
+        @reply_frames.send frame
       end
     end
 
     private def read_loop
       loop do
-        frame = @incoming.receive
+        frame = @server_frames.receive
         case frame
         when Frame::Channel::Close then close(frame)
+        when Frame::Channel::Flow  then process_flow(frame.active)
         when Frame::Basic::Deliver then process_deliver(frame)
         when Frame::Basic::Return  then process_return(frame)
         when Frame::Basic::Cancel  then process_cancel(frame)
-        when Frame::Channel::Flow  then process_flow(frame.active)
         end
       end
     rescue ::Channel::ClosedError
@@ -413,7 +413,7 @@ class AMQP::Client
     end
 
     private def next_frame : Frame
-      @frames.receive
+      @reply_frames.receive
     rescue ex : ::Channel::ClosedError
       raise ClosedException.new(@closing_frame, cause: ex)
     end
