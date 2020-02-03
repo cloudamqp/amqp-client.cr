@@ -6,8 +6,8 @@ require "logger"
 require "./amqp-client/*"
 
 class AMQP::Client
-  def self.start(url : String, log_level = Logger::WARN, &blk : AMQP::Client::Connection -> Nil)
-    conn = self.new(url).connect
+  def self.start(url : String, log_level = Logger::WARN, &blk : AMQP::Client::Connection -> _)
+    conn = self.new(url, log_level).connect
     yield conn
   ensure
     conn.try &.close
