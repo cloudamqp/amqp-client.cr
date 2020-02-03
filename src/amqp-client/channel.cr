@@ -189,7 +189,7 @@ class AMQP::Client
     end
 
     def basic_publish(io : IO, exchange : String, routing_key : String,
-                      mandatory = false, immediate = false, props = Properties.new) : UInt64?
+                      mandatory = false, immediate = false, props = Properties.new) : UInt64
       @connection.write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate), flush: false
       @connection.write Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, props), flush: false
       until io.pos == io.bytesize
@@ -197,12 +197,16 @@ class AMQP::Client
         @connection.write Frame::Body.new(@id, length, io), flush: false
       end
       @connection.flush
-      @confirm_id += 1_u64 if @confirm_mode
+      if @confirm_mode
+        @confirm_id += 1_u64
+      else
+        0_u64
+      end
     end
 
     def basic_publish_confirm(msg, exchange, routing_key, mandatory = false, immediate = false, props = Properties.new) : Bool
       confirm_select
-      msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, props).not_nil!
+      msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, props)
       wait_for_confirm(msgid)
     end
 
