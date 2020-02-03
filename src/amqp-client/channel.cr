@@ -119,16 +119,15 @@ class AMQP::Client
     end
 
     private def process_cancel(f : Frame::Basic::Cancel)
-      @log.warn("Consumer #{f.consumer_tag} canceled by server") unless @on_cancel
-
+      @log.warn("Consumer #{f.consumer_tag} cancelled by server") unless @on_cancel
       begin
         @on_cancel.try &.call(f.consumer_tag)
       rescue ex
-        @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
+        @log.error("Uncaught exception in on_cancel: #{ex.inspect_with_backtrace}")
       end
 
-      if ch = @consumer_blocks.delete f.consumer_tag
-        ch.send nil
+      if cb = @consumer_blocks.delete f.consumer_tag
+        cb.close
       end
       write Frame::Basic::CancelOk.new(@id, f.consumer_tag) unless f.no_wait
       @consumers.delete(f.consumer_tag)
@@ -143,7 +142,11 @@ class AMQP::Client
         begin
           consumer.call(msg)
         rescue ex
-          @log.error("Uncaught exception in consumer: #{ex.inspect_with_backtrace}")
+          if cb = @consumer_blocks.delete f.consumer_tag
+            cb.send ex
+          else
+            @log.error("Uncaught exception in consumer: #{ex.inspect_with_backtrace}")
+          end
         end
       else
         @log.warn("No consumer #{f.consumer_tag} found")
@@ -254,7 +257,7 @@ class AMQP::Client
     end
 
     @consumers = Hash(String, Proc(Message, Nil)).new
-    @consumer_blocks = Hash(String, ::Channel(Nil)).new
+    @consumer_blocks = Hash(String, ::Channel(Exception)).new
 
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
                       block = false,
@@ -263,8 +266,12 @@ class AMQP::Client
       ok = expect Frame::Basic::ConsumeOk
       @consumers[ok.consumer_tag] = blk
       if block
-        ch = @consumer_blocks[ok.consumer_tag] = ::Channel(Nil).new
-        ch.receive?
+        cb = @consumer_blocks[ok.consumer_tag] = ::Channel(Exception).new
+        if ex = cb.receive?
+          @consumers.delete(ok.consumer_tag)
+          write Frame::Basic::Cancel.new(@id, ok.consumer_tag, no_wait: true)
+          raise ex
+        end
       end
       ok.consumer_tag
     end
@@ -272,8 +279,8 @@ class AMQP::Client
     def basic_cancel(consumer_tag, no_wait = false) : Nil
       write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
       expect Frame::Basic::CancelOk unless no_wait
-      if ch = @consumer_blocks.delete consumer_tag
-        ch.send nil
+      if cb = @consumer_blocks.delete consumer_tag
+        cb.close
       end
       @consumers.delete(consumer_tag)
     end
@@ -423,6 +430,7 @@ class AMQP::Client
     end
 
     macro expect(clz)
+      @log.debug { "Channel #{@id} expecting {{ clz }}" }
       frame = next_frame
       frame.as?({{ clz }}) || raise UnexpectedFrame.new(frame)
     end
