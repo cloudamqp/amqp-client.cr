@@ -139,9 +139,9 @@ class AMQP::Client
       @io.flush
     end
 
-    def close(msg = "Connection closed")
+    def close(msg = "")
       @log.info("Closing connection")
-      write Frame::Connection::Close.new(320_u16, msg, 0_u16, 0_u16)
+      write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
       @closed = true
     rescue ex : Errno | IO::Error
       @log.info("Socket already closed, can't send close frame")
