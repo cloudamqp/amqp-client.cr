@@ -17,7 +17,7 @@ class AMQP::Client
                  user = "guest", password = "guest", tls = false,
                  channel_max = UInt16::MAX, frame_max = 131_072_u32, heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER,
-                 log_level = Logger::WARN, &blk : AMQP::Client::Connection -> Nil)
+                 log_level = Logger::WARN, &blk : AMQP::Client::Connection -> _)
     conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, log_level).connect
     yield conn
   ensure
