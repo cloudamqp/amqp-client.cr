@@ -229,13 +229,19 @@ class AMQP::Client
       basic_publish(IO::Memory.new(str), exchange, routing_key, mandatory, immediate, props)
     end
 
-    def basic_publish(io : IO, exchange : String, routing_key : String,
+    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange, routing_key, mandatory = false, immediate = false, props = Properties.new)
+      basic_publish(io, io.bytesize, exchange, routing_key, mandatory, immediate, props)
+    end
+
+    def basic_publish(io : IO, bytesize : Int, exchange : String, routing_key : String,
                       mandatory = false, immediate = false, props = Properties.new) : UInt64
       @connection.write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate), flush: false
-      @connection.write Frame::Header.new(@id, 60_u16, 0_u16, io.bytesize.to_u64, props), flush: false
-      until io.pos == io.bytesize
-        length = Math.min(@connection.frame_max, io.bytesize.to_u32 - io.pos)
+      @connection.write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, props), flush: false
+      pos = 0_u32
+      until pos == bytesize
+        length = Math.min(@connection.frame_max, bytesize.to_u32 - pos)
         @connection.write Frame::Body.new(@id, length, io), flush: false
+        pos += length
       end
       @connection.flush
       if @confirm_mode
@@ -250,6 +256,13 @@ class AMQP::Client
       msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, props)
       wait_for_confirm(msgid)
     end
+
+    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key : String, mandatory = false, immediate = false, props = Properties.new) : Bool
+      confirm_select
+      msgid = basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, props)
+      wait_for_confirm(msgid)
+    end
+
 
     def wait_for_confirm(msgid) : Bool
       loop do

@@ -18,7 +18,7 @@ describe AMQP::Client do
   end
 
   it "can consume" do
-    s = Channel(Nil).new
+    s = ::Channel(Nil).new
     with_channel do |ch|
       q = ch.queue
       q.subscribe do |msg|
@@ -183,6 +183,19 @@ describe AMQP::Client do
         q.unsubscribe(tag)
       end
       b.should be_true
+    end
+  end
+
+  it "can publish IO objects without pos or bytesize" do
+    io = IO::Memory.new "abcde"
+    sized = IO::Sized.new(io, read_size: 3)
+    with_channel do |ch|
+      tag = "block"
+      q = ch.queue
+      q.publish_confirm(sized, 3).should eq true
+      msg = q.get
+      msg.should_not be_nil
+      msg.not_nil!.body_io.to_s.should eq "abc"
     end
   end
 end

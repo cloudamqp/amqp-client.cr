@@ -21,8 +21,16 @@ class AMQP::Client
       @channel.basic_publish(message, "", @name, mandatory, immediate, props)
     end
 
+    def publish(io : IO, bytesize : Int, mandatory = false, immediate = false, props = Properties.new)
+      @channel.basic_publish(io, bytesize, "", @name, mandatory, immediate, props)
+    end
+
     def publish_confirm(message, mandatory = false, immediate = false, props = Properties.new)
       @channel.basic_publish_confirm(message, "", @name, mandatory, immediate, props)
+    end
+
+    def publish_confirm(io : IO, bytesize : Int, mandatory = false, immediate = false, props = Properties.new)
+      @channel.basic_publish_confirm(io, bytesize, "", @name, mandatory, immediate, props)
     end
 
     def get(no_ack = true)
