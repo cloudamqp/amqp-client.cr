@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="generator" content="Crystal Docs 0.29.0">
+<meta name="generator" content="Crystal Docs 0.31.1">
 
-
-<link href="../../css/style.css" rel="stylesheet" type="text/css">
-
+<link href="../../css/style.css" rel="stylesheet" type="text/css" />
 <script type="text/javascript" src="../../js/doc.js"></script>
-<script type="text/javascript">
-  CrystalDoc.base_path = "../../";
-</script>
+
+<svg class="hidden">
+  <symbol id="octicon-link" viewBox="0 0 16 16">
+    <path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path>
+  </symbol>
+</svg>
 
   <meta id="repository-name" content="github.com/cloudamqp/amqp-client.cr">
   <title>AMQP::Client::Queue - github.com/cloudamqp/amqp-client.cr</title>
+  <script type="text/javascript">
+    CrystalDoc.base_path = "../../";
+  </script>
 </head>
 <body>
 
@@ -168,10 +172,17 @@
 
 
 
-  <h2>Defined in:</h2>
+  <h2>
+    <a id="defined-in" class="anchor" href="#defined-in">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Defined in:
+  </h2>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L4" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L4" target="_blank">
         amqp-client/queue.cr
       </a>
     
@@ -182,7 +193,14 @@
 
 
 
-  <h2>Constructors</h2>
+  <h2>
+    <a id="constructors" class="anchor" href="#constructors">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Constructors
+  </h2>
   <ul class="list-summary">
     
       <li class="entry-summary">
@@ -196,7 +214,14 @@
 
 
 
-  <h2>Instance Method Summary</h2>
+  <h2>
+    <a id="instance-method-summary" class="anchor" href="#instance-method-summary">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Instance Method Summary
+  </h2>
   <ul class="list-summary">
     
       <li class="entry-summary">
@@ -220,7 +245,17 @@
       </li>
     
       <li class="entry-summary">
+        <a href="#publish(io:IO,bytesize:Int,mandatory=false,immediate=false,props=Properties.new)-instance-method" class="signature"><strong>#publish</strong>(io : IO, bytesize : Int, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)</a>
+        
+      </li>
+    
+      <li class="entry-summary">
         <a href="#publish(message,mandatory=false,immediate=false,props=Properties.new)-instance-method" class="signature"><strong>#publish</strong>(message, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)</a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#publish_confirm(io:IO,bytesize:Int,mandatory=false,immediate=false,props=Properties.new)-instance-method" class="signature"><strong>#publish_confirm</strong>(io : IO, bytesize : Int, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)</a>
         
       </li>
     
@@ -235,7 +270,7 @@
       </li>
     
       <li class="entry-summary">
-        <a href="#subscribe(tag=&quot;&quot;,no_ack=true,exclusive=false,args=Arguments.new,&blk:Message-%3ENil)-instance-method" class="signature"><strong>#subscribe</strong>(tag = <span class="s">&quot;&quot;</span>, no_ack = <span class="n">true</span>, exclusive = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>, &blk : Message -> Nil)</a>
+        <a href="#subscribe(tag=&quot;&quot;,no_ack=true,exclusive=false,block=false,args=Arguments.new,&blk:Message-%3ENil)-instance-method" class="signature"><strong>#subscribe</strong>(tag = <span class="s">&quot;&quot;</span>, no_ack = <span class="n">true</span>, exclusive = <span class="n">false</span>, block = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>, &blk : Message -> Nil)</a>
         
       </li>
     
@@ -280,7 +315,14 @@
 </div>
 
 
-  <h2>Constructor Detail</h2>
+  <h2>
+    <a id="constructor-detail" class="anchor" href="#constructor-detail">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Constructor Detail
+  </h2>
   
     <div class="entry-detail" id="new(channel:Channel,name:String)-class-method">
       <div class="signature">
@@ -293,7 +335,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L7" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L7" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -303,7 +345,14 @@
 
 
 
-  <h2>Instance Method Detail</h2>
+  <h2>
+    <a id="instance-method-detail" class="anchor" href="#instance-method-detail">
+  <svg class="octicon-link" aria-hidden="true">
+    <use href="#octicon-link"/>
+  </svg>
+</a>
+    Instance Method Detail
+  </h2>
   
     <div class="entry-detail" id="bind(exchange:String,routing_key:String,no_wait=false,args=Arguments.new)-instance-method">
       <div class="signature">
@@ -316,7 +365,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L10" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L10" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -332,7 +381,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L45" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L53" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -348,7 +397,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L28" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L36" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -364,7 +413,23 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L5" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L5" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="publish(io:IO,bytesize:Int,mandatory=false,immediate=false,props=Properties.new)-instance-method">
+      <div class="signature">
+        
+        def <strong>publish</strong>(io : IO, bytesize : Int, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)
+
+        <a class="method-permalink" href="#publish(io:IO,bytesize:Int,mandatory=false,immediate=false,props=Properties.new)-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L24" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -380,7 +445,23 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L20" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L20" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="publish_confirm(io:IO,bytesize:Int,mandatory=false,immediate=false,props=Properties.new)-instance-method">
+      <div class="signature">
+        
+        def <strong>publish_confirm</strong>(io : IO, bytesize : Int, mandatory = <span class="n">false</span>, immediate = <span class="n">false</span>, props = <span class="t">Properties</span>.<span class="k">new</span>)
+
+        <a class="method-permalink" href="#publish_confirm(io:IO,bytesize:Int,mandatory=false,immediate=false,props=Properties.new)-instance-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L32" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -396,7 +477,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L24" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L28" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -412,23 +493,23 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L41" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L49" target="_blank">View source</a>]
         
       </div>
     </div>
   
-    <div class="entry-detail" id="subscribe(tag=&amp;quot;&amp;quot;,no_ack=true,exclusive=false,args=Arguments.new,&amp;blk:Message-&gt;Nil)-instance-method">
+    <div class="entry-detail" id="subscribe(tag=&amp;quot;&amp;quot;,no_ack=true,exclusive=false,block=false,args=Arguments.new,&amp;blk:Message-&gt;Nil)-instance-method">
       <div class="signature">
         
-        def <strong>subscribe</strong>(tag = <span class="s">&quot;&quot;</span>, no_ack = <span class="n">true</span>, exclusive = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>, &blk : <a href="../../AMQP/Client/Message.html">Message</a> -> Nil)
+        def <strong>subscribe</strong>(tag = <span class="s">&quot;&quot;</span>, no_ack = <span class="n">true</span>, exclusive = <span class="n">false</span>, block = <span class="n">false</span>, args = <span class="t">Arguments</span>.<span class="k">new</span>, &blk : <a href="../../AMQP/Client/Message.html">Message</a> -> Nil)
 
-        <a class="method-permalink" href="#subscribe(tag=&quot;&quot;,no_ack=true,exclusive=false,args=Arguments.new,&blk:Message-%3ENil)-instance-method">#</a>
+        <a class="method-permalink" href="#subscribe(tag=&quot;&quot;,no_ack=true,exclusive=false,block=false,args=Arguments.new,&blk:Message-%3ENil)-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L32" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L40" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -444,7 +525,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L15" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L15" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -460,7 +541,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/607955c7df7d43a843980ef2de2086152212f5b7/src/amqp-client/queue.cr#L37" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/c30fd071a1af67332a70a1b517bbf0f6ffcbde49/src/amqp-client/queue.cr#L45" target="_blank">View source</a>]
         
       </div>
     </div>
