@@ -1,5 +1,5 @@
 name: amqp-client
-version: 0.4.5
+version: 0.5.0
 
 authors:
   - Carl Hörberg <carl@cloudamqp.com>
@@ -11,6 +11,6 @@ dependencies:
     version: ~>0.3.0
     # path: ../amq-protocol.cr
 
-crystal: 0.31.1
+crystal: 0.32.1
 
 license: MIT

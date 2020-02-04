@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2020-02-04
+
+### Added
+- Allow publishing IO objects and manually setting the bytesize (for IO objects that doesn't support IO#bytesize)
+
+### Changed
+- Message deliveries/returns are process in a separate fiber so not to block frame processing
+- Deliveries, returns and confirms are now added to unbounded internal dequeues
+- Connection and channel close now use reply code 200 and no reply text
+
 ## [0.4.5] - 2019-10-11
 
 ### Added
