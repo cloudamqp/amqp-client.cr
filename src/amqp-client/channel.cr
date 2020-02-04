@@ -11,7 +11,8 @@ class AMQP::Client
     @confirm_id = 0_u64
     @server_frames = ::Channel(Frame).new
     @reply_frames = ::Channel(Frame).new
-    @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(1024)
+    @confirms = ::Deque(Frame::Basic::Ack | Frame::Basic::Nack).new(128)
+    @has_confirms = ::Channel(Nil).new(1)
     @next_msg_ready = ::Channel(Nil).new
     @log : Logger
     @server_flow = true
@@ -63,7 +64,7 @@ class AMQP::Client
 
     def cleanup
       @closed = true
-      @confirms.close
+      @has_confirms.close
       @reply_frames.close
       @server_frames.close
     end
@@ -81,7 +82,9 @@ class AMQP::Client
            Frame::Basic::Cancel
         @server_frames.send frame
       when Frame::Basic::Ack, Frame::Basic::Nack
-        @confirms.send frame
+        was_empty = @confirms.empty?
+        @confirms.push frame
+        @has_confirms.send nil if was_empty
       when Frame::Header
         @next_body_io.clear
         @next_msg_props = frame.properties
@@ -215,17 +218,19 @@ class AMQP::Client
 
     def wait_for_confirm(msgid) : Bool
       loop do
-        confirm = @confirms.receive
-        case confirm
-        when Frame::Basic::Ack
-          next if confirm.delivery_tag < msgid
-          next if confirm.delivery_tag > msgid && !confirm.multiple
-          return true
-        when Frame::Basic::Nack
-          next if confirm.delivery_tag < msgid
-          next if confirm.delivery_tag > msgid && !confirm.multiple
-          return false
-        else raise UnexpectedFrame.new(confirm)
+        @has_confirms.receive
+        while confirm = @confirms.shift?
+          case confirm
+          when Frame::Basic::Ack
+            next if confirm.delivery_tag < msgid
+            next if confirm.delivery_tag > msgid && !confirm.multiple
+            return true
+          when Frame::Basic::Nack
+            next if confirm.delivery_tag < msgid
+            next if confirm.delivery_tag > msgid && !confirm.multiple
+            return false
+          else raise UnexpectedFrame.new(confirm)
+          end
         end
       rescue ex : ::Channel::ClosedError
         raise ClosedException.new(@closing_frame, cause: ex)
