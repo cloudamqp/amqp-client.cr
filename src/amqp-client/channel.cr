@@ -7,20 +7,28 @@ class AMQP::Client
   class Channel
     getter id
 
+    @closed = false
+    @log : Logger
     @confirm_mode = false
     @confirm_id = 0_u64
+    @server_flow = true
+
     @server_frames = ::Channel(Frame).new
     @reply_frames = ::Channel(Frame).new
+    @next_msg_ready = ::Channel(Nil).new
+
+    @deliveries = ::Deque(Tuple(Frame::Basic::Deliver, Properties, IO::Memory)).new(128)
+    @has_delivery = ::Channel(Nil).new(1)
+    @returns = ::Deque(Tuple(Frame::Basic::Return, Properties, IO::Memory)).new(128)
+    @has_return = ::Channel(Nil).new(1)
     @confirms = ::Deque(Frame::Basic::Ack | Frame::Basic::Nack).new(128)
     @has_confirms = ::Channel(Nil).new(1)
-    @next_msg_ready = ::Channel(Nil).new
-    @log : Logger
-    @server_flow = true
-    @closed = false
 
     def initialize(@connection : Connection, @id : UInt16)
       @log = @connection.log
       spawn read_loop, name: "Channel #{@id} read_loop"
+      spawn delivery_loop, name: "Channel #{@id} delivery_loop"
+      spawn return_loop, name: "Channel #{@id} return_loop"
     end
 
     def open
@@ -64,12 +72,14 @@ class AMQP::Client
 
     def cleanup
       @closed = true
+      @has_delivery.close
+      @has_return.close
       @has_confirms.close
       @reply_frames.close
       @server_frames.close
     end
 
-    @next_body_io = IO::Memory.new(4096)
+    @next_body_io = IO::Memory.new(0)
     @next_body_size = 0_u32
     @next_msg_props = AMQ::Protocol::Properties.new
 
@@ -86,9 +96,9 @@ class AMQP::Client
         @confirms.push frame
         @has_confirms.send nil if was_empty
       when Frame::Header
-        @next_body_io.clear
         @next_msg_props = frame.properties
         @next_body_size = frame.body_size.to_u32
+        @next_body_io = IO::Memory.new(frame.body_size)
         @next_msg_ready.send nil if frame.body_size.zero?
       when Frame::Body
         IO.copy(frame.body, @next_body_io, frame.body_size)
@@ -111,8 +121,9 @@ class AMQP::Client
         when Frame::Basic::Return  then process_return(frame)
         when Frame::Basic::Cancel  then process_cancel(frame)
         end
+      rescue ::Channel::ClosedError
+        break
       end
-    rescue ::Channel::ClosedError
     end
 
     @on_cancel : Proc(String, Nil)?
@@ -138,21 +149,34 @@ class AMQP::Client
 
     private def process_deliver(f : Frame::Basic::Deliver)
       @next_msg_ready.receive
-      msg = Message.new(self, f.exchange, f.routing_key,
-        f.delivery_tag, @next_msg_props,
-        @next_body_io, f.redelivered)
-      if consumer = @consumers.fetch(f.consumer_tag, nil)
-        begin
-          consumer.call(msg)
-        rescue ex
-          if cb = @consumer_blocks.delete f.consumer_tag
-            cb.send ex
+      was_empty = @deliveries.empty?
+      @deliveries.push({ f, @next_msg_props, @next_body_io })
+      @has_delivery.send nil if was_empty
+    end
+
+    private def delivery_loop
+      loop do
+        @has_delivery.receive
+        while d = @deliveries.shift?
+          f, props, body_io = d
+          msg = Message.new(self, f.exchange, f.routing_key,
+            f.delivery_tag, props, body_io, f.redelivered)
+          if consumer = @consumers.fetch(f.consumer_tag, nil)
+            begin
+              consumer.call(msg)
+            rescue ex
+              if cb = @consumer_blocks.delete f.consumer_tag
+                cb.send ex
+              else
+                @log.error("Uncaught exception in consumer: #{ex.inspect_with_backtrace}")
+              end
+            end
           else
-            @log.error("Uncaught exception in consumer: #{ex.inspect_with_backtrace}")
+            @log.warn("No consumer #{f.consumer_tag} found")
           end
         end
-      else
-        @log.warn("No consumer #{f.consumer_tag} found")
+      rescue ::Channel::ClosedError
+        break
       end
     end
 
@@ -164,20 +188,31 @@ class AMQP::Client
 
     private def process_return(return_frame)
       @next_msg_ready.receive
-      msg = ReturnedMessage.new(return_frame.reply_code,
-        return_frame.reply_text,
-        return_frame.exchange,
-        return_frame.routing_key,
-        @next_msg_props, @next_body_io)
-      unless @on_return
-        @log.error("Message returned but no on_return block defined: #{msg.inspect}")
-        return
-      end
+      was_empty = @returns.empty?
+      @returns.push({ return_frame, @next_msg_props, @next_body_io })
+      @has_return.send nil if was_empty
+    end
 
-      begin
-        @on_return.try &.call(msg)
-      rescue ex
-        @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
+    private def return_loop
+      loop do
+        @has_return.receive
+        while r = @returns.shift?
+          f, props, body_io = r
+          msg = ReturnedMessage.new(f.reply_code, f.reply_text,
+                                    f.exchange, f.routing_key,
+                                    props, body_io)
+          if @on_return
+            begin
+              @on_return.try &.call(msg)
+            rescue ex
+              @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
+            end
+          else
+            @log.error("Message returned but no on_return block defined: #{msg.inspect}")
+          end
+        end
+      rescue ::Channel::ClosedError
+        break
       end
     end
 
@@ -249,11 +284,8 @@ class AMQP::Client
 
     private def get_message(f) : Message
       @next_msg_ready.receive
-      io = IO::Memory.new(@next_body_io.bytesize)
-      IO.copy(@next_body_io, io, @next_body_io.bytesize)
-      io.rewind
       Message.new(self, f.exchange, f.routing_key,
-                  f.delivery_tag, @next_msg_props, io,
+                  f.delivery_tag, @next_msg_props, @next_body_io,
                   f.redelivered)
     end
 
