@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2020-02-10
+
+### Added
+- Messages from Channel#basic_get now includes a message_count property (that is how many msgs are left in the queue)
+
 ## [0.5.0] - 2020-02-04
 
 ### Added
