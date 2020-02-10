@@ -21,7 +21,7 @@ class AMQP::Client
     end
   end
 
-  struct Message < BaseMessage
+  abstract struct Message < BaseMessage
     getter delivery_tag, redelivered
 
     def initialize(@channel : Channel, @exchange : String,
@@ -40,6 +40,19 @@ class AMQP::Client
 
     def reject(requeue = false)
       @channel.basic_reject(@delivery_tag, requeue: requeue)
+    end
+  end
+
+  struct DeliverMessage < Message
+  end
+
+  struct GetMessage < Message
+    getter message_count
+
+    def initialize(@channel : Channel, @exchange : String,
+                   @routing_key : String, @delivery_tag : UInt64,
+                   @properties : AMQ::Protocol::Properties,
+                   @body_io : IO::Memory, @redelivered : Bool, @message_count : UInt32)
     end
   end
 end

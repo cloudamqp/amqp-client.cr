@@ -159,7 +159,7 @@ class AMQP::Client
         @has_delivery.receive
         while d = @deliveries.shift?
           f, props, body_io = d
-          msg = Message.new(self, f.exchange, f.routing_key,
+          msg = DeliverMessage.new(self, f.exchange, f.routing_key,
             f.delivery_tag, props, body_io, f.redelivered)
           if consumer = @consumers.fetch(f.consumer_tag, nil)
             begin
@@ -285,7 +285,7 @@ class AMQP::Client
       end
     end
 
-    def basic_get(queue : String, no_ack : Bool) : Message?
+    def basic_get(queue : String, no_ack : Bool) : GetMessage?
       write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
       f = next_frame
       case f
@@ -295,23 +295,23 @@ class AMQP::Client
       end
     end
 
-    private def get_message(f) : Message
+    private def get_message(f) : GetMessage
       @next_msg_ready.receive
-      Message.new(self, f.exchange, f.routing_key,
+      GetMessage.new(self, f.exchange, f.routing_key,
                   f.delivery_tag, @next_msg_props, @next_body_io,
-                  f.redelivered)
+                  f.redelivered, f.message_count)
     end
 
     def has_subscriber?(consumer_tag)
       @consumers.has_key? consumer_tag
     end
 
-    @consumers = Hash(String, Proc(Message, Nil)).new
+    @consumers = Hash(String, Proc(DeliverMessage, Nil)).new
     @consumer_blocks = Hash(String, ::Channel(Exception)).new
 
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
                       block = false,
-                      args = Arguments.new, &blk : Message -> Nil)
+                      args = Arguments.new, &blk : DeliverMessage -> Nil)
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, args)
       ok = expect Frame::Basic::ConsumeOk
       @consumers[ok.consumer_tag] = blk

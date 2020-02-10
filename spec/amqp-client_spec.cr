@@ -17,6 +17,17 @@ describe AMQP::Client do
     end
   end
 
+  it "can get" do
+    with_channel do |ch|
+      q = ch.queue
+      q.publish("foo")
+      q.publish("bar")
+      msg = q.get(no_ack: true)
+      msg.should_not be_nil
+      msg.not_nil!.message_count.should eq 1
+    end
+  end
+
   it "can consume" do
     s = ::Channel(Nil).new
     with_channel do |ch|
