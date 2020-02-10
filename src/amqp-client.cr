@@ -44,14 +44,14 @@ class AMQP::Client
                    when "none" then OpenSSL::SSL::VerifyMode::NONE
                    else             OpenSSL::SSL::VerifyMode::PEER
                    end
-    @log = Logger.new(STDOUT, level: log_level)
+    @log = Logger.new(STDERR, level: log_level)
   end
 
 
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
                  @tls = false, @channel_max = UInt16::MAX, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  @verify_mode = OpenSSL::SSL::VerifyMode::PEER, log_level = Logger::WARN)
-    @log = Logger.new(STDOUT, level: log_level)
+    @log = Logger.new(STDERR, level: log_level)
   end
     
   def connect : Connection
