@@ -485,6 +485,10 @@ class AMQP::Client
       frame.as?({{ clz }}) || raise UnexpectedFrame.new(frame)
     end
 
+    def inspect(io : IO) : Nil
+      io << "#<" << self.class.name << " @id=" << @id << '>'
+    end
+
     class ClosedException < Exception
       def initialize(close : Frame::Channel::Close?, cause = nil)
         if close
