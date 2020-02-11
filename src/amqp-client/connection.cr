@@ -91,8 +91,8 @@ class AMQP::Client
           when Frame::Heartbeat
             write f
           else
-            if @channels.has_key? f.channel
-              @channels[f.channel].incoming f
+            if ch = @channels.fetch(f.channel, nil)
+              ch.incoming f
             else
               @log.error "Channel #{f.channel} not open for frame #{f.inspect}"
             end

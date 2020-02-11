@@ -23,6 +23,10 @@ class AMQP::Client
       @store[key]
     end
 
+    def fetch(key, default)
+      @store.fetch(key, default)
+    end
+
     def has_key?(key)
       !!@store[key]?
     end
