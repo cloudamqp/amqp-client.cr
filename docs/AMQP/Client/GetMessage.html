@@ -15,7 +15,7 @@
 </svg>
 
   <meta id="repository-name" content="github.com/cloudamqp/amqp-client.cr">
-  <title>AMQP::Client::BaseMessage - github.com/cloudamqp/amqp-client.cr</title>
+  <title>AMQP::Client::GetMessage - github.com/cloudamqp/amqp-client.cr</title>
   <script type="text/javascript">
     CrystalDoc.base_path = "../../";
   </script>
@@ -55,7 +55,7 @@
       
     </li>
   
-  <li class=" current" data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/BaseMessage" data-name="amqp::client::basemessage">
+  <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/BaseMessage" data-name="amqp::client::basemessage">
       <a href="../../AMQP/Client/BaseMessage.html">BaseMessage</a>
       
     </li>
@@ -105,7 +105,7 @@
       
     </li>
   
-  <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/GetMessage" data-name="amqp::client::getmessage">
+  <li class=" current" data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/GetMessage" data-name="amqp::client::getmessage">
       <a href="../../AMQP/Client/GetMessage.html">GetMessage</a>
       
     </li>
@@ -159,12 +159,12 @@
 <div class="main-content">
 <h1 class="type-name">
 
-  <span class="kind">abstract struct</span> AMQP::Client::BaseMessage
+  <span class="kind">struct</span> AMQP::Client::GetMessage
 
 </h1>
 
 
-  <ul class="superclass-hierarchy"><li class="superclass"><a href="../../AMQP/Client/BaseMessage.html">AMQP::Client::BaseMessage</a></li><li class="superclass">Struct</li><li class="superclass">Value</li><li class="superclass">Object</li></ul>
+  <ul class="superclass-hierarchy"><li class="superclass"><a href="../../AMQP/Client/GetMessage.html">AMQP::Client::GetMessage</a></li><li class="superclass"><a href="../../AMQP/Client/Message.html">AMQP::Client::Message</a></li><li class="superclass"><a href="../../AMQP/Client/BaseMessage.html">AMQP::Client::BaseMessage</a></li><li class="superclass">Struct</li><li class="superclass">Value</li><li class="superclass">Object</li></ul>
 
 
 
@@ -176,22 +176,6 @@
 
 
 
-
-  <h2>
-    <a id="direct-known-subclasses" class="anchor" href="#direct-known-subclasses">
-  <svg class="octicon-link" aria-hidden="true">
-    <use href="#octicon-link"/>
-  </svg>
-</a>
-    Direct Known Subclasses
-  </h2>
-  <ul class="other-types-list">
-    
-      <li class="other-type"><a href="../../AMQP/Client/Message.html">AMQP::Client::Message</a></li>
-    
-      <li class="other-type"><a href="../../AMQP/Client/ReturnedMessage.html">AMQP::Client::ReturnedMessage</a></li>
-    
-  </ul>
 
 
 
@@ -208,7 +192,7 @@
   </h2>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L5" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L49" target="_blank">
         amqp-client/message.cr
       </a>
     
@@ -230,7 +214,7 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#new(exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method" class="signature"><strong>.new</strong>(exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)</a>
+        <a href="#new(channel:Channel,exchange:String,routing_key:String,delivery_tag:UInt64,properties:AMQ::Protocol::Properties,body_io:IO::Memory,redelivered:Bool,message_count:UInt32)-class-method" class="signature"><strong>.new</strong>(channel : Channel, exchange : String, routing_key : String, delivery_tag : UInt64, properties : AMQ::Protocol::Properties, body_io : IO::Memory, redelivered : Bool, message_count : UInt32)</a>
         
       </li>
     
@@ -251,22 +235,7 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#body_io:IO::Memory-instance-method" class="signature"><strong>#body_io</strong> : IO::Memory</a>
-        
-      </li>
-    
-      <li class="entry-summary">
-        <a href="#exchange:String-instance-method" class="signature"><strong>#exchange</strong> : String</a>
-        
-      </li>
-    
-      <li class="entry-summary">
-        <a href="#properties:AMQ::Protocol::Properties-instance-method" class="signature"><strong>#properties</strong> : AMQ::Protocol::Properties</a>
-        
-      </li>
-    
-      <li class="entry-summary">
-        <a href="#routing_key:String-instance-method" class="signature"><strong>#routing_key</strong> : String</a>
+        <a href="#message_count:UInt32-instance-method" class="signature"><strong>#message_count</strong> : UInt32</a>
         
       </li>
     
@@ -277,6 +246,97 @@
 
 
 <div class="methods-inherited">
+  
+    
+
+  <h3>Instance methods inherited from struct <code><a href="../../AMQP/Client/Message.html">AMQP::Client::Message</a></code></h3>
+  
+  
+    <a href="../../AMQP/Client/Message.html#ack(multiple=false)-instance-method" class="tooltip">
+      <span>ack(multiple = <span class="n">false</span>)</span>
+    ack</a>, 
+    
+  
+    <a href="../../AMQP/Client/Message.html#delivery_tag:UInt64-instance-method" class="tooltip">
+      <span>delivery_tag : UInt64</span>
+    delivery_tag</a>, 
+    
+  
+    <a href="../../AMQP/Client/Message.html#nack(multiple=false,requeue=false)-instance-method" class="tooltip">
+      <span>nack(multiple = <span class="n">false</span>, requeue = <span class="n">false</span>)</span>
+    nack</a>, 
+    
+  
+    <a href="../../AMQP/Client/Message.html#redelivered:Bool-instance-method" class="tooltip">
+      <span>redelivered : Bool</span>
+    redelivered</a>, 
+    
+  
+    <a href="../../AMQP/Client/Message.html#reject(requeue=false)-instance-method" class="tooltip">
+      <span>reject(requeue = <span class="n">false</span>)</span>
+    reject</a>
+    
+  
+
+
+    
+
+  <h3>Constructor methods inherited from struct <code><a href="../../AMQP/Client/Message.html">AMQP::Client::Message</a></code></h3>
+  
+  
+    <a href="../../AMQP/Client/Message.html#new(channel:Channel,exchange:String,routing_key:String,delivery_tag:UInt64,properties:AMQ::Protocol::Properties,body_io:IO::Memory,redelivered:Bool)-class-method" class="tooltip">
+      <span>new(channel : Channel, exchange : String, routing_key : String, delivery_tag : UInt64, properties : AMQ::Protocol::Properties, body_io : IO::Memory, redelivered : Bool)</span>
+    new</a>
+    
+  
+
+
+    
+
+
+  
+    
+
+  <h3>Instance methods inherited from struct <code><a href="../../AMQP/Client/BaseMessage.html">AMQP::Client::BaseMessage</a></code></h3>
+  
+  
+    <a href="../../AMQP/Client/BaseMessage.html#body_io:IO::Memory-instance-method" class="tooltip">
+      <span>body_io : IO::Memory</span>
+    body_io</a>, 
+    
+  
+    <a href="../../AMQP/Client/BaseMessage.html#exchange:String-instance-method" class="tooltip">
+      <span>exchange : String</span>
+    exchange</a>, 
+    
+  
+    <a href="../../AMQP/Client/BaseMessage.html#properties:AMQ::Protocol::Properties-instance-method" class="tooltip">
+      <span>properties : AMQ::Protocol::Properties</span>
+    properties</a>, 
+    
+  
+    <a href="../../AMQP/Client/BaseMessage.html#routing_key:String-instance-method" class="tooltip">
+      <span>routing_key : String</span>
+    routing_key</a>
+    
+  
+
+
+    
+
+  <h3>Constructor methods inherited from struct <code><a href="../../AMQP/Client/BaseMessage.html">AMQP::Client::BaseMessage</a></code></h3>
+  
+  
+    <a href="../../AMQP/Client/BaseMessage.html#new(exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method" class="tooltip">
+      <span>new(exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)</span>
+    new</a>
+    
+  
+
+
+    
+
+
   
     
 
@@ -320,18 +380,18 @@
     Constructor Detail
   </h2>
   
-    <div class="entry-detail" id="new(exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method">
+    <div class="entry-detail" id="new(channel:Channel,exchange:String,routing_key:String,delivery_tag:UInt64,properties:AMQ::Protocol::Properties,body_io:IO::Memory,redelivered:Bool,message_count:UInt32)-class-method">
       <div class="signature">
         
-        def self.<strong>new</strong>(exchange : String, routing_key : String, properties : AMQ::Protocol::Properties, body_io : IO::Memory)
+        def self.<strong>new</strong>(channel : <a href="../../AMQP/Client/Channel.html">Channel</a>, exchange : String, routing_key : String, delivery_tag : UInt64, properties : AMQ::Protocol::Properties, body_io : IO::Memory, redelivered : Bool, message_count : UInt32)
 
-        <a class="method-permalink" href="#new(exchange:String,routing_key:String,properties:AMQ::Protocol::Properties,body_io:IO::Memory)-class-method">#</a>
+        <a class="method-permalink" href="#new(channel:Channel,exchange:String,routing_key:String,delivery_tag:UInt64,properties:AMQ::Protocol::Properties,body_io:IO::Memory,redelivered:Bool,message_count:UInt32)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L8" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L52" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -350,66 +410,18 @@
     Instance Method Detail
   </h2>
   
-    <div class="entry-detail" id="body_io:IO::Memory-instance-method">
+    <div class="entry-detail" id="message_count:UInt32-instance-method">
       <div class="signature">
         
-        def <strong>body_io</strong> : IO::Memory
+        def <strong>message_count</strong> : UInt32
 
-        <a class="method-permalink" href="#body_io:IO::Memory-instance-method">#</a>
+        <a class="method-permalink" href="#message_count:UInt32-instance-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
-        
-      </div>
-    </div>
-  
-    <div class="entry-detail" id="exchange:String-instance-method">
-      <div class="signature">
-        
-        def <strong>exchange</strong> : String
-
-        <a class="method-permalink" href="#exchange:String-instance-method">#</a>
-      </div>
-      
-      <br/>
-      <div>
-        
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
-        
-      </div>
-    </div>
-  
-    <div class="entry-detail" id="properties:AMQ::Protocol::Properties-instance-method">
-      <div class="signature">
-        
-        def <strong>properties</strong> : AMQ::Protocol::Properties
-
-        <a class="method-permalink" href="#properties:AMQ::Protocol::Properties-instance-method">#</a>
-      </div>
-      
-      <br/>
-      <div>
-        
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
-        
-      </div>
-    </div>
-  
-    <div class="entry-detail" id="routing_key:String-instance-method">
-      <div class="signature">
-        
-        def <strong>routing_key</strong> : String
-
-        <a class="method-permalink" href="#routing_key:String-instance-method">#</a>
-      </div>
-      
-      <br/>
-      <div>
-        
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L6" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L50" target="_blank">View source</a>]
         
       </div>
     </div>
