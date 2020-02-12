@@ -45,12 +45,14 @@ class AMQP::Client
 
     def close : Nil
       return if @closed
+      @closed = true
       write Frame::Channel::Close.new(@id, 200, "", 0, 0)
       expect Frame::Channel::CloseOk
       cleanup
     end
 
     def close(frame : Frame::Channel::Close) : Nil
+      @closed = true
       @closing_frame = frame
       @log.info "Channel #{@id} closed by server: #{frame.inspect}" unless @on_close
       begin
@@ -71,7 +73,6 @@ class AMQP::Client
     end
 
     def cleanup
-      @closed = true
       @has_delivery.close
       @has_return.close
       @has_confirms.close
