@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2020-02-12
+
+### Added
+- You can now pass an URI to the constructor
+
+### Changed
+- ArgumentError if Channel#wait_for_confirm parameter is less than 1
+- Don't log warning of server consumer cancellation if connection/channel is closed
+
 ## [0.5.2] - 2020-02-11
 
 ### Changed
