@@ -134,7 +134,7 @@ class AMQP::Client
     end
 
     private def process_cancel(f : Frame::Basic::Cancel)
-      @log.warn("Consumer #{f.consumer_tag} cancelled by server") unless @on_cancel
+      @log.warn("Consumer #{f.consumer_tag} cancelled by server") unless @on_cancel || @closed || @connection.closed?
       begin
         @on_cancel.try &.call(f.consumer_tag)
       rescue ex
