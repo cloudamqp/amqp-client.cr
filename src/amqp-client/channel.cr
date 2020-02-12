@@ -265,6 +265,7 @@ class AMQP::Client
 
 
     def wait_for_confirm(msgid) : Bool
+      raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
       loop do
         @has_confirms.receive
         while confirm = @confirms.shift?
