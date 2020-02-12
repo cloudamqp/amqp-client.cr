@@ -6,7 +6,7 @@ require "logger"
 require "./amqp-client/*"
 
 class AMQP::Client
-  def self.start(url : String, log_level = Logger::WARN, &blk : AMQP::Client::Connection -> _)
+  def self.start(url : String | URI, log_level = Logger::WARN, &blk : AMQP::Client::Connection -> _)
     conn = self.new(url, log_level).connect
     yield conn
   ensure
@@ -24,8 +24,12 @@ class AMQP::Client
     conn.try &.close
   end
 
-  def initialize(url : String, log_level = Logger::WARN)
+  def self.new(url : String, log_level = Logger::WARN)
     uri = URI.parse(url)
+    self.new(uri, log_level)
+  end
+
+  def initialize(uri : URI, log_level = Logger::WARN)
     @tls = uri.scheme == "amqps"
     @host = uri.host || "localhost"
     @port = uri.port || (@tls ? 5671 : 5672)
