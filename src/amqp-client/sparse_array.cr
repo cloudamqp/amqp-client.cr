@@ -1,10 +1,9 @@
 class AMQP::Client
   class SparseArray(T)
-    getter size
+    getter size = 0
 
     def initialize(initial_capacity = 4)
       @store = Array(T | Nil).new(initial_capacity, nil)
-      @size = 0
     end
 
     def []=(key, value)
@@ -49,6 +48,7 @@ class AMQP::Client
     end
 
     def clear
+      @size = 0
       @store.clear
     end
   end
