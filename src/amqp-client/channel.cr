@@ -272,6 +272,8 @@ class AMQP::Client
         ch.send(acked)
       end
       ch.receive
+    ensure
+      raise ClosedException.new(@closing_frame) if @closing_frame
     end
 
     @on_confirm = Hash(UInt64, Proc(Bool, Nil)).new
