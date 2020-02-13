@@ -1,3 +1,3 @@
 class AMQP::Client
-  VERSION = "0.5.2"
+  VERSION = "0.5.4"
 end

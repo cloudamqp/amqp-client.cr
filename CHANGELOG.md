@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2020-02-13
+
+### Added
+- Channel#on_confirm(msgid, &blk) calls the block when the specific message is confirmed
+
+### Fixed
+- wait_for_confirm is now fiber safe
+
 ## [0.5.3] - 2020-02-12
 
 ### Added
