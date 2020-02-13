@@ -29,6 +29,7 @@ class AMQP::Client
       spawn read_loop, name: "Channel #{@id} read_loop"
       spawn delivery_loop, name: "Channel #{@id} delivery_loop"
       spawn return_loop, name: "Channel #{@id} return_loop"
+      spawn confirm_loop, name: "Channel #{@id} confirm_loop"
     end
 
     def open
@@ -264,26 +265,70 @@ class AMQP::Client
       wait_for_confirm(msgid)
     end
 
-
+    # Block until confirmed
     def wait_for_confirm(msgid) : Bool
+      ch = ::Channel(Bool).new
+      on_confirm(msgid) do |acked|
+        ch.send(acked)
+      end
+      ch.receive
+    end
+
+    @on_confirm = Hash(UInt64, Proc(Bool, Nil)).new
+    @last_confirm = { 0_u64, true }
+
+    def on_confirm(msgid, &blk : Bool -> Nil)
       raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
+      if @last_confirm[0] >= msgid
+        blk.call @last_confirm[1]
+      else
+        @on_confirm[msgid] = blk
+      end
+    end
+
+    private def confirm_loop
       loop do
-        @has_confirms.receive
+        @has_confirms.receive? || break
         while confirm = @confirms.shift?
           case confirm
           when Frame::Basic::Ack
-            next if confirm.delivery_tag < msgid
-            next if confirm.delivery_tag > msgid && !confirm.multiple
-            return true
+            @last_confirm = { confirm.delivery_tag, true }
+            if confirm.multiple
+              @on_confirm.delete_if do |msgid, blk|
+                if msgid <= confirm.delivery_tag
+                  blk.call true
+                  true
+                else
+                  false
+                end
+              end
+            else
+              if blk = @on_confirm.delete confirm.delivery_tag
+                blk.call true
+              end
+            end
           when Frame::Basic::Nack
-            next if confirm.delivery_tag < msgid
-            next if confirm.delivery_tag > msgid && !confirm.multiple
-            return false
-          else raise UnexpectedFrame.new(confirm)
+            @last_confirm = { confirm.delivery_tag, false }
+            if confirm.multiple
+              @on_confirm.delete_if do |msgid, blk|
+                if msgid <= confirm.delivery_tag
+                  blk.call false
+                  true
+                else
+                  false
+                end
+              end
+            else
+              if blk = @on_confirm.delete confirm.delivery_tag
+                blk.call false
+              end
+            end
           end
         end
-      rescue ex : ::Channel::ClosedError
-        raise ClosedException.new(@closing_frame, cause: ex)
+      end
+      @on_confirm.delete_if do |msgid, blk|
+        blk.call false
+        true
       end
     end
 
