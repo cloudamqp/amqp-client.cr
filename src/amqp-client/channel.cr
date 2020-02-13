@@ -281,10 +281,10 @@ class AMQP::Client
 
     def on_confirm(msgid, &blk : Bool -> Nil)
       raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
-      if @last_confirm[0] >= msgid
+      if @last_confirm[0] >= msgid.to_u64
         blk.call @last_confirm[1]
       else
-        @on_confirm[msgid] = blk
+        @on_confirm[msgid.to_u64] = blk
       end
     end
 
