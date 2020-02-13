@@ -74,11 +74,11 @@ class AMQP::Client
     end
 
     def cleanup
+      @server_frames.close
+      @reply_frames.close
       @has_delivery.close
       @has_return.close
       @has_confirms.close
-      @reply_frames.close
-      @server_frames.close
     end
 
     @next_body_io = IO::Memory.new(0)
@@ -288,45 +288,30 @@ class AMQP::Client
 
     private def confirm_loop
       loop do
-        @has_confirms.receive? || break
+        @has_confirms.receive?
+        break if @has_confirms.closed?
         while confirm = @confirms.shift?
           case confirm
-          when Frame::Basic::Ack
-            @last_confirm = { confirm.delivery_tag, true }
+          when Frame::Basic::Ack, Frame::Basic::Nack
+            acked = confirm.is_a? Frame::Basic::Ack
+            @last_confirm = { confirm.delivery_tag, acked }
             if confirm.multiple
               @on_confirm.delete_if do |msgid, blk|
                 if msgid <= confirm.delivery_tag
-                  blk.call true
+                  blk.call acked
                   true
                 else
                   false
                 end
               end
-            else
-              if blk = @on_confirm.delete confirm.delivery_tag
-                blk.call true
-              end
-            end
-          when Frame::Basic::Nack
-            @last_confirm = { confirm.delivery_tag, false }
-            if confirm.multiple
-              @on_confirm.delete_if do |msgid, blk|
-                if msgid <= confirm.delivery_tag
-                  blk.call false
-                  true
-                else
-                  false
-                end
-              end
-            else
-              if blk = @on_confirm.delete confirm.delivery_tag
-                blk.call false
-              end
+            elsif blk = @on_confirm.delete confirm.delivery_tag
+              blk.call acked
             end
           end
         end
       end
       @on_confirm.delete_if do |msgid, blk|
+        @log.debug { "Channel #{@id} hasn't been able to confirm delivery tag #{msgid}" }
         blk.call false
         true
       end
