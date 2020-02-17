@@ -34,7 +34,7 @@ class AMQP::Client
     def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
                    @log : Logger, @channel_max : UInt16,
                    @frame_max : UInt32, @heartbeat : UInt16)
-      spawn read_loop, name: "AMQP::Client#read_loop"
+      spawn read_loop, name: "AMQP::Client#read_loop", same_thread: true
     end
 
     @channels = SparseArray(Channel).new

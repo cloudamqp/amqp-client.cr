@@ -24,10 +24,10 @@ class AMQP::Client
 
     def initialize(@connection : Connection, @id : UInt16)
       @log = @connection.log
-      spawn read_loop, name: "Channel #{@id} read_loop"
-      spawn delivery_loop, name: "Channel #{@id} delivery_loop"
-      spawn return_loop, name: "Channel #{@id} return_loop"
-      spawn confirm_loop, name: "Channel #{@id} confirm_loop"
+      spawn read_loop, name: "Channel #{@id} read_loop", same_thread: true
+      spawn delivery_loop, name: "Channel #{@id} delivery_loop", same_thread: true
+      spawn return_loop, name: "Channel #{@id} return_loop", same_thread: true
+      spawn confirm_loop, name: "Channel #{@id} confirm_loop", same_thread: true
     end
 
     def open
