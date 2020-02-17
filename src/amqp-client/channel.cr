@@ -2,6 +2,7 @@ require "./connection"
 require "./message"
 require "./queue"
 require "./exchange"
+require "./sync"
 
 class AMQP::Client
   class Channel
@@ -17,12 +18,9 @@ class AMQP::Client
     @reply_frames = ::Channel(Frame).new
     @next_msg_ready = ::Channel(Nil).new
 
-    @deliveries = ::Deque(Tuple(Frame::Basic::Deliver, Properties, IO::Memory)).new(128)
-    @has_delivery = ::Channel(Nil).new(1)
-    @returns = ::Deque(Tuple(Frame::Basic::Return, Properties, IO::Memory)).new(128)
-    @has_return = ::Channel(Nil).new(1)
-    @confirms = ::Deque(Frame::Basic::Ack | Frame::Basic::Nack).new(128)
-    @has_confirms = ::Channel(Nil).new(1)
+    @deliveries = ::Channel(Tuple(Frame::Basic::Deliver, Properties, IO::Memory)).new(1024)
+    @returns = ::Channel(Tuple(Frame::Basic::Return, Properties, IO::Memory)).new(1024)
+    @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(1024)
 
     def initialize(@connection : Connection, @id : UInt16)
       @log = @connection.log
@@ -76,9 +74,9 @@ class AMQP::Client
     def cleanup
       @server_frames.close
       @reply_frames.close
-      @has_delivery.close
-      @has_return.close
-      @has_confirms.close
+      @deliveries.close
+      @returns.close
+      @confirms.close
     end
 
     @next_body_io = IO::Memory.new(0)
@@ -94,9 +92,7 @@ class AMQP::Client
            Frame::Basic::Cancel
         @server_frames.send frame
       when Frame::Basic::Ack, Frame::Basic::Nack
-        was_empty = @confirms.empty?
-        @confirms.push frame
-        @has_confirms.send nil if was_empty
+        @confirms.send frame
       when Frame::Header
         @next_msg_props = frame.properties
         @next_body_size = frame.body_size.to_u32
@@ -151,31 +147,26 @@ class AMQP::Client
 
     private def process_deliver(f : Frame::Basic::Deliver)
       @next_msg_ready.receive
-      was_empty = @deliveries.empty?
-      @deliveries.push({ f, @next_msg_props, @next_body_io })
-      @has_delivery.send nil if was_empty
+      @deliveries.send({ f, @next_msg_props, @next_body_io })
     end
 
     private def delivery_loop
       loop do
-        @has_delivery.receive
-        while d = @deliveries.shift?
-          f, props, body_io = d
-          msg = DeliverMessage.new(self, f.exchange, f.routing_key,
-            f.delivery_tag, props, body_io, f.redelivered)
-          if consumer = @consumers.fetch(f.consumer_tag, nil)
-            begin
-              consumer.call(msg)
-            rescue ex
-              if cb = @consumer_blocks.delete f.consumer_tag
-                cb.send ex
-              else
-                @log.error("Uncaught exception in consumer: #{ex.inspect_with_backtrace}")
-              end
+        f, props, body_io = @deliveries.receive
+        msg = DeliverMessage.new(self, f.exchange, f.routing_key,
+          f.delivery_tag, props, body_io, f.redelivered)
+        if consumer = @consumers.fetch(f.consumer_tag, nil)
+          begin
+            consumer.call(msg)
+          rescue ex
+            if cb = @consumer_blocks.delete f.consumer_tag
+              cb.send ex
+            else
+              @log.error("Uncaught exception in consumer: #{ex.inspect_with_backtrace}")
             end
-          else
-            @log.warn("No consumer #{f.consumer_tag} found")
           end
+        else
+          @log.warn("No consumer #{f.consumer_tag} found")
         end
       rescue ::Channel::ClosedError
         break
@@ -190,28 +181,23 @@ class AMQP::Client
 
     private def process_return(return_frame)
       @next_msg_ready.receive
-      was_empty = @returns.empty?
-      @returns.push({ return_frame, @next_msg_props, @next_body_io })
-      @has_return.send nil if was_empty
+      @returns.send({ return_frame, @next_msg_props, @next_body_io })
     end
 
     private def return_loop
       loop do
-        @has_return.receive
-        while r = @returns.shift?
-          f, props, body_io = r
-          msg = ReturnedMessage.new(f.reply_code, f.reply_text,
-                                    f.exchange, f.routing_key,
-                                    props, body_io)
-          if @on_return
-            begin
-              @on_return.try &.call(msg)
-            rescue ex
-              @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
-            end
-          else
-            @log.error("Message returned but no on_return block defined: #{msg.inspect}")
+        f, props, body_io = @returns.receive
+        msg = ReturnedMessage.new(f.reply_code, f.reply_text,
+                                  f.exchange, f.routing_key,
+                                  props, body_io)
+        if @on_return
+          begin
+            @on_return.try &.call(msg)
+          rescue ex
+            @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
           end
+        else
+          @log.error("Message returned but no on_return block defined: #{msg.inspect}")
         end
       rescue ::Channel::ClosedError
         break
@@ -276,13 +262,14 @@ class AMQP::Client
       raise ClosedException.new(@closing_frame) if @closing_frame
     end
 
-    @on_confirm = Hash(UInt64, Proc(Bool, Nil)).new
+    @on_confirm = Sync(Hash(UInt64, Proc(Bool, Nil))).new
     @last_confirm = { 0_u64, true }
 
     def on_confirm(msgid, &blk : Bool -> Nil)
       raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
-      if @last_confirm[0] >= msgid.to_u64
-        blk.call @last_confirm[1]
+      last_confirm, last_confirm_ok = @last_confirm
+      if last_confirm >= msgid.to_u64
+        blk.call last_confirm_ok
       else
         @on_confirm[msgid.to_u64] = blk
       end
@@ -290,25 +277,22 @@ class AMQP::Client
 
     private def confirm_loop
       loop do
-        @has_confirms.receive?
-        break if @has_confirms.closed?
-        while confirm = @confirms.shift?
-          case confirm
-          when Frame::Basic::Ack, Frame::Basic::Nack
-            acked = confirm.is_a? Frame::Basic::Ack
-            @last_confirm = { confirm.delivery_tag, acked }
-            if confirm.multiple
-              @on_confirm.delete_if do |msgid, blk|
-                if msgid <= confirm.delivery_tag
-                  blk.call acked
-                  true
-                else
-                  false
-                end
+        confirm = @confirms.receive? || break
+        case confirm
+        when Frame::Basic::Ack, Frame::Basic::Nack
+          acked = confirm.is_a? Frame::Basic::Ack
+          @last_confirm = { confirm.delivery_tag, acked }
+          if confirm.multiple
+            @on_confirm.delete_if do |msgid, blk|
+              if msgid <= confirm.delivery_tag
+                blk.call acked
+                true
+              else
+                false
               end
-            elsif blk = @on_confirm.delete confirm.delivery_tag
-              blk.call acked
             end
+          elsif blk = @on_confirm.delete confirm.delivery_tag
+            blk.call acked
           end
         end
       end
@@ -340,8 +324,8 @@ class AMQP::Client
       @consumers.has_key? consumer_tag
     end
 
-    @consumers = Hash(String, Proc(DeliverMessage, Nil)).new
-    @consumer_blocks = Hash(String, ::Channel(Exception)).new
+    @consumers = Sync(Hash(String, Proc(DeliverMessage, Nil))).new
+    @consumer_blocks = Sync(Hash(String, ::Channel(Exception))).new
 
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
                       block = false,
