@@ -18,9 +18,9 @@ class AMQP::Client
     @reply_frames = ::Channel(Frame).new
     @next_msg_ready = ::Channel(Nil).new
 
-    @deliveries = ::Channel(Tuple(Frame::Basic::Deliver, Properties, IO::Memory)).new(1024)
+    @deliveries = ::Channel(Tuple(Frame::Basic::Deliver, Properties, IO::Memory)).new(8192)
     @returns = ::Channel(Tuple(Frame::Basic::Return, Properties, IO::Memory)).new(1024)
-    @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(1024)
+    @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(8192)
 
     def initialize(@connection : Connection, @id : UInt16)
       @log = @connection.log
