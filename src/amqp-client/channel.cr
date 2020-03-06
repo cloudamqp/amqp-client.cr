@@ -209,19 +209,19 @@ class AMQP::Client
       write Frame::Channel::FlowOk.new(@id, active)
     end
 
-    def basic_publish(bytes : Bytes, exchange, routing_key, mandatory = false, immediate = false, props = Properties.new)
+    def basic_publish(bytes : Bytes, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
       basic_publish(IO::Memory.new(bytes), exchange, routing_key, mandatory, immediate, props)
     end
 
-    def basic_publish(str : String, exchange, routing_key, mandatory = false, immediate = false, props = Properties.new)
+    def basic_publish(str : String, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
       basic_publish(IO::Memory.new(str), exchange, routing_key, mandatory, immediate, props)
     end
 
-    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange, routing_key, mandatory = false, immediate = false, props = Properties.new)
+    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
       basic_publish(io, io.bytesize, exchange, routing_key, mandatory, immediate, props)
     end
 
-    def basic_publish(io : IO, bytesize : Int, exchange : String, routing_key : String,
+    def basic_publish(io : IO, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props = Properties.new) : UInt64
       @connection.write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate), flush: false
       @connection.write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, props), flush: false
@@ -239,13 +239,13 @@ class AMQP::Client
       end
     end
 
-    def basic_publish_confirm(msg, exchange, routing_key, mandatory = false, immediate = false, props = Properties.new) : Bool
+    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new) : Bool
       confirm_select
       msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, props)
       wait_for_confirm(msgid)
     end
 
-    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key : String, mandatory = false, immediate = false, props = Properties.new) : Bool
+    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props = Properties.new) : Bool
       confirm_select
       msgid = basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, props)
       wait_for_confirm(msgid)
