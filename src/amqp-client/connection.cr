@@ -106,6 +106,7 @@ class AMQP::Client
           true
         end || break
       rescue ex : IO::Error | Errno
+        @log.error "connection closed unexpectedly"
         break
       rescue ex
         @log.error "read_loop exception: #{ex.inspect}"
