@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Queue#message_count and Queue#consumer_count methods (does a passive declare)
+
 ## [0.5.6] - 2020-02-24
 
 ### Fixed
