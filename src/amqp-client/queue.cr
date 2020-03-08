@@ -53,5 +53,13 @@ class AMQP::Client
     def delete(if_unused = false, if_empty = false)
       @channel.queue_delete(@name, if_unused, if_empty)
     end
+
+    def message_count
+      @channel.queue_declare(@name, passive: true)[:message_count]
+    end
+
+    def consumer_count
+      @channel.queue_declare(@name, passive: true)[:consumer_count]
+    end
   end
 end
