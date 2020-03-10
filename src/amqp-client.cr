@@ -31,7 +31,7 @@ class AMQP::Client
 
   def initialize(uri : URI, log_level = Logger::WARN)
     @tls = uri.scheme == "amqps"
-    @host = uri.host || "localhost"
+    @host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
     @port = uri.port || (@tls ? 5671 : 5672)
     @vhost = if uri.path.nil? || uri.path.not_nil!.empty?
                "/"
