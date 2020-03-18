@@ -30,6 +30,7 @@ class AMQP::Client
   class Connection
     getter frame_max, log
     getter? closed = false
+    @closing_frame : Frame::Connection::Close?
 
     def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
                    @log : Logger, @channel_max : UInt16,
@@ -72,6 +73,7 @@ class AMQP::Client
           @log.debug { "got #{f.inspect}" }
           case f
           when Frame::Connection::Close
+            @closing_frame = f
             @log.info("Connection closed by server: #{f.inspect}") unless @on_close || @closed
             begin
               @on_close.try &.call(f.reply_code, f.reply_text)
@@ -130,7 +132,10 @@ class AMQP::Client
     end
 
     def write(frame, flush = true)
-      return if @closed
+      if @closed
+        f = @closing_frame || return
+        raise ClosedException.new(f)
+      end
       @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
       @io.flush if flush
       @log.debug { "sent #{frame.inspect}" }
