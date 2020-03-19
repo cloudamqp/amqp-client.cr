@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.9] - 2020-03-19
+
+### Fixed
+- Prevent double close, closing a closed connection won't raise exception
+
 ## [0.5.8] - 2020-03-19
 
 ### Changed
