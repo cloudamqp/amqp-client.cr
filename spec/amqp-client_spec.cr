@@ -160,17 +160,15 @@ describe AMQP::Client do
     end
   end
 
-  it "can send consumer flow" do
+  it "raises exception on write when the server has closed the connection" do
     with_channel do |ch|
-      q = ch.queue
-      msg = nil
-      q.subscribe do |m|
-        msg = m
-      end
+      # rabbitmq doesn't implement client flow
       ch.flow(false)
-      q.publish("hej!")
-      sleep 0.05
-      msg.should be_nil
+      sleep 0.1
+      # by now we should've gotten the connection closed by the server
+      expect_raises(AMQP::Client::Connection::ClosedException) do
+        ch.queue
+      end
     end
   end
 
