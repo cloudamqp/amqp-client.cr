@@ -146,6 +146,7 @@ class AMQP::Client
     end
 
     def close(msg = "")
+      return if @closed
       @log.info("Closing connection")
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
       @closed = true
