@@ -77,17 +77,20 @@ class AMQP::Client
           @log.debug { "got #{f.inspect}" }
           case f
           when Frame::Connection::Close
-            @closing_frame = f
-            @log.info("Connection closed by server: #{f.inspect}") unless @on_close || @closed
-            begin
-              @on_close.try &.call(f.reply_code, f.reply_text)
-            rescue ex
-              @log.error "Uncaught exception in on_close block: #{ex.inspect_with_backtrace}"
+            if on_close = @on_close
+              begin
+                on_close.call(f.reply_code, f.reply_text)
+              rescue ex
+                @log.error "Uncaught exception in on_close block: #{ex.inspect_with_backtrace}"
+              end
+            else
+              @log.info "Connection closed by server: #{f.reply_text} (code #{f.reply_code})"
             end
             write Frame::Connection::CloseOk.new
-            break
+            @closing_frame = f
+            return
           when Frame::Connection::CloseOk
-            break
+            return
           when Frame::Connection::Blocked
             @log.info "Blocked by server, reason: #{f.reason}"
             @write_lock.lock
@@ -111,16 +114,18 @@ class AMQP::Client
           end
         end
       rescue ex : IO::Error | Errno
-        @log.error "connection closed unexpectedly"
+        @log.error "connection closed unexpectedly: #{ex.message}"
         break
       rescue ex
         @log.error "read_loop exception: #{ex.inspect}"
         break
       end
-      @closed = true
-      @io.close
-    rescue ex : Errno
     ensure
+      @closed = true
+      begin
+        @io.close
+      rescue ex : Errno
+      end
       @channels.each_value &.cleanup
       @channels.clear
     end
