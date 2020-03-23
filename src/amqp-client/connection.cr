@@ -61,6 +61,7 @@ class AMQP::Client
     def channel(&blk : Channel -> _)
       ch = channel
       yield ch
+    ensure
       ch.close
     end
 
@@ -84,9 +85,9 @@ class AMQP::Client
               @log.error "Uncaught exception in on_close block: #{ex.inspect_with_backtrace}"
             end
             write Frame::Connection::CloseOk.new
-            next false
+            break
           when Frame::Connection::CloseOk
-            next false
+            break
           when Frame::Connection::Blocked
             @log.info "Blocked by server, reason: #{f.reason}"
             @write_lock.lock
@@ -108,8 +109,7 @@ class AMQP::Client
               @channels.delete f.channel
             end
           end
-          true
-        end || break
+        end
       rescue ex : IO::Error | Errno
         @log.error "connection closed unexpectedly"
         break
