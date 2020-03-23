@@ -12,8 +12,15 @@ require "../src/amqp-client"
 Spec.override_default_formatter(Spec::VerboseFormatter.new)
 
 module TestHelpers
-  def with_channel(&blk)
-    AMQP::Client.start("amqp://guest:guest@localhost", LOG_LEVEL) do |c|
+
+  def with_connection(**args)
+    AMQP::Client.start(**args.merge(log_level: LOG_LEVEL)) do |c|
+      yield c
+    end
+  end
+
+  def with_channel(**args, &blk)
+    with_connection(**args) do |c|
       yield c.channel
     end
   end

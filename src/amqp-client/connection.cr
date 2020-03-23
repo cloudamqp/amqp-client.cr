@@ -28,7 +28,7 @@ end
 
 class AMQP::Client
   class Connection
-    getter frame_max, log
+    getter channel_max, frame_max, log
     getter? closed = false
     @closing_frame : Frame::Connection::Close?
 
@@ -42,10 +42,13 @@ class AMQP::Client
 
     def channel(id : UInt16? = nil)
       if id
-        raise "channel_max reached" if @channel_max < id
-        return @channels[id] if @channels.has_key? id
-        ch = @channels[id] = Channel.new(self, id)
-        return ch.open
+        raise "channel_max reached" if id > @channel_max
+        if ch = @channels.fetch(id, nil)
+          return ch
+        else
+          ch = @channels[id] = Channel.new(self, id)
+          return ch.open
+        end
       end
       1_u16.upto(@channel_max) do |i|
         next if @channels.has_key? i
@@ -190,11 +193,12 @@ class AMQP::Client
           raise UnexpectedFrame.new(f)
         end
       end
-      channel_max = tune.channel_max.zero? ? channel_max : tune.channel_max
-      frame_max = tune.frame_max.zero? ? frame_max : tune.frame_max
+      channel_max = tune.channel_max.zero? ? channel_max : Math.min(tune.channel_max, channel_max)
+      frame_max = tune.frame_max.zero? ? frame_max : Math.min(tune.frame_max, frame_max)
       io.write_bytes Frame::Connection::TuneOk.new(channel_max: channel_max,
-        frame_max: frame_max,
-        heartbeat: heartbeat), IO::ByteFormat::NetworkEndian
+                                                   frame_max: frame_max,
+                                                   heartbeat: heartbeat),
+                                                   IO::ByteFormat::NetworkEndian
       io.write_bytes Frame::Connection::Open.new(vhost), IO::ByteFormat::NetworkEndian
       io.flush
       Frame.from_io(io) do |f|

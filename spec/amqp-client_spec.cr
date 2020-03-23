@@ -73,6 +73,12 @@ describe AMQP::Client do
     end
   end
 
+  it "can negotiate frame_max" do
+    with_connection(frame_max: 4096_u32) do |c|
+      c.frame_max.should eq 4096_u32
+    end
+  end
+
   it "raises ClosedException if trying to delete non empty queue" do
     with_channel do |ch|
       q = ch.queue
