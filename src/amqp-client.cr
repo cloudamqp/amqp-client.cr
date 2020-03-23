@@ -29,26 +29,26 @@ class AMQP::Client
     self.new(uri, log_level)
   end
 
-  def initialize(uri : URI, log_level = Logger::WARN)
-    @tls = uri.scheme == "amqps"
-    @host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
-    @port = uri.port || (@tls ? 5671 : 5672)
-    @vhost = if uri.path.nil? || uri.path.not_nil!.empty?
-               "/"
-             else
-               URI.decode_www_form(uri.path.not_nil![1..-1])
-             end
-    @user = uri.user || "guest"
-    @password = uri.password || "guest"
+  def self.new(uri : URI, log_level = Logger::WARN)
+    tls = uri.scheme == "amqps"
+    host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
+    port = uri.port || (tls ? 5671 : 5672)
+    vhost = if uri.path.nil? || uri.path.not_nil!.empty?
+              "/"
+            else
+              URI.decode_www_form(uri.path.not_nil![1..-1])
+            end
+    user = uri.user || "guest"
+    password = uri.password || "guest"
     arguments = uri.query.try(&.split("&").map(&.split("=")).to_h) || Hash(String, String).new
-    @heartbeat = arguments.fetch("heartbeat", 0_u16).to_u16
-    @frame_max = arguments.fetch("frame_max", 131_072_u32).to_u32
-    @channel_max = arguments.fetch("channel_max", UInt16::MAX).to_u16
-    @verify_mode = case arguments.fetch("verify", "").downcase
-                   when "none" then OpenSSL::SSL::VerifyMode::NONE
-                   else             OpenSSL::SSL::VerifyMode::PEER
-                   end
-    @log = Logger.new(STDERR, level: log_level)
+    heartbeat = arguments.fetch("heartbeat", 0_u16).to_u16
+    frame_max = arguments.fetch("frame_max", 131_072_u32).to_u32
+    channel_max = arguments.fetch("channel_max", UInt16::MAX).to_u16
+    verify_mode = case arguments.fetch("verify", "").downcase
+                  when "none" then OpenSSL::SSL::VerifyMode::NONE
+                  else             OpenSSL::SSL::VerifyMode::PEER
+                  end
+    self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, log_level)
   end
 
 
@@ -56,6 +56,7 @@ class AMQP::Client
                  @tls = false, @channel_max = UInt16::MAX, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  @verify_mode = OpenSSL::SSL::VerifyMode::PEER, log_level = Logger::WARN)
     @log = Logger.new(STDERR, level: log_level)
+    @log.progname = "amqp-client.cr"
   end
     
   def connect : Connection
