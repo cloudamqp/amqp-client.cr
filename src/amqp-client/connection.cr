@@ -127,25 +127,30 @@ class AMQP::Client
 
     @write_lock = Mutex.new
 
-    def with_lock(&blk : Connection -> Nil)
+    def write(frame : Frame)
       @write_lock.synchronize do
-        yield self
+        unsafe_write(frame)
         @io.flush
       end
     end
 
-    def write(frame, flush = true)
+    def unsafe_write(frame : Frame)
       if @closed
-        f = @closing_frame || return
-        raise ClosedException.new(f)
+        if f = @closing_frame
+          raise ClosedException.new(f)
+        else
+          return
+        end
       end
       @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
-      @io.flush if flush
       @log.debug { "sent #{frame.inspect}" }
     end
 
-    def flush
-      @io.flush
+    def with_lock(&blk : self -> _)
+      @write_lock.synchronize do
+        yield self
+        @io.flush
+      end
     end
 
     def close(msg = "")
