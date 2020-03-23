@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.10] - 2020-03-23
+
+### Fixed
+- Negotiate channel_max and frame_max correctly
+- Multi threading safety, a write lock is used when sending frame
+
 ## [0.5.9] - 2020-03-19
 
 ### Fixed
