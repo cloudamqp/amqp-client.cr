@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.11] - 2020-03-23
+
+### Changed
+- Setting progname of Logger to amqp-client.cr
+
+### Fixed
+- read_loop doesn't log errors on connection close
+
 ## [0.5.10] - 2020-03-23
 
 ### Fixed
