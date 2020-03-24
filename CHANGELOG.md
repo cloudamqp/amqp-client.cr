@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.12] - 2020-03-24
+
+### Fixed
+- Connection#channel(&block) now properly closes the channel after the block returns
+
 ## [0.5.11] - 2020-03-23
 
 ### Changed
