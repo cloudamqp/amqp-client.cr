@@ -62,7 +62,7 @@ class AMQP::Client
       ch = channel
       yield ch
     ensure
-      ch.close
+      ch.try &.close
     end
 
     @on_close : Proc(UInt16, String, Nil)?
