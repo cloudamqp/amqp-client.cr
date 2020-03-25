@@ -34,8 +34,8 @@ class AMQP::Client
     host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
     port = uri.port || (tls ? 5671 : 5672)
     vhost =
-      if (path = uri.path) && !path.empty? && path != "/"
-        URI.decode_www_form(uri.path.not_nil![1..-1])
+      if (path = uri.path) && path.bytesize > 1
+        URI.decode_www_form(path[1..-1])
       else
         "/"
       end
