@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.14] - 2020-03-25
+
+### Fixed
+- Default to vhost '/' if path in URI is empty
+
 ## [0.5.13] - 2020-03-25
 
 ### Fixed
