@@ -222,8 +222,15 @@ class AMQP::Client
       end
 
       Connection.new(io, log, channel_max, frame_max, heartbeat)
-    rescue ex : IO::EOFError
-      raise Connection::ClosedException.new("Connection closed by server", ex)
+    rescue ex
+      case ex
+      when IO::EOFError
+        raise Connection::ClosedException.new("Connection closed by server", ex)
+      when Connection::ClosedException
+        io.write_bytes(Frame::Connection::CloseOk.new, IO::ByteFormat::NetworkEndian) rescue nil
+      end
+      io.close rescue nil
+      raise ex
     ensure
       io.read_timeout = nil
     end
