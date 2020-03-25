@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.13] - 2020-03-25
+
+### Fixed
+- Close socket if connection establishing fails
+
 ## [0.5.12] - 2020-03-24
 
 ### Fixed
