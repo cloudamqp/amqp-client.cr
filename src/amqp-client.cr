@@ -33,11 +33,12 @@ class AMQP::Client
     tls = uri.scheme == "amqps"
     host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
     port = uri.port || (tls ? 5671 : 5672)
-    vhost = if uri.path.nil? || uri.path.not_nil!.empty?
-              "/"
-            else
-              URI.decode_www_form(uri.path.not_nil![1..-1])
-            end
+    vhost =
+      if (path = uri.path) && !path.empty? && path != "/"
+        URI.decode_www_form(uri.path.not_nil![1..-1])
+      else
+        "/"
+      end
     user = uri.user || "guest"
     password = uri.password || "guest"
     arguments = uri.query.try(&.split("&").map(&.split("=")).to_h) || Hash(String, String).new

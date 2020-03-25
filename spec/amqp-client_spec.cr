@@ -13,6 +13,12 @@ describe AMQP::Client do
     end
   end
 
+  it "can connect to localhost when URI path is empty" do
+    AMQP::Client.start("amqp://localhost/", LOG_LEVEL) do |c|
+      c.channel.should_not be_nil
+    end
+  end
+
   it "can publish" do
     with_channel do |ch|
       q = ch.queue
