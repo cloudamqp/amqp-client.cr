@@ -73,6 +73,84 @@ class AMQP::Client
     end
   end
 
+  # High-level subscribe mthod
+  # Will automatically reconnect
+  # ```
+  # amqp = AMQP::Client.new
+  # amqp.subscribe("my_queue", [{ "amq.topic", "mykey" }]) do |msg|
+  #   process(msg)
+  # end
+  # ```
+  def subscribe(queue_name, bindings = Array(Tuple(String, String)).new, args = Arguments.new)
+    loop do
+      c = connection
+      ch = c.channel
+      q = begin
+            ch.queue(queue)
+          rescue
+            ch = c.channel
+            ch.queue(queue, passive: true)
+          end
+      bindings.each do |exchange, routing_key|
+        q.bind(exchange, routing_key)
+      end
+      ch.basic_consume(q[:name], no_ack: false, block: true, args: args) do |msg|
+        begin
+          yield msg
+        rescue
+          msg.nack requeue: true
+        else
+          msg.ack
+        end
+      end
+    rescue ex
+      @log.warn { "consumer retrying: #{ex.inspect}" }
+    end
+  end
+
+  # High-level publish method
+  # Messages are processed in an internal queue
+  # Will automatically reconnect if disconnected
+  # ```
+  # amqp = AMQP::Client.new
+  # amqp.publish "mydata".to_slice, "amq.topic", "routing.key"
+  # ```
+  def publish(bytes : Bytes, exchange, routing_key = "", props = Properties.new)
+    @publish_loop ||= spawn publish_loop, name: "AMQP::Client#publish_loop"
+    @publish_queue.send PubMsg.new(bytes, exchange, routing_key, props)
+  end
+
+  def publish(str : String, exchange, routing_key = "", props = Properties.new)
+    publish(str.to_slice, exchange, routing_key, props)
+  end
+
+  record PubMsg, bytes : Bytes, exchange : String, routing_key : String, props : Properties
+
+  @publish_queue = ::Channel(Message).new(128)
+
+  private def publish_loop
+    loop do
+      msg = @publish_queue.receive? || break
+      c = connection
+      ch = c.channel(c.channel_max)
+      ch.basic_publish(msg.bytes, msg.exchange, msg.routing_key,
+                       props: msg.props)
+    rescue ex
+      @log.warn { "publish_loop retrying: #{ex.inspect}" }
+      @publish_queue.send msg
+    end
+  end
+
+  @connection : Connection?
+  @connection_lock = Mutex.new
+
+  private def connection : Connection
+    @connection_lock.synchronize do
+      return @connection if @connection && !@connection.closed?
+      @connection = connect
+    end
+  end
+
   private def connect_tcp
     socket = TCPSocket.new(@host, @port, connect_timeout: 5)
     socket.keepalive = true
