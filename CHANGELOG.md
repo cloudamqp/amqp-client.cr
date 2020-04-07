@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.15] - 2020-04-07
+
+### Fixed
+- Don't try catch Errno, it's removed in crystal 0.34
+
 ## [0.5.14] - 2020-03-25
 
 ### Fixed
