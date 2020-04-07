@@ -113,7 +113,7 @@ class AMQP::Client
             end
           end
         end
-      rescue ex : IO::Error | Errno
+      rescue ex : IO::Error
         @log.error "connection closed unexpectedly: #{ex.message}"
         break
       rescue ex
@@ -124,7 +124,7 @@ class AMQP::Client
       @closed = true
       begin
         @io.close
-      rescue ex : Errno
+      rescue ex : IO::Error
       end
       @channels.each_value &.cleanup
       @channels.clear
@@ -163,7 +163,7 @@ class AMQP::Client
       @log.info("Closing connection")
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
       @closed = true
-    rescue ex : Errno | IO::Error
+    rescue ex : IO::Error
       @log.info("Socket already closed, can't send close frame")
     end
 
