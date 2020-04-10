@@ -118,6 +118,7 @@ class AMQP::Client
         when Frame::Basic::Deliver then process_deliver(frame)
         when Frame::Basic::Return  then process_return(frame)
         when Frame::Basic::Cancel  then process_cancel(frame)
+        else                            raise UnexpectedFrame.new(frame)
         end
       rescue ::Channel::ClosedError
         break
@@ -295,6 +296,7 @@ class AMQP::Client
           elsif blk = @on_confirm.delete confirm.delivery_tag
             blk.call acked
           end
+        else raise UnexpectedFrame.new(confirm)
         end
       end
       @on_confirm.delete_if do |msgid, blk|

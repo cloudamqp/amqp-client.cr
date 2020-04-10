@@ -106,9 +106,7 @@ class AMQP::Client
               @log.error "Channel #{f.channel} not open for frame #{f.inspect}"
             end
 
-            case f
-            when Frame::Channel::Close,
-                 Frame::Channel::CloseOk
+            if f.is_a?(Frame::Channel::Close) || f.is_a?(Frame::Channel::CloseOk)
               @channels.delete f.channel
             end
           end
@@ -228,6 +226,7 @@ class AMQP::Client
         raise Connection::ClosedException.new("Connection closed by server", ex)
       when Connection::ClosedException
         io.write_bytes(Frame::Connection::CloseOk.new, IO::ByteFormat::NetworkEndian) rescue nil
+      else nil
       end
       io.close rescue nil
       raise ex
