@@ -8,8 +8,10 @@ class AMQP::Client
   class Channel
     getter id
 
+    Log = AMQP::Client::Connection::Log.for(self)
+    @log : ::Log
+
     @closed = false
-    @log : Logger
     @confirm_mode = false
     @confirm_id = 0_u64
     @server_flow = true
@@ -23,7 +25,7 @@ class AMQP::Client
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(8192)
 
     def initialize(@connection : Connection, @id : UInt16)
-      @log = @connection.log
+      @log = Log.for("id=#{@id}")
       spawn read_loop, name: "Channel #{@id} read_loop", same_thread: true
       spawn delivery_loop, name: "Channel #{@id} delivery_loop", same_thread: true
       spawn return_loop, name: "Channel #{@id} return_loop", same_thread: true
@@ -53,11 +55,11 @@ class AMQP::Client
     def close(frame : Frame::Channel::Close) : Nil
       @closed = true
       @closing_frame = frame
-      @log.info "Channel #{@id} closed by server: #{frame.inspect}" unless @on_close
+      @log.info { "Channel closed by server: #{frame.inspect}" } unless @on_close
       begin
         @on_close.try &.call(frame.reply_code, frame.reply_text)
       rescue ex
-        @log.error "Uncaught exception in on_close block: #{ex.inspect_with_backtrace}"
+        @log.error(exception: ex) { "Uncaught exception in on_close block" }
       end
       write Frame::Channel::CloseOk.new(@id)
       cleanup
@@ -132,11 +134,11 @@ class AMQP::Client
     end
 
     private def process_cancel(f : Frame::Basic::Cancel)
-      @log.warn("Consumer #{f.consumer_tag} cancelled by server") unless @on_cancel || @closed || @connection.closed?
+      @log.warn { "Consumer #{f.consumer_tag} cancelled by server" } unless @on_cancel || @closed || @connection.closed?
       begin
         @on_cancel.try &.call(f.consumer_tag)
       rescue ex
-        @log.error("Uncaught exception in on_cancel: #{ex.inspect_with_backtrace}")
+        @log.error(exception: ex) { "Uncaught exception in on_cancel" }
       end
 
       if cb = @consumer_blocks.delete f.consumer_tag
@@ -163,11 +165,11 @@ class AMQP::Client
             if cb = @consumer_blocks.delete f.consumer_tag
               cb.send ex
             else
-              @log.error("Uncaught exception in consumer: #{ex.inspect_with_backtrace}")
+              @log.error(exception: ex) { "Uncaught exception in consumer" }
             end
           end
         else
-          @log.warn("No consumer #{f.consumer_tag} found")
+          @log.warn { "Consumer tag '#{f.consumer_tag}' not found" }
         end
       rescue ::Channel::ClosedError
         break
@@ -195,10 +197,10 @@ class AMQP::Client
           begin
             @on_return.try &.call(msg)
           rescue ex
-            @log.error("Uncaught exception in on_return: #{ex.inspect_with_backtrace}")
+            @log.error(exception: ex) { "Uncaught exception in on_return" }
           end
         else
-          @log.error("Message returned but no on_return block defined: #{msg.inspect}")
+          @log.error { "Message returned but no on_return block defined: #{msg.inspect}" }
         end
       rescue ::Channel::ClosedError
         break
@@ -501,7 +503,6 @@ class AMQP::Client
     end
 
     macro expect(clz)
-      @log.debug { "Channel #{@id} expecting {{ clz }}" }
       frame = next_frame
       frame.as?({{ clz }}) || raise UnexpectedFrame.new(frame)
     end

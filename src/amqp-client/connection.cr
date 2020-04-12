@@ -8,13 +8,14 @@ require "../amqp-client"
 
 class AMQP::Client
   class Connection
+    Log = AMQP::Client::Log.for(self)
+
     getter channel_max, frame_max, log
     getter? closed = false
     @closing_frame : Frame::Connection::Close?
 
     def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
-                   @log : Logger, @channel_max : UInt16,
-                   @frame_max : UInt32, @heartbeat : UInt16)
+                   @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
       spawn read_loop, name: "AMQP::Client#read_loop", same_thread: true
     end
 
@@ -54,17 +55,17 @@ class AMQP::Client
     private def read_loop
       loop do
         Frame.from_io(@io) do |f|
-          @log.debug { "got #{f.inspect}" }
+          Log.debug { "got #{f.inspect}" }
           case f
           when Frame::Connection::Close
             if on_close = @on_close
               begin
                 on_close.call(f.reply_code, f.reply_text)
               rescue ex
-                @log.error "Uncaught exception in on_close block: #{ex.inspect_with_backtrace}"
+                Log.error(exception: ex) { "Uncaught exception in on_close block" }
               end
             else
-              @log.info "Connection closed by server: #{f.reply_text} (code #{f.reply_code})"
+              Log.info { "Connection closed by server: #{f.reply_text} (code #{f.reply_code})" }
             end
             write Frame::Connection::CloseOk.new
             @closing_frame = f
@@ -72,10 +73,10 @@ class AMQP::Client
           when Frame::Connection::CloseOk
             return
           when Frame::Connection::Blocked
-            @log.info "Blocked by server, reason: #{f.reason}"
+            Log.info { "Blocked by server, reason: #{f.reason}" }
             @write_lock.lock
           when Frame::Connection::Unblocked
-            @log.info "Unblocked by server"
+            Log.info { "Unblocked by server" }
             @write_lock.unlock
           when Frame::Heartbeat
             write f
@@ -83,7 +84,7 @@ class AMQP::Client
             if ch = @channels.fetch(f.channel, nil)
               ch.incoming f
             else
-              @log.error "Channel #{f.channel} not open for frame #{f.inspect}"
+              Log.error { "Channel #{f.channel} not open for frame #{f.inspect}" }
             end
 
             if f.is_a?(Frame::Channel::Close) || f.is_a?(Frame::Channel::CloseOk)
@@ -92,18 +93,15 @@ class AMQP::Client
           end
         end
       rescue ex : IO::Error
-        @log.error "connection closed unexpectedly: #{ex.message}"
+        Log.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
         break
       rescue ex
-        @log.error "read_loop exception: #{ex.inspect}"
+        Log.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
         break
       end
     ensure
       @closed = true
-      begin
-        @io.close
-      rescue ex : IO::Error
-      end
+      @io.close rescue nil
       @channels.each_value &.cleanup
       @channels.clear
     end
@@ -126,7 +124,7 @@ class AMQP::Client
         end
       end
       @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
-      @log.debug { "sent #{frame.inspect}" }
+      Log.debug { "sent #{frame.inspect}" }
     end
 
     def with_lock(&blk : self -> _)
@@ -138,14 +136,14 @@ class AMQP::Client
 
     def close(msg = "")
       return if @closed
-      @log.info("Closing connection")
+      Log.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
       @closed = true
     rescue ex : IO::Error
-      @log.info("Socket already closed, can't send close frame")
+      Log.info { "Socket already closed, can't send close frame" }
     end
 
-    def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client, log,
+    def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
                    user, password, vhost,
                    channel_max, frame_max, heartbeat)
       io.read_timeout = 15
@@ -199,7 +197,7 @@ class AMQP::Client
         end
       end
 
-      Connection.new(io, log, channel_max, frame_max, heartbeat)
+      Connection.new(io, channel_max, frame_max, heartbeat)
     rescue ex
       case ex
       when IO::EOFError

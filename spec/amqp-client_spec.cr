@@ -8,13 +8,13 @@ describe AMQP::Client do
   end
 
   it "can connect to localhost when URI host is empty" do
-    AMQP::Client.start("amqp:///%2f", LOG_LEVEL) do |c|
+    AMQP::Client.start("amqp:///%2f") do |c|
       c.channel.should_not be_nil
     end
   end
 
   it "can connect to localhost when URI path is empty" do
-    AMQP::Client.start("amqp://localhost/", LOG_LEVEL) do |c|
+    AMQP::Client.start("amqp://localhost/") do |c|
       c.channel.should_not be_nil
     end
   end

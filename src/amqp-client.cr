@@ -2,12 +2,14 @@ require "amq-protocol"
 require "uri"
 require "socket"
 require "openssl"
-require "logger"
+require "log"
 require "./amqp-client/*"
 
 class AMQP::Client
-  def self.start(url : String | URI, log_level = Logger::WARN, &blk : AMQP::Client::Connection -> _)
-    conn = self.new(url, log_level).connect
+  Log = ::Log.for(self)
+
+  def self.start(url : String | URI, &blk : AMQP::Client::Connection -> _)
+    conn = self.new(url).connect
     yield conn
   ensure
     conn.try &.close
@@ -16,20 +18,19 @@ class AMQP::Client
   def self.start(host = "localhost", port = 5672, vhost = "/",
                  user = "guest", password = "guest", tls = false,
                  channel_max = UInt16::MAX, frame_max = 131_072_u32, heartbeat = 0_u16,
-                 verify_mode = OpenSSL::SSL::VerifyMode::PEER,
-                 log_level = Logger::WARN, &blk : AMQP::Client::Connection -> _)
-    conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, log_level).connect
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, &blk : AMQP::Client::Connection -> _)
+    conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode).connect
     yield conn
   ensure
     conn.try &.close
   end
 
-  def self.new(url : String, log_level = Logger::WARN)
+  def self.new(url : String)
     uri = URI.parse(url)
-    self.new(uri, log_level)
+    self.new(uri)
   end
 
-  def self.new(uri : URI, log_level = Logger::WARN)
+  def self.new(uri : URI)
     tls = uri.scheme == "amqps"
     host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
     port = uri.port || (tls ? 5671 : 5672)
@@ -49,27 +50,25 @@ class AMQP::Client
                   when "none" then OpenSSL::SSL::VerifyMode::NONE
                   else             OpenSSL::SSL::VerifyMode::PEER
                   end
-    self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, log_level)
+    self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode)
   end
 
 
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
                  @tls = false, @channel_max = UInt16::MAX, @frame_max = 131_072_u32, @heartbeat = 0_u16,
-                 @verify_mode = OpenSSL::SSL::VerifyMode::PEER, log_level = Logger::WARN)
-    @log = Logger.new(STDERR, level: log_level)
-    @log.progname = "amqp-client.cr"
+                 @verify_mode = OpenSSL::SSL::VerifyMode::PEER)
   end
     
   def connect : Connection
     if @host.starts_with? '/'
       socket = connect_unix
-      Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
     elsif @tls
       socket = connect_tls(connect_tcp)
-      Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
     else
       socket = connect_tcp
-      Connection.start(socket, @log, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
     end
   end
 
