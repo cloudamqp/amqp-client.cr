@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.16] - 2020-04-12
+
+### Fixed
+- Crystal 0.34 compability
+
+### Changed
+- Uses the new Log module instead of Logger
+
 ## [0.5.15] - 2020-04-07
 
 ### Fixed
