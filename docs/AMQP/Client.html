@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="generator" content="Crystal Docs 0.31.1">
+<meta name="generator" content="Crystal Docs 0.33.0">
 
 <link href="../css/style.css" rel="stylesheet" type="text/css" />
 <script type="text/javascript" src="../js/doc.js"></script>
@@ -135,6 +135,11 @@
       
     </li>
   
+  <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/Sync" data-name="amqp::client::sync(t)">
+      <a href="../AMQP/Client/Sync.html">Sync</a>
+      
+    </li>
+  
   <li class=" " data-id="github.com/cloudamqp/amqp-client.cr/AMQP/Client/UnexpectedFrame" data-name="amqp::client::unexpectedframe">
       <a href="../AMQP/Client/UnexpectedFrame.html">UnexpectedFrame</a>
       
@@ -192,56 +197,63 @@
   </h2>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/sparse_array.cr#L1" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client/sparse_array.cr#L1" target="_blank">
         amqp-client/sparse_array.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/connection.cr#L29" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client/connection.cr#L9" target="_blank">
         amqp-client/connection.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/message.cr#L4" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client/message.cr#L4" target="_blank">
         amqp-client/message.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/queue.cr#L3" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client/queue.cr#L3" target="_blank">
         amqp-client/queue.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/exchange.cr#L3" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client/exchange.cr#L3" target="_blank">
         amqp-client/exchange.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/channel.cr#L6" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client/sync.cr#L1" target="_blank">
+        amqp-client/sync.cr
+      </a>
+    
+    <br/>
+  
+    
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client/channel.cr#L7" target="_blank">
         amqp-client/channel.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client/version.cr#L1" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client/version.cr#L1" target="_blank">
         amqp-client/version.cr
       </a>
     
     <br/>
   
     
-      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client.cr#L8" target="_blank">
+      <a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client.cr#L8" target="_blank">
         amqp-client.cr
       </a>
     
@@ -262,8 +274,13 @@
   
   <dl>
     
+      <dt class="entry-const" id="Log">
+        <strong>Log</strong> = <code><span class="t">::</span><span class="t">Log</span>.<span class="k">for</span>(<span class="k">self</span>)</code>
+      </dt>
+      
+    
       <dt class="entry-const" id="VERSION">
-        <strong>VERSION</strong> = <code><span class="s">&quot;0.5.1&quot;</span></code>
+        <strong>VERSION</strong> = <code><span class="s">&quot;0.5.16&quot;</span></code>
       </dt>
       
     
@@ -282,12 +299,17 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#new(url:String,log_level=Logger::WARN)-class-method" class="signature"><strong>.new</strong>(url : String, log_level = <span class="t">Logger</span><span class="t">::</span><span class="t">WARN</span>)</a>
+        <a href="#new(url:String)-class-method" class="signature"><strong>.new</strong>(url : String)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#new(host=&quot;localhost&quot;,port=5672,vhost=&quot;/&quot;,user=&quot;guest&quot;,password=&quot;guest&quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER,log_level=Logger::WARN)-class-method" class="signature"><strong>.new</strong>(host = <span class="s">&quot;localhost&quot;</span>, port = <span class="n">5672</span>, vhost = <span class="s">&quot;/&quot;</span>, user = <span class="s">&quot;guest&quot;</span>, password = <span class="s">&quot;guest&quot;</span>, tls = <span class="n">false</span>, channel_max = <span class="t">UInt16</span><span class="t">::</span><span class="t">MAX</span>, frame_max = <span class="n">131072_u32</span>, heartbeat = <span class="n">0_u16</span>, verify_mode = <span class="t">OpenSSL</span><span class="t">::</span><span class="t">SSL</span><span class="t">::</span><span class="t">VerifyMode</span><span class="t">::</span><span class="t">PEER</span>, log_level = <span class="t">Logger</span><span class="t">::</span><span class="t">WARN</span>)</a>
+        <a href="#new(uri:URI)-class-method" class="signature"><strong>.new</strong>(uri : URI)</a>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#new(host=&quot;localhost&quot;,port=5672,vhost=&quot;/&quot;,user=&quot;guest&quot;,password=&quot;guest&quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER)-class-method" class="signature"><strong>.new</strong>(host = <span class="s">&quot;localhost&quot;</span>, port = <span class="n">5672</span>, vhost = <span class="s">&quot;/&quot;</span>, user = <span class="s">&quot;guest&quot;</span>, password = <span class="s">&quot;guest&quot;</span>, tls = <span class="n">false</span>, channel_max = <span class="t">UInt16</span><span class="t">::</span><span class="t">MAX</span>, frame_max = <span class="n">131072_u32</span>, heartbeat = <span class="n">0_u16</span>, verify_mode = <span class="t">OpenSSL</span><span class="t">::</span><span class="t">SSL</span><span class="t">::</span><span class="t">VerifyMode</span><span class="t">::</span><span class="t">PEER</span>)</a>
         
       </li>
     
@@ -306,12 +328,12 @@
   <ul class="list-summary">
     
       <li class="entry-summary">
-        <a href="#start(url:String,log_level=Logger::WARN,&blk:AMQP::Client::Connection-%3E_)-class-method" class="signature"><strong>.start</strong>(url : String, log_level = <span class="t">Logger</span><span class="t">::</span><span class="t">WARN</span>, &blk : AMQP::Client::Connection -> _)</a>
+        <a href="#start(url:String%7CURI,&blk:AMQP::Client::Connection-%3E_)-class-method" class="signature"><strong>.start</strong>(url : String | URI, &blk : AMQP::Client::Connection -> _)</a>
         
       </li>
     
       <li class="entry-summary">
-        <a href="#start(host=&quot;localhost&quot;,port=5672,vhost=&quot;/&quot;,user=&quot;guest&quot;,password=&quot;guest&quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER,log_level=Logger::WARN,&blk:AMQP::Client::Connection-%3E_)-class-method" class="signature"><strong>.start</strong>(host = <span class="s">&quot;localhost&quot;</span>, port = <span class="n">5672</span>, vhost = <span class="s">&quot;/&quot;</span>, user = <span class="s">&quot;guest&quot;</span>, password = <span class="s">&quot;guest&quot;</span>, tls = <span class="n">false</span>, channel_max = <span class="t">UInt16</span><span class="t">::</span><span class="t">MAX</span>, frame_max = <span class="n">131072_u32</span>, heartbeat = <span class="n">0_u16</span>, verify_mode = <span class="t">OpenSSL</span><span class="t">::</span><span class="t">SSL</span><span class="t">::</span><span class="t">VerifyMode</span><span class="t">::</span><span class="t">PEER</span>, log_level = <span class="t">Logger</span><span class="t">::</span><span class="t">WARN</span>, &blk : AMQP::Client::Connection -> _)</a>
+        <a href="#start(host=&quot;localhost&quot;,port=5672,vhost=&quot;/&quot;,user=&quot;guest&quot;,password=&quot;guest&quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER,&blk:AMQP::Client::Connection-%3E_)-class-method" class="signature"><strong>.start</strong>(host = <span class="s">&quot;localhost&quot;</span>, port = <span class="n">5672</span>, vhost = <span class="s">&quot;/&quot;</span>, user = <span class="s">&quot;guest&quot;</span>, password = <span class="s">&quot;guest&quot;</span>, tls = <span class="n">false</span>, channel_max = <span class="t">UInt16</span><span class="t">::</span><span class="t">MAX</span>, frame_max = <span class="n">131072_u32</span>, heartbeat = <span class="n">0_u16</span>, verify_mode = <span class="t">OpenSSL</span><span class="t">::</span><span class="t">SSL</span><span class="t">::</span><span class="t">VerifyMode</span><span class="t">::</span><span class="t">PEER</span>, &blk : AMQP::Client::Connection -> _)</a>
         
       </li>
     
@@ -374,34 +396,50 @@
     Constructor Detail
   </h2>
   
-    <div class="entry-detail" id="new(url:String,log_level=Logger::WARN)-class-method">
+    <div class="entry-detail" id="new(url:String)-class-method">
       <div class="signature">
         
-        def self.<strong>new</strong>(url : String, log_level = <span class="t">Logger</span><span class="t">::</span><span class="t">WARN</span>)
+        def self.<strong>new</strong>(url : String)
 
-        <a class="method-permalink" href="#new(url:String,log_level=Logger::WARN)-class-method">#</a>
+        <a class="method-permalink" href="#new(url:String)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client.cr#L27" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client.cr#L28" target="_blank">View source</a>]
         
       </div>
     </div>
   
-    <div class="entry-detail" id="new(host=&amp;quot;localhost&amp;quot;,port=5672,vhost=&amp;quot;/&amp;quot;,user=&amp;quot;guest&amp;quot;,password=&amp;quot;guest&amp;quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER,log_level=Logger::WARN)-class-method">
+    <div class="entry-detail" id="new(uri:URI)-class-method">
       <div class="signature">
         
-        def self.<strong>new</strong>(host = <span class="s">&quot;localhost&quot;</span>, port = <span class="n">5672</span>, vhost = <span class="s">&quot;/&quot;</span>, user = <span class="s">&quot;guest&quot;</span>, password = <span class="s">&quot;guest&quot;</span>, tls = <span class="n">false</span>, channel_max = <span class="t">UInt16</span><span class="t">::</span><span class="t">MAX</span>, frame_max = <span class="n">131072_u32</span>, heartbeat = <span class="n">0_u16</span>, verify_mode = <span class="t">OpenSSL</span><span class="t">::</span><span class="t">SSL</span><span class="t">::</span><span class="t">VerifyMode</span><span class="t">::</span><span class="t">PEER</span>, log_level = <span class="t">Logger</span><span class="t">::</span><span class="t">WARN</span>)
+        def self.<strong>new</strong>(uri : URI)
 
-        <a class="method-permalink" href="#new(host=&quot;localhost&quot;,port=5672,vhost=&quot;/&quot;,user=&quot;guest&quot;,password=&quot;guest&quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER,log_level=Logger::WARN)-class-method">#</a>
+        <a class="method-permalink" href="#new(uri:URI)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client.cr#L51" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client.cr#L33" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="new(host=&amp;quot;localhost&amp;quot;,port=5672,vhost=&amp;quot;/&amp;quot;,user=&amp;quot;guest&amp;quot;,password=&amp;quot;guest&amp;quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER)-class-method">
+      <div class="signature">
+        
+        def self.<strong>new</strong>(host = <span class="s">&quot;localhost&quot;</span>, port = <span class="n">5672</span>, vhost = <span class="s">&quot;/&quot;</span>, user = <span class="s">&quot;guest&quot;</span>, password = <span class="s">&quot;guest&quot;</span>, tls = <span class="n">false</span>, channel_max = <span class="t">UInt16</span><span class="t">::</span><span class="t">MAX</span>, frame_max = <span class="n">131072_u32</span>, heartbeat = <span class="n">0_u16</span>, verify_mode = <span class="t">OpenSSL</span><span class="t">::</span><span class="t">SSL</span><span class="t">::</span><span class="t">VerifyMode</span><span class="t">::</span><span class="t">PEER</span>)
+
+        <a class="method-permalink" href="#new(host=&quot;localhost&quot;,port=5672,vhost=&quot;/&quot;,user=&quot;guest&quot;,password=&quot;guest&quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER)-class-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client.cr#L57" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -418,34 +456,34 @@
     Class Method Detail
   </h2>
   
-    <div class="entry-detail" id="start(url:String,log_level=Logger::WARN,&amp;blk:AMQP::Client::Connection-&gt;_)-class-method">
+    <div class="entry-detail" id="start(url:String|URI,&amp;blk:AMQP::Client::Connection-&gt;_)-class-method">
       <div class="signature">
         
-        def self.<strong>start</strong>(url : String, log_level = <span class="t">Logger</span><span class="t">::</span><span class="t">WARN</span>, &blk : <a href="../AMQP/Client/Connection.html">AMQP::Client::Connection</a> -> _)
+        def self.<strong>start</strong>(url : String | URI, &blk : <a href="../AMQP/Client/Connection.html">AMQP::Client::Connection</a> -> _)
 
-        <a class="method-permalink" href="#start(url:String,log_level=Logger::WARN,&blk:AMQP::Client::Connection-%3E_)-class-method">#</a>
+        <a class="method-permalink" href="#start(url:String%7CURI,&blk:AMQP::Client::Connection-%3E_)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client.cr#L9" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client.cr#L11" target="_blank">View source</a>]
         
       </div>
     </div>
   
-    <div class="entry-detail" id="start(host=&amp;quot;localhost&amp;quot;,port=5672,vhost=&amp;quot;/&amp;quot;,user=&amp;quot;guest&amp;quot;,password=&amp;quot;guest&amp;quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER,log_level=Logger::WARN,&amp;blk:AMQP::Client::Connection-&gt;_)-class-method">
+    <div class="entry-detail" id="start(host=&amp;quot;localhost&amp;quot;,port=5672,vhost=&amp;quot;/&amp;quot;,user=&amp;quot;guest&amp;quot;,password=&amp;quot;guest&amp;quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER,&amp;blk:AMQP::Client::Connection-&gt;_)-class-method">
       <div class="signature">
         
-        def self.<strong>start</strong>(host = <span class="s">&quot;localhost&quot;</span>, port = <span class="n">5672</span>, vhost = <span class="s">&quot;/&quot;</span>, user = <span class="s">&quot;guest&quot;</span>, password = <span class="s">&quot;guest&quot;</span>, tls = <span class="n">false</span>, channel_max = <span class="t">UInt16</span><span class="t">::</span><span class="t">MAX</span>, frame_max = <span class="n">131072_u32</span>, heartbeat = <span class="n">0_u16</span>, verify_mode = <span class="t">OpenSSL</span><span class="t">::</span><span class="t">SSL</span><span class="t">::</span><span class="t">VerifyMode</span><span class="t">::</span><span class="t">PEER</span>, log_level = <span class="t">Logger</span><span class="t">::</span><span class="t">WARN</span>, &blk : <a href="../AMQP/Client/Connection.html">AMQP::Client::Connection</a> -> _)
+        def self.<strong>start</strong>(host = <span class="s">&quot;localhost&quot;</span>, port = <span class="n">5672</span>, vhost = <span class="s">&quot;/&quot;</span>, user = <span class="s">&quot;guest&quot;</span>, password = <span class="s">&quot;guest&quot;</span>, tls = <span class="n">false</span>, channel_max = <span class="t">UInt16</span><span class="t">::</span><span class="t">MAX</span>, frame_max = <span class="n">131072_u32</span>, heartbeat = <span class="n">0_u16</span>, verify_mode = <span class="t">OpenSSL</span><span class="t">::</span><span class="t">SSL</span><span class="t">::</span><span class="t">VerifyMode</span><span class="t">::</span><span class="t">PEER</span>, &blk : <a href="../AMQP/Client/Connection.html">AMQP::Client::Connection</a> -> _)
 
-        <a class="method-permalink" href="#start(host=&quot;localhost&quot;,port=5672,vhost=&quot;/&quot;,user=&quot;guest&quot;,password=&quot;guest&quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER,log_level=Logger::WARN,&blk:AMQP::Client::Connection-%3E_)-class-method">#</a>
+        <a class="method-permalink" href="#start(host=&quot;localhost&quot;,port=5672,vhost=&quot;/&quot;,user=&quot;guest&quot;,password=&quot;guest&quot;,tls=false,channel_max=UInt16::MAX,frame_max=131072_u32,heartbeat=0_u16,verify_mode=OpenSSL::SSL::VerifyMode::PEER,&blk:AMQP::Client::Connection-%3E_)-class-method">#</a>
       </div>
       
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client.cr#L16" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client.cr#L18" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -473,7 +511,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/cd5002e0096502888d92dfe17e6467cb137d53d9/src/amqp-client.cr#L57" target="_blank">View source</a>]
+          [<a href="https://github.com/cloudamqp/amqp-client.cr/blob/5552da0b4f9a67247fed1e257183380869a8abb7/src/amqp-client.cr#L62" target="_blank">View source</a>]
         
       </div>
     </div>
