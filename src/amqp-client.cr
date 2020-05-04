@@ -17,7 +17,7 @@ class AMQP::Client
 
   def self.start(host = "localhost", port = 5672, vhost = "/",
                  user = "guest", password = "guest", tls = false,
-                 channel_max = UInt16::MAX, frame_max = 131_072_u32, heartbeat = 0_u16,
+                 channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, &blk : AMQP::Client::Connection -> _)
     conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode).connect
     yield conn
@@ -43,9 +43,9 @@ class AMQP::Client
     user = uri.user || "guest"
     password = uri.password || "guest"
     arguments = uri.query.try(&.split("&").map(&.split("=")).to_h) || Hash(String, String).new
-    heartbeat = arguments.fetch("heartbeat", 0_u16).to_u16
-    frame_max = arguments.fetch("frame_max", 131_072_u32).to_u32
-    channel_max = arguments.fetch("channel_max", UInt16::MAX).to_u16
+    heartbeat = arguments.fetch("heartbeat", 0).to_u16
+    frame_max = arguments.fetch("frame_max", 131_072).to_u32
+    channel_max = arguments.fetch("channel_max", 1024).to_u16
     verify_mode = case arguments.fetch("verify", "").downcase
                   when "none" then OpenSSL::SSL::VerifyMode::NONE
                   else             OpenSSL::SSL::VerifyMode::PEER
@@ -55,7 +55,7 @@ class AMQP::Client
 
 
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
-                 @tls = false, @channel_max = UInt16::MAX, @frame_max = 131_072_u32, @heartbeat = 0_u16,
+                 @tls = false, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  @verify_mode = OpenSSL::SSL::VerifyMode::PEER)
   end
     
