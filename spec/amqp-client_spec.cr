@@ -225,4 +225,13 @@ describe AMQP::Client do
       msg.not_nil!.body_io.to_s.should eq "abc"
     end
   end
+
+  it "can open all queues" do
+    AMQP::Client.start("amqp://localhost/") do |c|
+      (1_u16..c.channel_max).each do |id|
+        ch = c.channel
+        ch.id.should eq id
+      end
+    end
+  end
 end
