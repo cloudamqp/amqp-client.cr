@@ -3,7 +3,6 @@ require "openssl"
 require "logger"
 require "amq-protocol"
 require "./channel"
-require "./sparse_array"
 require "../amqp-client"
 
 class AMQP::Client
@@ -19,7 +18,7 @@ class AMQP::Client
       spawn read_loop, name: "AMQP::Client#read_loop", same_thread: true
     end
 
-    @channels = SparseArray(Channel).new
+    @channels = Hash(UInt16, Channel).new
 
     def channel(id : UInt16? = nil)
       if id
