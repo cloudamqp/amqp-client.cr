@@ -20,7 +20,7 @@ class AMQP::Client
 
     @channels = Hash(UInt16, Channel).new
 
-    def channel(id : UInt16? = nil)
+    def channel(id : Int? = nil)
       if id
         raise "channel_max reached" if id > @channel_max
         if ch = @channels.fetch(id, nil)
