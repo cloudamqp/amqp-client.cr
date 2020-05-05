@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.17] - 2020-05-05
+
+### Changed
+- Default channel_max is now 1024 (more than ~8000 channels will deplete the stack memory)
+- Connection#channel can now accepts any type of Int
+
+### Fixed
+- Bug when opening many channels
+
 ## [0.5.16] - 2020-04-12
 
 ### Fixed
