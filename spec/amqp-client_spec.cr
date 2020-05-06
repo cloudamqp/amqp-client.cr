@@ -234,4 +234,14 @@ describe AMQP::Client do
       end
     end
   end
+
+  it "can set connection name" do
+    AMQP::Client.start("amqp://localhost/?name=MyName") do |c|
+      HTTP::Client.get("http://guest:guest@localhost:15672/api/connections") do |resp|
+        conns = JSON.parse resp.body_io
+        names = conns.as_a.map { |c| c.dig("client_properties", "connection_name") }
+        names.should contain "MyName"
+      end
+    end
+  end
 end

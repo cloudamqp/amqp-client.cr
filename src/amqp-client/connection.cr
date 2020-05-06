@@ -144,13 +144,14 @@ class AMQP::Client
 
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
                    user, password, vhost,
-                   channel_max, frame_max, heartbeat)
+                   channel_max, frame_max, heartbeat, name : String?)
       io.read_timeout = 15
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise UnexpectedFrame.new(f) }
 
       props = Arguments.new
+      props["connection_name"] = name if name
       props["product"] = "amqp-client.cr"
       props["platform"] = "Crystal"
       props["version"] = AMQP::Client::VERSION

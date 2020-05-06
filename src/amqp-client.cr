@@ -18,8 +18,8 @@ class AMQP::Client
   def self.start(host = "localhost", port = 5672, vhost = "/",
                  user = "guest", password = "guest", tls = false,
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
-                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, &blk : AMQP::Client::Connection -> _)
-    conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode).connect
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, &blk : AMQP::Client::Connection -> _)
+    conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, name).connect
     yield conn
   ensure
     conn.try &.close
@@ -50,25 +50,26 @@ class AMQP::Client
                   when "none" then OpenSSL::SSL::VerifyMode::NONE
                   else             OpenSSL::SSL::VerifyMode::PEER
                   end
-    self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode)
+    name = arguments.fetch("name", nil)
+    self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, name)
   end
 
 
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
                  @tls = false, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
-                 @verify_mode = OpenSSL::SSL::VerifyMode::PEER)
+                 @verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = nil)
   end
     
   def connect : Connection
     if @host.starts_with? '/'
       socket = connect_unix
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
     elsif @tls
       socket = connect_tls(connect_tcp)
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
     else
       socket = connect_tcp
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
     end
   end
 

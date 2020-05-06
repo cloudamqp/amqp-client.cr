@@ -1,4 +1,6 @@
 require "spec"
+require "http/client"
+require "json"
 require "../src/amqp-client"
 
 Log.setup_from_env
