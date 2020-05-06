@@ -3,3 +3,5 @@ addons:
   apt:
     packages:
       - rabbitmq-server
+before_script:
+  - rabbitmq-plugins enable rabbitmq_management
