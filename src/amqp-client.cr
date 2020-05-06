@@ -42,7 +42,7 @@ class AMQP::Client
       end
     user = uri.user || "guest"
     password = uri.password || "guest"
-    arguments = uri.query.try(&.split("&").map(&.split("=")).to_h) || Hash(String, String).new
+    arguments = uri.query_params
     heartbeat = arguments.fetch("heartbeat", 0).to_u16
     frame_max = arguments.fetch("frame_max", 131_072).to_u32
     channel_max = arguments.fetch("channel_max", 1024).to_u16
@@ -50,7 +50,7 @@ class AMQP::Client
                   when "none" then OpenSSL::SSL::VerifyMode::NONE
                   else             OpenSSL::SSL::VerifyMode::PEER
                   end
-    name = arguments.fetch("name", nil)
+    name = arguments.fetch("name", nil).try { |n| URI.decode_www_form(n) }
     self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, name)
   end
 
