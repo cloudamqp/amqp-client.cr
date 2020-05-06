@@ -4,4 +4,4 @@ addons:
     packages:
       - rabbitmq-server
 before_script:
-  - rabbitmq-plugins enable rabbitmq_management
+  - sudo rabbitmq-plugins enable rabbitmq_management
