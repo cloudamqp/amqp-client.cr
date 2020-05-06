@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.18] - 2020-05-06
+
+### Added
+- Can set connection name, via URL (?name=MyConn) or the parameter `name`
+
 ## [0.5.17] - 2020-05-05
 
 ### Changed
