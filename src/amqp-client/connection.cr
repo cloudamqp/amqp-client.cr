@@ -16,6 +16,7 @@ class AMQP::Client
     def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
                    @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
       spawn read_loop, name: "AMQP::Client#read_loop", same_thread: true
+      spawn write_loop, name: "AMQP::Client#write_loop", same_thread: true
     end
 
     @channels = Hash(UInt16, Channel).new
@@ -105,16 +106,10 @@ class AMQP::Client
       @channels.clear
     end
 
-    @write_lock = Mutex.new
+    @write_lock = Mutex.new(:unchecked)
+    @outgoing = ::Channel(Frame).new
 
     def write(frame : Frame)
-      @write_lock.synchronize do
-        unsafe_write(frame)
-        @io.flush
-      end
-    end
-
-    def unsafe_write(frame : Frame)
       if @closed
         if f = @closing_frame
           raise ClosedException.new(f)
@@ -122,15 +117,25 @@ class AMQP::Client
           return
         end
       end
-      @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
-      Log.debug { "sent #{frame.inspect}" }
+      @outgoing.send frame
     end
 
-    def with_lock(&blk : self -> _)
-      @write_lock.synchronize do
-        yield self
-        @io.flush
+    private def write_loop
+      frame = @outgoing.receive
+      loop do
+        @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
+        Log.debug { "sent #{frame.inspect}" }
+        _, ret = ::Channel.non_blocking_select(@outgoing.receive_select_action)
+        case ret
+        when Frame
+          frame = ret
+          next
+        else
+          @io.flush
+          frame = @outgoing.receive
+        end
       end
+    rescue ::Channel::ClosedError
     end
 
     def close(msg = "")

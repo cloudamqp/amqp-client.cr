@@ -224,15 +224,13 @@ class AMQP::Client
 
     def basic_publish(io : IO, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props = Properties.new) : UInt64
-      @connection.with_lock do |c|
-        c.unsafe_write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
-        c.unsafe_write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, props)
-        pos = 0_u32
-        until pos == bytesize
-          length = Math.min(@connection.frame_max, bytesize.to_u32 - pos)
-          c.unsafe_write Frame::Body.new(@id, length, io)
-          pos += length
-        end
+      write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
+      write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, props)
+      pos = 0_u32
+      until pos == bytesize
+        length = Math.min(@connection.frame_max, bytesize.to_u32 - pos)
+        write Frame::Body.new(@id, length, io)
+        pos += length
       end
       if @confirm_mode
         @confirm_id += 1_u64
