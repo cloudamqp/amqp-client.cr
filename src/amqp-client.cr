@@ -83,6 +83,7 @@ class AMQP::Client
     socket.sync = false
     socket.read_buffering = true
     socket.write_timeout = 15
+    socket.buffer_size = 16384
     socket
   end
 
@@ -94,6 +95,7 @@ class AMQP::Client
     socket.read_buffering = false
     tls_socket.sync = false
     tls_socket.read_buffering = true
+    tls_socket.buffer_size = 16384
     tls_socket
   end
 
@@ -101,6 +103,7 @@ class AMQP::Client
     UNIXSocket.new(@host).tap do |socket|
       socket.sync = false
       socket.read_buffering = true
+      socket.buffer_size = 16384
       socket.write_timeout = 15
     end
   end
