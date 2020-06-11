@@ -85,9 +85,7 @@ class AMQP::Client
 
     def incoming(frame)
       case frame
-      when Frame::Channel::Close,
-           Frame::Channel::Flow,
-           Frame::Basic::Deliver,
+      when Frame::Basic::Deliver,
            Frame::Basic::Return,
            Frame::Basic::Cancel
         @server_frames.send frame
@@ -104,6 +102,10 @@ class AMQP::Client
           @next_body_io.rewind
           @next_msg_ready.send nil
         end
+      when Frame::Channel::Flow
+        process_flow frame.active
+      when Frame::Channel::Close
+        close frame
       else
         @reply_frames.send frame
       end
@@ -114,8 +116,6 @@ class AMQP::Client
       loop do
         frame = @server_frames.receive? || break
         case frame
-        when Frame::Channel::Close then close(frame)
-        when Frame::Channel::Flow  then process_flow(frame.active)
         when Frame::Basic::Deliver then process_deliver(frame)
         when Frame::Basic::Return  then process_return(frame)
         when Frame::Basic::Cancel  then process_cancel(frame)
