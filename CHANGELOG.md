@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.18] - 2020-06-11
+
+### Fixed
+- Faster deliveries, by removing Log.context.set
+
 ## [0.5.18] - 2020-05-06
 
 ### Changed
