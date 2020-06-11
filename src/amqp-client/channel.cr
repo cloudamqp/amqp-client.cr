@@ -84,7 +84,6 @@ class AMQP::Client
     @next_msg_props = AMQ::Protocol::Properties.new
 
     def incoming(frame)
-      Log.context.set channel_id: @id.to_i
       case frame
       when Frame::Channel::Close,
            Frame::Channel::Flow,
