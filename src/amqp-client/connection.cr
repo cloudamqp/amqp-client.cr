@@ -133,11 +133,17 @@ class AMQP::Client
       end
     end
 
-    def close(msg = "")
+    def close(msg = "", wait_for_ok = false)
       return if @closed
       Log.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
-      @closed = true
+      if wait_for_ok
+        until @closed
+          sleep 0.1
+        end
+      else
+        @closed = true
+      end
     rescue ex : IO::Error
       Log.info { "Socket already closed, can't send close frame" }
     end
@@ -182,9 +188,9 @@ class AMQP::Client
       channel_max = tune.channel_max.zero? ? channel_max : Math.min(tune.channel_max, channel_max)
       frame_max = tune.frame_max.zero? ? frame_max : Math.min(tune.frame_max, frame_max)
       io.write_bytes Frame::Connection::TuneOk.new(channel_max: channel_max,
-                                                   frame_max: frame_max,
-                                                   heartbeat: heartbeat),
-                                                   IO::ByteFormat::NetworkEndian
+        frame_max: frame_max,
+        heartbeat: heartbeat),
+        IO::ByteFormat::NetworkEndian
       io.write_bytes Frame::Connection::Open.new(vhost), IO::ByteFormat::NetworkEndian
       io.flush
       Frame.from_io(io) do |f|
