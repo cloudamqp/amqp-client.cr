@@ -235,13 +235,22 @@ describe AMQP::Client do
   end
 
   it "should set connection name" do
-    AMQP::Client.start("amqp://localhost/?name=My+Name") do |conn|
-      sleep 2 # RabbitMQ is slow
+    AMQP::Client.start("amqp://localhost/?name=My+Name") do |_|
+      sleep 5 # RabbitMQ is slow
       HTTP::Client.get("http://guest:guest@localhost:15672/api/connections") do |resp|
         conns = JSON.parse resp.body_io
         names = conns.as_a.map { |c| c.dig("client_properties", "connection_name") }
         names.should contain "My Name"
       end
+    end
+  end
+
+  it "should wait for connection close" do
+    conn = AMQP::Client.new("amqp://localhost/").connect
+    conn.close(no_wait: false)
+    HTTP::Client.get("http://guest:guest@localhost:15672/api/connections") do |resp|
+      conns = JSON.parse resp.body_io
+      conns.as_a.size.should eq 0
     end
   end
 end

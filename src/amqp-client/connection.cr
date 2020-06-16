@@ -12,6 +12,7 @@ class AMQP::Client
     getter channel_max, frame_max, log
     getter? closed = false
     @closing_frame : Frame::Connection::Close?
+    @reply_frames = ::Channel(Frame).new
 
     def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
                    @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
@@ -70,6 +71,11 @@ class AMQP::Client
             @closing_frame = f
             return
           when Frame::Connection::CloseOk
+            begin
+              @reply_frames.send f
+            rescue ::Channel::ClosedError
+              Log.debug { "CloseOk ignored by user" }
+            end
             return
           when Frame::Connection::Blocked
             Log.info { "Blocked by server, reason: #{f.reason}" }
@@ -101,6 +107,7 @@ class AMQP::Client
     ensure
       @closed = true
       @io.close rescue nil
+      @reply_frames.close
       @channels.each_value &.cleanup
       @channels.clear
     end
@@ -133,13 +140,23 @@ class AMQP::Client
       end
     end
 
-    def close(msg = "")
+    def close(msg = "", no_wait = true)
       return if @closed
       Log.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
-      @closed = true
+      return if no_wait
+      while frame = @reply_frames.receive?
+        if frame.as?(Frame::Connection::CloseOk)
+          Log.debug { "Server confirmed close" }
+          return
+        end
+      end
+      Log.debug { "Server didn't confirm close" }
     rescue ex : IO::Error
       Log.info { "Socket already closed, can't send close frame" }
+    ensure
+      @closed = true
+      @reply_frames.close
     end
 
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
@@ -182,9 +199,9 @@ class AMQP::Client
       channel_max = tune.channel_max.zero? ? channel_max : Math.min(tune.channel_max, channel_max)
       frame_max = tune.frame_max.zero? ? frame_max : Math.min(tune.frame_max, frame_max)
       io.write_bytes Frame::Connection::TuneOk.new(channel_max: channel_max,
-                                                   frame_max: frame_max,
-                                                   heartbeat: heartbeat),
-                                                   IO::ByteFormat::NetworkEndian
+        frame_max: frame_max,
+        heartbeat: heartbeat),
+        IO::ByteFormat::NetworkEndian
       io.write_bytes Frame::Connection::Open.new(vhost), IO::ByteFormat::NetworkEndian
       io.flush
       Frame.from_io(io) do |f|
