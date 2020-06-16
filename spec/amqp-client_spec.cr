@@ -190,7 +190,7 @@ describe AMQP::Client do
       ch.confirm_select
       body = IO::Memory.new(0)
       4000.times do
-        msgid = q.publish body
+        q.publish body
       end
       d = q.delete
       d[:message_count].should eq 4000
@@ -203,7 +203,7 @@ describe AMQP::Client do
       q = ch.queue
       5.times { q.publish("") }
       b = false
-      c = q.subscribe(tag: tag, no_ack: false, block: true) do |msg|
+      q.subscribe(tag: tag, no_ack: false, block: true) do |msg|
         q.publish "again"
         msg.ack
         b = true
@@ -217,7 +217,6 @@ describe AMQP::Client do
     io = IO::Memory.new "abcde"
     sized = IO::Sized.new(io, read_size: 3)
     with_channel do |ch|
-      tag = "block"
       q = ch.queue
       q.publish_confirm(sized, 3).should eq true
       msg = q.get

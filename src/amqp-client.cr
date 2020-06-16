@@ -54,12 +54,11 @@ class AMQP::Client
     self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, name)
   end
 
-
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
                  @tls = false, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  @verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = nil)
   end
-    
+
   def connect : Connection
     if @host.starts_with? '/'
       socket = connect_unix
@@ -111,10 +110,12 @@ class AMQP::Client
   alias Frame = AMQ::Protocol::Frame
   alias Arguments = AMQ::Protocol::Table
   alias Properties = AMQ::Protocol::Properties
+
   class UnexpectedFrame < Exception
     def initialize
       super
     end
+
     def initialize(frame : Frame)
       super(frame.inspect)
     end
