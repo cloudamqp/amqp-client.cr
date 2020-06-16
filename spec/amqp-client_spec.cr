@@ -1,25 +1,25 @@
 require "./spec_helper"
 
 describe AMQP::Client do
-  it "can connect" do
+  it "should connect" do
     with_channel do |ch|
       ch.should_not be_nil
     end
   end
 
-  it "can connect to localhost when URI host is empty" do
+  it "should connect to localhost when URI host is empty" do
     AMQP::Client.start("amqp:///%2f") do |c|
       c.channel.should_not be_nil
     end
   end
 
-  it "can connect to localhost when URI path is empty" do
+  it "should connect to localhost when URI path is empty" do
     AMQP::Client.start("amqp://localhost/") do |c|
       c.channel.should_not be_nil
     end
   end
 
-  it "can publish" do
+  it "should publish" do
     with_channel do |ch|
       q = ch.queue
       q.publish "hej"
@@ -29,7 +29,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can get" do
+  it "should get" do
     with_channel do |ch|
       q = ch.queue
       q.publish("foo")
@@ -40,7 +40,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can consume" do
+  it "should consume" do
     s = ::Channel(Nil).new
     with_channel do |ch|
       q = ch.queue
@@ -53,7 +53,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can block subscribe" do
+  it "should block subscribe" do
     with_channel do |ch|
       q = ch.queue
       tag = "block"
@@ -68,7 +68,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can publish msg larger than frame_max" do
+  it "should publish msg larger than frame_max" do
     with_channel do |ch|
       q = ch.queue
       str = "a" * 257 * 1024
@@ -79,7 +79,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can negotiate frame_max" do
+  it "should negotiate frame_max" do
     with_connection(frame_max: 4096_u32) do |c|
       c.frame_max.should eq 4096_u32
     end
@@ -95,7 +95,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can delete a queue" do
+  it "should delete a queue" do
     with_channel do |ch|
       q = ch.queue("crystal-q1")
       q.publish ""
@@ -107,7 +107,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can purge a queue" do
+  it "should purge a queue" do
     with_channel do |ch|
       q = ch.queue
       q.publish ""
@@ -116,7 +116,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can declare and publish to an exchange" do
+  it "should declare and publish to an exchange" do
     with_channel do |ch|
       q = ch.queue("crystal-q2")
       x = ch.default_exchange
@@ -125,7 +125,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can publish with confirm" do
+  it "should publish with confirm" do
     with_channel do |ch|
       q = ch.queue
       q.publish_confirm("hej").should eq true
@@ -134,13 +134,13 @@ describe AMQP::Client do
     end
   end
 
-  it "can use blocks" do
+  it "should use blocks" do
     with_channel do |ch|
       ch.basic_publish_confirm("hej", "", "my-queue").should eq true
     end
   end
 
-  it "can publish and consume properties" do
+  it "should publish and consume properties" do
     with_channel do |ch|
       q = ch.queue
       props = AMQ::Protocol::Properties.new(content_type: "text/plain", delivery_mode: 1_u8)
@@ -154,7 +154,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can get multiple messages" do
+  it "should get multiple messages" do
     with_channel do |ch|
       q = ch.queue
       props1 = AMQ::Protocol::Properties.new(headers: AMQ::Protocol::Table.new({"h" => "1"}))
@@ -184,7 +184,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can have many unprocessed confirms" do
+  it "should have many unprocessed confirms" do
     with_channel do |ch|
       q = ch.queue
       ch.confirm_select
@@ -197,7 +197,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can publish in a consume block" do
+  it "should publish in a consume block" do
     with_channel do |ch|
       tag = "block"
       q = ch.queue
@@ -213,7 +213,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can publish IO objects without pos or bytesize" do
+  it "should publish IO objects without pos or bytesize" do
     io = IO::Memory.new "abcde"
     sized = IO::Sized.new(io, read_size: 3)
     with_channel do |ch|
@@ -225,7 +225,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can open all queues" do
+  it "should open all queues" do
     AMQP::Client.start("amqp://localhost/") do |c|
       (1_u16..c.channel_max).each do |id|
         ch = c.channel
@@ -234,7 +234,7 @@ describe AMQP::Client do
     end
   end
 
-  it "can set connection name" do
+  it "should set connection name" do
     AMQP::Client.start("amqp://localhost/?name=My+Name") do |conn|
       sleep 2 # RabbitMQ is slow
       HTTP::Client.get("http://guest:guest@localhost:15672/api/connections") do |resp|
