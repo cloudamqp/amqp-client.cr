@@ -43,6 +43,7 @@ class AMQP::Client
     user = uri.user || "guest"
     password = uri.password || "guest"
     arguments = uri.query_params
+    Log.debug { "Opening connection to #{host} with arguments #{arguments}" }
     heartbeat = arguments.fetch("heartbeat", 0).to_u16
     frame_max = arguments.fetch("frame_max", 131_072).to_u32
     channel_max = arguments.fetch("channel_max", 1024).to_u16
