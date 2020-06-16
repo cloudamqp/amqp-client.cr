@@ -12,6 +12,7 @@ class AMQP::Client
     getter channel_max, frame_max, log
     getter? closed = false
     @closing_frame : Frame::Connection::Close?
+    @reply_frames = ::Channel(Frame).new
 
     def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
                    @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
@@ -70,6 +71,7 @@ class AMQP::Client
             @closing_frame = f
             return
           when Frame::Connection::CloseOk
+            @reply_frames.send f
             return
           when Frame::Connection::Blocked
             Log.info { "Blocked by server, reason: #{f.reason}" }
@@ -133,19 +135,19 @@ class AMQP::Client
       end
     end
 
-    def close(msg = "", wait_for_ok = false)
+    def close(msg = "", no_wait = true)
       return if @closed
       Log.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
-      if wait_for_ok
-        until @closed
-          sleep 0.01
-        end
-      else
-        @closed = true
+      unless no_wait
+        frame = @reply_frames.receive
+        frame.as?(Frame::Connection::CloseOk) || raise UnexpectedFrame.new(frame)
       end
     rescue ex : IO::Error
       Log.info { "Socket already closed, can't send close frame" }
+    ensure
+      @closed = true
+      @reply_frames.close
     end
 
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
