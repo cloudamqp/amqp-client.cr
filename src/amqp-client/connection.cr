@@ -100,6 +100,8 @@ class AMQP::Client
         Log.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
         break
       end
+      # Only close on break
+      @reply_frames.close rescue nil
     ensure
       @closed = true
       @io.close rescue nil
