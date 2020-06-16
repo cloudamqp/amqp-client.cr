@@ -139,7 +139,7 @@ class AMQP::Client
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
       if wait_for_ok
         until @closed
-          sleep 0.1
+          sleep 0.01
         end
       else
         @closed = true
