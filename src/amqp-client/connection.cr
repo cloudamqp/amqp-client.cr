@@ -12,7 +12,7 @@ class AMQP::Client
     getter channel_max, frame_max, log
     getter? closed = false
     @closing_frame : Frame::Connection::Close?
-    @reply_frames = ::Channel(Frame).new
+    @close_ok : ::Channel(Frame::Connection::CloseOk)?
 
     def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
                    @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
@@ -71,7 +71,8 @@ class AMQP::Client
             @closing_frame = f
             return
           when Frame::Connection::CloseOk
-            @reply_frames.send f
+            LOG.debug { "Connection Close Ok" }
+            @close_ok.try &.send(f)
             return
           when Frame::Connection::Blocked
             LOG.info { "Blocked by server, reason: #{f.reason}" }
@@ -100,10 +101,9 @@ class AMQP::Client
         LOG.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
         break
       end
-      # Only close on break
-      @reply_frames.close rescue nil
     ensure
       @closed = true
+      @close_ok.try &.close
       @io.close rescue nil
       @channels.each_value &.cleanup
       @channels.clear
@@ -137,19 +137,17 @@ class AMQP::Client
       end
     end
 
-    def close(msg = "", no_wait = true)
+    def close(msg = "", no_wait = false)
       return if @closed
-      Log.debug { "Closing connection" }
+      LOG.debug { "Closing connection" }
+      @close_ok = ::Channel(Frame::Connection::CloseOk).new unless no_wait
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
-      unless no_wait
-        frame = @reply_frames.receive
-        frame.as?(Frame::Connection::CloseOk) || raise UnexpectedFrame.new(frame)
-      end
-    rescue ex : IO::Error
-      Log.info { "Socket already closed, can't send close frame" }
-    ensure
       @closed = true
-      @reply_frames.close
+      @close_ok.not_nil!.receive? unless no_wait
+    rescue ex : IO::Error
+      LOG.info { "Socket already closed, can't send close frame" }
+    ensure
+      @close_ok.try &.close
     end
 
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
