@@ -59,7 +59,7 @@ describe AMQP::Client do
       tag = "block"
       q.publish("hej!")
       b = false
-      c = q.subscribe(tag: tag, block: true) do |msg|
+      q.subscribe(tag: tag, block: true) do |_|
         b.should be_false
         b = true
         q.unsubscribe(tag)
