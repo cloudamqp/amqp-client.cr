@@ -71,7 +71,11 @@ class AMQP::Client
             @closing_frame = f
             return
           when Frame::Connection::CloseOk
-            @reply_frames.send f
+            begin
+              @reply_frames.send f
+            rescue ::Channel::ClosedError
+              Log.debug { "CloseOk ignored by user" }
+            end
             return
           when Frame::Connection::Blocked
             Log.info { "Blocked by server, reason: #{f.reason}" }
@@ -100,11 +104,10 @@ class AMQP::Client
         Log.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
         break
       end
-      # Only close on break
-      @reply_frames.close rescue nil
     ensure
       @closed = true
       @io.close rescue nil
+      @reply_frames.close
       @channels.each_value &.cleanup
       @channels.clear
     end
@@ -141,10 +144,14 @@ class AMQP::Client
       return if @closed
       Log.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
-      unless no_wait
-        frame = @reply_frames.receive
-        frame.as?(Frame::Connection::CloseOk) || raise UnexpectedFrame.new(frame)
+      return if no_wait
+      while frame = @reply_frames.receive?
+        if frame.as?(Frame::Connection::CloseOk)
+          Log.debug { "Server confirmed close" }
+          return
+        end
       end
+      Log.debug { "Server didn't confirm close" }
     rescue ex : IO::Error
       Log.info { "Socket already closed, can't send close frame" }
     ensure
