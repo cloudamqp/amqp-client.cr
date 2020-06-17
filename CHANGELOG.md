@@ -6,7 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.18] - 2020-06-11
+## [0.5.20] - 2020-06-11
+
+### Added
+- Connection#close now as a `no_wait` argument (default to true) to wait for CloseOk from the server
+
+## [0.5.19] - 2020-06-11
 
 ### Fixed
 - Faster deliveries, by removing Log.context.set
