@@ -8,7 +8,7 @@ class AMQP::Client
   class Channel
     getter id
 
-    Log = AMQP::Client::Connection::Log.for(self)
+    LOG = AMQP::Client::Connection::LOG.for(self)
 
     @closed = false
     @confirm_mode = false
@@ -53,11 +53,11 @@ class AMQP::Client
     def close(frame : Frame::Channel::Close) : Nil
       @closed = true
       @closing_frame = frame
-      Log.info { "Channel closed by server: #{frame.inspect}" } unless @on_close
+      LOG.info { "Channel closed by server: #{frame.inspect}" } unless @on_close
       begin
         @on_close.try &.call(frame.reply_code, frame.reply_text)
       rescue ex
-        Log.error(exception: ex) { "Uncaught exception in on_close block" }
+        LOG.error(exception: ex) { "Uncaught exception in on_close block" }
       end
       write Frame::Channel::CloseOk.new(@id)
       cleanup
@@ -112,7 +112,7 @@ class AMQP::Client
     end
 
     private def read_loop
-      Log.context.set channel_id: @id.to_i, fiber: "read_loop"
+      LOG.context.set channel_id: @id.to_i, fiber: "read_loop"
       loop do
         frame = @server_frames.receive? || break
         case frame
@@ -131,11 +131,11 @@ class AMQP::Client
     end
 
     private def process_cancel(f : Frame::Basic::Cancel)
-      Log.warn { "Consumer #{f.consumer_tag} cancelled by server" } unless @on_cancel || @closed || @connection.closed?
+      LOG.warn { "Consumer #{f.consumer_tag} cancelled by server" } unless @on_cancel || @closed || @connection.closed?
       begin
         @on_cancel.try &.call(f.consumer_tag)
       rescue ex
-        Log.error(exception: ex) { "Uncaught exception in on_cancel" }
+        LOG.error(exception: ex) { "Uncaught exception in on_cancel" }
       end
 
       if cb = @consumer_blocks.delete f.consumer_tag
@@ -147,11 +147,11 @@ class AMQP::Client
 
     private def process_deliver(f : Frame::Basic::Deliver)
       @next_msg_ready.receive
-      @deliveries.send({ f, @next_msg_props, @next_body_io })
+      @deliveries.send({f, @next_msg_props, @next_body_io})
     end
 
     private def delivery_loop
-      Log.context.set channel_id: @id.to_i, fiber: "deliver_loop"
+      LOG.context.set channel_id: @id.to_i, fiber: "deliver_loop"
       loop do
         f, props, body_io = @deliveries.receive
         msg = DeliverMessage.new(self, f.exchange, f.routing_key,
@@ -163,11 +163,11 @@ class AMQP::Client
             if cb = @consumer_blocks.delete f.consumer_tag
               cb.send ex
             else
-              Log.error(exception: ex) { "Uncaught exception in consumer" }
+              LOG.error(exception: ex) { "Uncaught exception in consumer" }
             end
           end
         else
-          Log.warn { "Consumer tag '#{f.consumer_tag}' not found" }
+          LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
         end
       rescue ::Channel::ClosedError
         break
@@ -182,24 +182,24 @@ class AMQP::Client
 
     private def process_return(return_frame)
       @next_msg_ready.receive
-      @returns.send({ return_frame, @next_msg_props, @next_body_io })
+      @returns.send({return_frame, @next_msg_props, @next_body_io})
     end
 
     private def return_loop
-      Log.context.set channel_id: @id.to_i, fiber: "return_loop"
+      LOG.context.set channel_id: @id.to_i, fiber: "return_loop"
       loop do
         f, props, body_io = @returns.receive? || break
         msg = ReturnedMessage.new(f.reply_code, f.reply_text,
-                                  f.exchange, f.routing_key,
-                                  props, body_io)
+          f.exchange, f.routing_key,
+          props, body_io)
         if @on_return
           begin
             @on_return.try &.call(msg)
           rescue ex
-            Log.error(exception: ex) { "Uncaught exception in on_return" }
+            LOG.error(exception: ex) { "Uncaught exception in on_return" }
           end
         else
-          Log.error { "Message returned but no on_return block defined: #{msg.inspect}" }
+          LOG.error { "Message returned but no on_return block defined: #{msg.inspect}" }
         end
       end
     end
@@ -264,7 +264,7 @@ class AMQP::Client
     end
 
     @on_confirm = Sync(Hash(UInt64, Proc(Bool, Nil))).new
-    @last_confirm = { 0_u64, true }
+    @last_confirm = {0_u64, true}
 
     def on_confirm(msgid, &blk : Bool -> Nil)
       raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
@@ -277,13 +277,13 @@ class AMQP::Client
     end
 
     private def confirm_loop
-      Log.context.set channel_id: @id.to_i, fiber: "confirm_loop"
+      LOG.context.set channel_id: @id.to_i, fiber: "confirm_loop"
       loop do
         confirm = @confirms.receive? || break
         case confirm
         when Frame::Basic::Ack, Frame::Basic::Nack
           acked = confirm.is_a? Frame::Basic::Ack
-          @last_confirm = { confirm.delivery_tag, acked }
+          @last_confirm = {confirm.delivery_tag, acked}
           if confirm.multiple
             @on_confirm.delete_if do |msgid, blk|
               if msgid <= confirm.delivery_tag
@@ -300,7 +300,7 @@ class AMQP::Client
         end
       end
       @on_confirm.delete_if do |msgid, blk|
-        Log.debug { "Channel #{@id} hasn't been able to confirm delivery tag #{msgid}" }
+        LOG.debug { "Channel #{@id} hasn't been able to confirm delivery tag #{msgid}" }
         blk.call false
         true
       end
@@ -319,8 +319,8 @@ class AMQP::Client
     private def get_message(f) : GetMessage
       @next_msg_ready.receive
       GetMessage.new(self, f.exchange, f.routing_key,
-                  f.delivery_tag, @next_msg_props, @next_body_io,
-                  f.redelivered, f.message_count)
+        f.delivery_tag, @next_msg_props, @next_body_io,
+        f.redelivered, f.message_count)
     end
 
     def has_subscriber?(consumer_tag)
@@ -395,8 +395,8 @@ class AMQP::Client
       auto_delete = true if name.empty?
       no_wait = false
       write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable,
-                                      exclusive, auto_delete, no_wait,
-                                      args)
+        exclusive, auto_delete, no_wait,
+        args)
       f = expect Frame::Queue::DeclareOk
       {
         queue_name:     f.queue_name,
@@ -458,8 +458,8 @@ class AMQP::Client
                          internal = false, auto_delete = false,
                          no_wait = false, args = Arguments.new) : Nil
       write Frame::Exchange::Declare.new(@id, 0_u16, name, type, passive,
-                                         durable, auto_delete, internal,
-                                         no_wait, args)
+        durable, auto_delete, internal,
+        no_wait, args)
       expect Frame::Exchange::DeclareOk unless no_wait
     end
 

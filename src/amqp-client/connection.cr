@@ -7,7 +7,7 @@ require "../amqp-client"
 
 class AMQP::Client
   class Connection
-    Log = AMQP::Client::Log.for(self)
+    LOG = AMQP::Client::LOG.for(self)
 
     getter channel_max, frame_max, log
     getter? closed = false
@@ -55,17 +55,17 @@ class AMQP::Client
     private def read_loop
       loop do
         Frame.from_io(@io) do |f|
-          Log.debug { "got #{f.inspect}" }
+          LOG.debug { "got #{f.inspect}" }
           case f
           when Frame::Connection::Close
             if on_close = @on_close
               begin
                 on_close.call(f.reply_code, f.reply_text)
               rescue ex
-                Log.error(exception: ex) { "Uncaught exception in on_close block" }
+                LOG.error(exception: ex) { "Uncaught exception in on_close block" }
               end
             else
-              Log.info { "Connection closed by server: #{f.reply_text} (code #{f.reply_code})" }
+              LOG.info { "Connection closed by server: #{f.reply_text} (code #{f.reply_code})" }
             end
             write Frame::Connection::CloseOk.new
             @closing_frame = f
@@ -74,10 +74,10 @@ class AMQP::Client
             @reply_frames.send f
             return
           when Frame::Connection::Blocked
-            Log.info { "Blocked by server, reason: #{f.reason}" }
+            LOG.info { "Blocked by server, reason: #{f.reason}" }
             @write_lock.lock
           when Frame::Connection::Unblocked
-            Log.info { "Unblocked by server" }
+            LOG.info { "Unblocked by server" }
             @write_lock.unlock
           when Frame::Heartbeat
             write f
@@ -85,7 +85,7 @@ class AMQP::Client
             if ch = @channels.fetch(f.channel, nil)
               ch.incoming f
             else
-              Log.error { "Channel #{f.channel} not open for frame #{f.inspect}" }
+              LOG.error { "Channel #{f.channel} not open for frame #{f.inspect}" }
             end
 
             if f.is_a?(Frame::Channel::Close) || f.is_a?(Frame::Channel::CloseOk)
@@ -94,10 +94,10 @@ class AMQP::Client
           end
         end
       rescue ex : IO::Error
-        Log.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
+        LOG.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
         break
       rescue ex
-        Log.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
+        LOG.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
         break
       end
       # Only close on break
@@ -127,7 +127,7 @@ class AMQP::Client
         end
       end
       @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
-      Log.debug { "sent #{frame.inspect}" }
+      LOG.debug { "sent #{frame.inspect}" }
     end
 
     def with_lock(&blk : self -> _)
