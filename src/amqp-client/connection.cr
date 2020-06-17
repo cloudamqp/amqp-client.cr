@@ -140,7 +140,7 @@ class AMQP::Client
       end
     end
 
-    def close(msg = "", no_wait = true)
+    def close(msg = "", no_wait = false)
       return if @closed
       LOG.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)

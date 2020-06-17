@@ -245,12 +245,8 @@ describe AMQP::Client do
     end
   end
 
-  it "should wait for connection close" do
+  it "should not wait for connection close" do
     conn = AMQP::Client.new("amqp://localhost/").connect
-    conn.close(no_wait: false)
-    HTTP::Client.get("http://guest:guest@localhost:15672/api/connections") do |resp|
-      conns = JSON.parse resp.body_io
-      conns.as_a.size.should eq 0
-    end
+    conn.close(no_wait: true)
   end
 end
