@@ -22,6 +22,7 @@ class AMQP::Client
     @deliveries = ::Channel(Tuple(Frame::Basic::Deliver, Properties, IO::Memory)).new(8192)
     @returns = ::Channel(Tuple(Frame::Basic::Return, Properties, IO::Memory)).new(1024)
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(8192)
+    @consumer_unacked_count = Hash(String, UInt32).new(0)
 
     def initialize(@connection : Connection, @id : UInt16)
       spawn read_loop, name: "Channel #{@id} read_loop", same_thread: true
@@ -142,12 +143,27 @@ class AMQP::Client
         cb.close
       end
       write Frame::Basic::CancelOk.new(@id, f.consumer_tag) unless f.no_wait
-      @consumers.delete(f.consumer_tag)
+      delete_consumer(f.consumer_tag)
     end
 
     private def process_deliver(f : Frame::Basic::Deliver)
       @next_msg_ready.receive
+      @consumer_unacked_count[f.consumer_tag] += 1
       @deliveries.send({f, @next_msg_props, @next_body_io})
+    end
+
+    private def delete_consumer(consumer_tag)
+      spawn do
+        loop do
+          if @consumer_unacked_count[consumer_tag] != 0
+            Fiber.yield
+            sleep 5
+          else
+            @consumers.delete(consumer_tag)
+            break
+          end
+        end
+      end
     end
 
     private def delivery_loop
@@ -159,6 +175,7 @@ class AMQP::Client
         if consumer = @consumers.fetch(f.consumer_tag, nil)
           begin
             consumer.call(msg)
+            @consumer_unacked_count[f.consumer_tag] -= 1
           rescue ex
             if cb = @consumer_blocks.delete f.consumer_tag
               cb.send ex
@@ -339,8 +356,8 @@ class AMQP::Client
       if block
         cb = @consumer_blocks[ok.consumer_tag] = ::Channel(Exception).new
         if ex = cb.receive?
-          @consumers.delete(ok.consumer_tag)
           write Frame::Basic::Cancel.new(@id, ok.consumer_tag, no_wait: true)
+          delete_consumer(ok.consumer_tag)
           raise ex
         end
       end
@@ -353,7 +370,7 @@ class AMQP::Client
       if cb = @consumer_blocks.delete consumer_tag
         cb.close
       end
-      @consumers.delete(consumer_tag)
+      delete_consumer(consumer_tag)
     end
 
     def basic_ack(delivery_tag : UInt64, multiple = false) : Nil
