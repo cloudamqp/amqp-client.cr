@@ -249,4 +249,21 @@ describe AMQP::Client do
     conn = AMQP::Client.new("amqp://localhost/").connect
     conn.close(no_wait: true)
   end
+
+  it "should not drop messages on basic_cancel" do
+    with_channel do |ch|
+      tag = "block"
+      q = ch.queue("basic_cancel")
+      5.times { q.publish("") }
+      messages_handled = 0
+      q.subscribe(tag: tag, no_ack: false, block: true) do |msg|
+        msg.ack
+        messages_handled += 1
+        ch.basic_cancel(tag) if ch.has_subscriber?(tag)
+      end
+      sleep 0.5
+      (q.message_count + messages_handled).should eq 5
+      q.delete
+    end
+  end
 end
