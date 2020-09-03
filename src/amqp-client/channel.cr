@@ -19,14 +19,13 @@ class AMQP::Client
     @reply_frames = ::Channel(Frame).new
     @next_msg_ready = ::Channel(Nil).new
 
-    @deliveries = ::Channel(Tuple(Frame::Basic::Deliver, Properties, IO::Memory) | Tuple(Frame::Basic::CancelOk, Nil, Nil)).new(8192)
+    alias DeliveryOrCancel = Tuple(Frame::Basic::Deliver, Properties, IO::Memory) | Tuple(Frame::Basic::CancelOk, Nil, Nil)
+
     @returns = ::Channel(Tuple(Frame::Basic::Return, Properties, IO::Memory)).new(1024)
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(8192)
-    @consumer_unacked_count = Hash(String, UInt32).new(0)
 
     def initialize(@connection : Connection, @id : UInt16)
       spawn read_loop, name: "Channel #{@id} read_loop", same_thread: true
-      spawn delivery_loop, name: "Channel #{@id} delivery_loop", same_thread: true
       spawn return_loop, name: "Channel #{@id} return_loop", same_thread: true
       spawn confirm_loop, name: "Channel #{@id} confirm_loop", same_thread: true
     end
@@ -75,9 +74,9 @@ class AMQP::Client
     def cleanup
       @server_frames.close
       @reply_frames.close
-      @deliveries.close
       @returns.close
       @confirms.close
+      @consumers.each_value(&.close)
     end
 
     @next_body_io = IO::Memory.new(0)
@@ -141,52 +140,53 @@ class AMQP::Client
         LOG.error(exception: ex) { "Uncaught exception in on_cancel" }
       end
 
-      if cb = @consumer_blocks.delete f.consumer_tag
-        cb.close
-      end
       cancel_ok = Frame::Basic::CancelOk.new(@id, f.consumer_tag)
-      @deliveries.send({ cancel_ok, nil, nil })
+      process_cancel_ok(cancel_ok)
       write cancel_ok unless f.no_wait
     end
 
     private def process_cancel_ok(f : Frame::Basic::CancelOk)
-      @deliveries.send({ f, nil, nil })
+      if deliveries = @consumers[f.consumer_tag]?
+        deliveries.send({ f, nil, nil })
+      else
+        LOG.warn { "Consumer tag '#{f.consumer_tag}' already cancelled" }
+      end
     end
 
     private def process_deliver(f : Frame::Basic::Deliver)
       @next_msg_ready.receive
-      @consumer_unacked_count[f.consumer_tag] += 1
-      @deliveries.send({f, @next_msg_props, @next_body_io})
+      if deliveries = @consumers[f.consumer_tag]?
+        deliveries.send({ f, @next_msg_props, @next_body_io})
+      else
+        LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
+      end
     end
 
-    private def delivery_loop
-      LOG.context.set channel_id: @id.to_i, fiber: "deliver_loop"
+    private def consume(consumer_tag, deliveries, blk)
+      LOG.context.set channel_id: @id.to_i, consumer: consumer_tag, fiber: "consumer##{consumer_tag}"
       loop do
-        f, props, body_io = @deliveries.receive
+        f, props, body_io = deliveries.receive
         case f
         when Frame::Basic::CancelOk
           @consumers.delete(f.consumer_tag)
           if cb = @consumer_blocks.delete f.consumer_tag
             cb.close
           end
+          deliveries.close
+          break
         when Frame::Basic::Deliver
           props = props.not_nil!
           body_io = body_io.not_nil!
           msg = DeliverMessage.new(self, f.exchange, f.routing_key,
             f.delivery_tag, props, body_io, f.redelivered)
-          if consumer = @consumers.fetch(f.consumer_tag, nil)
-            begin
-              consumer.call(msg)
-              @consumer_unacked_count[f.consumer_tag] -= 1
-            rescue ex
-              if cb = @consumer_blocks.delete f.consumer_tag
-                cb.send ex
-              else
-                LOG.error(exception: ex) { "Uncaught exception in consumer" }
-              end
+          begin
+            blk.call(msg)
+          rescue ex
+            if cb = @consumer_blocks.delete f.consumer_tag
+              cb.send ex
+            else
+              LOG.error(exception: ex) { "Uncaught exception in consumer" }
             end
-          else
-            LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
           end
         end
       rescue ::Channel::ClosedError
@@ -352,7 +352,7 @@ class AMQP::Client
       @consumers.has_key? consumer_tag
     end
 
-    @consumers = Sync(Hash(String, Proc(DeliverMessage, Nil))).new
+    @consumers = Sync(Hash(String, ::Channel(DeliveryOrCancel))).new
     @consumer_blocks = Sync(Hash(String, ::Channel(Exception))).new
 
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
@@ -360,7 +360,9 @@ class AMQP::Client
                       args = Arguments.new, &blk : DeliverMessage -> Nil)
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, args)
       ok = expect Frame::Basic::ConsumeOk
-      @consumers[ok.consumer_tag] = blk
+      delivery_channel = ::Channel(DeliveryOrCancel).new(8192)
+      @consumers[ok.consumer_tag] = delivery_channel
+      spawn consume(ok.consumer_tag, delivery_channel, blk), name: "AMQPconsumer##{ok.consumer_tag}", same_thread: true
       if block
         cb = @consumer_blocks[ok.consumer_tag] = ::Channel(Exception).new
         if ex = cb.receive?
