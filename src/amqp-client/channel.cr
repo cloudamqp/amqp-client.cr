@@ -210,18 +210,18 @@ class AMQP::Client
     end
 
     def basic_publish(bytes : Bytes, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
-      basic_publish(IO::Memory.new(bytes), exchange, routing_key, mandatory, immediate, props)
+      basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, props)
     end
 
     def basic_publish(str : String, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
-      basic_publish(IO::Memory.new(str), exchange, routing_key, mandatory, immediate, props)
+      basic_publish(str.to_slice, exchange, routing_key, mandatory, immediate, props)
     end
 
     def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
       basic_publish(io, io.bytesize, exchange, routing_key, mandatory, immediate, props)
     end
 
-    def basic_publish(io : IO, bytesize : Int, exchange : String, routing_key = "",
+    def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props = Properties.new) : UInt64
       @connection.with_lock do |c|
         c.unsafe_write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
@@ -229,7 +229,12 @@ class AMQP::Client
         pos = 0_u32
         until pos == bytesize
           length = Math.min(@connection.frame_max, bytesize.to_u32 - pos)
-          c.unsafe_write Frame::Body.new(@id, length, io)
+          case body
+          when Bytes
+            c.unsafe_write Frame::BytesBody.new(@id, length, body[pos.to_i32, length.to_i32])
+          when IO
+            c.unsafe_write Frame::Body.new(@id, length, body)
+          end
           pos += length
         end
       end

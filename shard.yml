@@ -11,6 +11,6 @@ dependencies:
     version: ~>0.3.0
     # path: ../amq-protocol.cr
 
-crystal: 0.35.0
+crystal: 0.35.1
 
 license: MIT
