@@ -19,7 +19,7 @@ class AMQP::Client
     @reply_frames = ::Channel(Frame).new
     @next_msg_ready = ::Channel(Nil).new
 
-    @deliveries = ::Channel(Tuple(Frame::Basic::Deliver, Properties, IO::Memory)).new(8192)
+    @deliveries = ::Channel(Tuple(Frame::Basic::Deliver, Properties, IO::Memory) | Tuple(Frame::Basic::CancelOk, Nil, Nil)).new(8192)
     @returns = ::Channel(Tuple(Frame::Basic::Return, Properties, IO::Memory)).new(1024)
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(8192)
     @consumer_unacked_count = Hash(String, UInt32).new(0)
@@ -88,7 +88,8 @@ class AMQP::Client
       case frame
       when Frame::Basic::Deliver,
            Frame::Basic::Return,
-           Frame::Basic::Cancel
+           Frame::Basic::Cancel,
+           Frame::Basic::CancelOk
         @server_frames.send frame
       when Frame::Basic::Ack, Frame::Basic::Nack
         @confirms.send frame
@@ -117,10 +118,11 @@ class AMQP::Client
       loop do
         frame = @server_frames.receive? || break
         case frame
-        when Frame::Basic::Deliver then process_deliver(frame)
-        when Frame::Basic::Return  then process_return(frame)
-        when Frame::Basic::Cancel  then process_cancel(frame)
-        else                            raise UnexpectedFrame.new(frame)
+        when Frame::Basic::Deliver  then process_deliver(frame)
+        when Frame::Basic::Return   then process_return(frame)
+        when Frame::Basic::Cancel   then process_cancel(frame)
+        when Frame::Basic::CancelOk then process_cancel_ok(frame)
+        else                             raise UnexpectedFrame.new(frame)
         end
       end
     end
@@ -142,7 +144,13 @@ class AMQP::Client
       if cb = @consumer_blocks.delete f.consumer_tag
         cb.close
       end
-      write Frame::Basic::CancelOk.new(@id, f.consumer_tag) unless f.no_wait
+      cancel_ok = Frame::Basic::CancelOk.new(@id, f.consumer_tag)
+      @deliveries.send({ cancel_ok, nil, nil })
+      write cancel_ok unless f.no_wait
+    end
+
+    private def process_cancel_ok(f : Frame::Basic::CancelOk)
+      @deliveries.send({ f, nil, nil })
     end
 
     private def process_deliver(f : Frame::Basic::Deliver)
@@ -155,21 +163,31 @@ class AMQP::Client
       LOG.context.set channel_id: @id.to_i, fiber: "deliver_loop"
       loop do
         f, props, body_io = @deliveries.receive
-        msg = DeliverMessage.new(self, f.exchange, f.routing_key,
-          f.delivery_tag, props, body_io, f.redelivered)
-        if consumer = @consumers.fetch(f.consumer_tag, nil)
-          begin
-            consumer.call(msg)
-            @consumer_unacked_count[f.consumer_tag] -= 1
-          rescue ex
-            if cb = @consumer_blocks.delete f.consumer_tag
-              cb.send ex
-            else
-              LOG.error(exception: ex) { "Uncaught exception in consumer" }
-            end
+        case f
+        when Frame::Basic::CancelOk
+          @consumers.delete(f.consumer_tag)
+          if cb = @consumer_blocks.delete f.consumer_tag
+            cb.close
           end
-        else
-          LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
+        when Frame::Basic::Deliver
+          props = props.not_nil!
+          body_io = body_io.not_nil!
+          msg = DeliverMessage.new(self, f.exchange, f.routing_key,
+            f.delivery_tag, props, body_io, f.redelivered)
+          if consumer = @consumers.fetch(f.consumer_tag, nil)
+            begin
+              consumer.call(msg)
+              @consumer_unacked_count[f.consumer_tag] -= 1
+            rescue ex
+              if cb = @consumer_blocks.delete f.consumer_tag
+                cb.send ex
+              else
+                LOG.error(exception: ex) { "Uncaught exception in consumer" }
+              end
+            end
+          else
+            LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
+          end
         end
       rescue ::Channel::ClosedError
         break
@@ -353,12 +371,8 @@ class AMQP::Client
       ok.consumer_tag
     end
 
-    def basic_cancel(consumer_tag, no_wait = false) : Nil
-      write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
-      expect Frame::Basic::CancelOk unless no_wait
-      if cb = @consumer_blocks.delete consumer_tag
-        cb.close
-      end
+    def basic_cancel(consumer_tag) : Nil
+      write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait: false)
     end
 
     def basic_ack(delivery_tag : UInt64, multiple = false) : Nil

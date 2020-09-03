@@ -42,8 +42,8 @@ class AMQP::Client
       @channel.basic_consume(@name, tag, no_ack, exclusive, block, args, &blk)
     end
 
-    def unsubscribe(consumer_tag, no_wait = false)
-      @channel.basic_cancel(consumer_tag, no_wait)
+    def unsubscribe(consumer_tag)
+      @channel.basic_cancel(consumer_tag)
     end
 
     def purge
