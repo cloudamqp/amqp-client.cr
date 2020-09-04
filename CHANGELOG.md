@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2020-08-04
+
+### Added
+- Channel#basic_publish can now publish a Bytes array directly
+
+### Changed
+- Queue#unsubscribe and Channel#basic_cancel doesn't take the no_wait argument anymore
+- By default wait for Connection::CloseOk before returning
+
+### Fixed
+- When a consumer is canceled, we wait for CancelOk before we delete the consumer handler
+
 ## [0.5.20] - 2020-06-11
 
 ### Added
