@@ -356,13 +356,17 @@ class AMQP::Client
     @consumer_blocks = Sync(Hash(String, ::Channel(Exception))).new
 
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
-                      block = false,
-                      args = Arguments.new, &blk : DeliverMessage -> Nil)
+                      block = false, args = Arguments.new, work_pool = 1,
+                      &blk : DeliverMessage -> Nil)
+      raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, args)
       ok = expect Frame::Basic::ConsumeOk
       delivery_channel = ::Channel(DeliveryOrCancel).new(8192)
       @consumers[ok.consumer_tag] = delivery_channel
-      spawn consume(ok.consumer_tag, delivery_channel, blk), name: "AMQPconsumer##{ok.consumer_tag}", same_thread: true
+      work_pool.times do |i|
+        spawn consume(ok.consumer_tag, delivery_channel, blk),
+          name: "AMQPconsumer##{ok.consumer_tag} ##{i}", same_thread: true
+      end
       if block
         cb = @consumer_blocks[ok.consumer_tag] = ::Channel(Exception).new
         if ex = cb.receive?

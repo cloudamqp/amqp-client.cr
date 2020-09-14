@@ -38,8 +38,8 @@ class AMQP::Client
     end
 
     def subscribe(tag = "", no_ack = true, exclusive = false, block = false,
-                  args = Arguments.new, &blk : DeliverMessage -> Nil)
-      @channel.basic_consume(@name, tag, no_ack, exclusive, block, args, &blk)
+                  args = Arguments.new, work_pool = 1, &blk : DeliverMessage -> Nil)
+      @channel.basic_consume(@name, tag, no_ack, exclusive, block, args, work_pool, &blk)
     end
 
     def unsubscribe(consumer_tag)

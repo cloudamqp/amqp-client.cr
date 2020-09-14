@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- work_pool parameter to Channel#basic_consume and Queue#subscribe with how many fibers that should process incoming messages, default 1
+
 ## [0.6.0] - 2020-08-04
 
 ### Added
