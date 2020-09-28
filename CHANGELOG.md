@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2020-08-28
+
+### Changed
+- Doesn't try to declare the default exchange
+
 ### Added
 - work_pool parameter to Channel#basic_consume and Queue#subscribe with how many fibers that should process incoming messages, default 1
 
