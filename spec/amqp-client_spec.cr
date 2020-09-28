@@ -266,4 +266,11 @@ describe AMQP::Client do
       q.delete
     end
   end
+
+  it "shall not try to declare the default exchange" do
+    with_channel do |ch|
+      ch.exchange_declare("", "direct", passive: true).should be_nil
+      ch.exchange_declare("", "direct").should be_nil
+    end
+  end
 end

@@ -482,6 +482,7 @@ class AMQP::Client
                          durable = true, exclusive = false,
                          internal = false, auto_delete = false,
                          no_wait = false, args = Arguments.new) : Nil
+      return if name.empty? # the default exchange cannot be declared
       write Frame::Exchange::Declare.new(@id, 0_u16, name, type, passive,
         durable, auto_delete, internal,
         no_wait, args)
