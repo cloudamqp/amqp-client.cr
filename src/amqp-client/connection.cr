@@ -53,8 +53,9 @@ class AMQP::Client
     end
 
     private def read_loop
+      io = @io
       loop do
-        Frame.from_io(@io) do |f|
+        Frame.from_io(io) do |f|
           LOG.debug { "got #{f.inspect}" }
           case f
           when Frame::Connection::Close
