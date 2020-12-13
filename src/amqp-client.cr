@@ -74,7 +74,7 @@ class AMQP::Client
   end
 
   private def connect_tcp
-    socket = TCPSocket.new(@host, @port, connect_timeout: 5)
+    socket = TCPSocket.new(@host, @port, connect_timeout: 15)
     socket.keepalive = true
     socket.tcp_nodelay = false
     socket.tcp_keepalive_idle = 60
