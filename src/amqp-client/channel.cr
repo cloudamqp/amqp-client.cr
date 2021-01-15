@@ -147,7 +147,7 @@ class AMQP::Client
 
     private def process_cancel_ok(f : Frame::Basic::CancelOk)
       if deliveries = @consumers[f.consumer_tag]?
-        deliveries.send({ f, nil, nil })
+        deliveries.send({f, nil, nil})
       else
         LOG.warn { "Consumer tag '#{f.consumer_tag}' already cancelled" }
       end
@@ -156,7 +156,7 @@ class AMQP::Client
     private def process_deliver(f : Frame::Basic::Deliver)
       @next_msg_ready.receive
       if deliveries = @consumers[f.consumer_tag]?
-        deliveries.send({ f, @next_msg_props, @next_body_io})
+        deliveries.send({f, @next_msg_props, @next_body_io})
       else
         LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
       end
