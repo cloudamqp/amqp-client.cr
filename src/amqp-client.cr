@@ -57,7 +57,7 @@ class AMQP::Client
 
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
                  @tls = false, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
-                 @verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = nil)
+                 @verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME))
   end
 
   def connect : Connection
