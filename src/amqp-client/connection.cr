@@ -75,7 +75,7 @@ class AMQP::Client
             begin
               @reply_frames.send f
             rescue ::Channel::ClosedError
-              Log.debug { "CloseOk ignored by user" }
+              LOG.debug { "CloseOk ignored by user" }
             end
             return
           when Frame::Connection::Blocked
