@@ -72,10 +72,12 @@ class AMQP::Client
     end
 
     def cleanup
+      @closed = true
       @server_frames.close
       @reply_frames.close
       @returns.close
       @confirms.close
+      @consumer_blocks.each_value(&.close)
       @consumers.each_value(&.close)
     end
 
