@@ -158,6 +158,9 @@ class AMQP::Client
     ensure
       @closed = true
       @reply_frames.close
+      @io.close rescue nil
+      @channels.each_value &.cleanup
+      @channels.clear
     end
 
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
