@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2021-01-27
+
+### Fixed
+
+- Blocking consumers are closed when connection is closed by broker
+- Update for crystal 0.36.0
+
 ## [0.6.1] - 2020-08-28
 
 ### Changed
