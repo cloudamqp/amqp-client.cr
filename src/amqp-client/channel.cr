@@ -312,7 +312,7 @@ class AMQP::Client
           acked = confirm.is_a? Frame::Basic::Ack
           @last_confirm = {confirm.delivery_tag, acked}
           if confirm.multiple
-            @on_confirm.delete_if do |msgid, blk|
+            @on_confirm.reject! do |msgid, blk|
               if msgid <= confirm.delivery_tag
                 blk.call acked
                 true
@@ -326,7 +326,7 @@ class AMQP::Client
         else raise UnexpectedFrame.new(confirm)
         end
       end
-      @on_confirm.delete_if do |msgid, blk|
+      @on_confirm.reject! do |msgid, blk|
         LOG.debug { "Channel #{@id} hasn't been able to confirm delivery tag #{msgid}" }
         blk.call false
         true
