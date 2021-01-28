@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.2] - 2021-01-27
 
+### Changed
+
+- Default connect timeout is increased to 15s
+- No default write timeout (was 15s before)
+- By default we set the connection name to the name of the executable
+
 ### Fixed
 
 - Blocking consumers are closed when connection is closed by broker
