@@ -10,6 +10,6 @@ dependencies:
     github: cloudamqp/amq-protocol.cr
     version: ~>0.3.0
 
-crystal: 0.36.0
+crystal: 0.35.1
 
 license: MIT
