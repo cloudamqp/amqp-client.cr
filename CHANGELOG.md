@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2021-02-02
+
+### Added
+
+- All exceptions raised in this lib do now inherit from AMQP::Client::Error
+
 ## [0.6.2] - 2021-01-27
 
 ### Changed
