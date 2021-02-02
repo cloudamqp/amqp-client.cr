@@ -536,15 +536,5 @@ class AMQP::Client
     def inspect(io : IO) : Nil
       io << "#<" << self.class.name << " @id=" << @id << '>'
     end
-
-    class ClosedException < Exception
-      def initialize(close : Frame::Channel::Close?, cause = nil)
-        if close
-          super("#{close.reply_code} - #{close.reply_text}", cause)
-        else
-          super("Unexpectedly closed channel", cause)
-        end
-      end
-    end
   end
 end

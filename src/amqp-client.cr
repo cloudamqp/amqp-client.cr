@@ -110,14 +110,4 @@ class AMQP::Client
   alias Frame = AMQ::Protocol::Frame
   alias Arguments = AMQ::Protocol::Table
   alias Properties = AMQ::Protocol::Properties
-
-  class UnexpectedFrame < Exception
-    def initialize
-      super
-    end
-
-    def initialize(frame : Frame)
-      super(frame.inspect)
-    end
-  end
 end

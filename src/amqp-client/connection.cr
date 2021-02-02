@@ -1,6 +1,7 @@
 require "socket"
 require "openssl"
 require "amq-protocol"
+require "./errors"
 require "./channel"
 require "../amqp-client"
 
@@ -230,16 +231,6 @@ class AMQP::Client
       raise ex
     ensure
       io.read_timeout = nil
-    end
-
-    class ClosedException < Exception
-      def initialize(message, cause)
-        super(message, cause)
-      end
-
-      def initialize(close : Frame::Connection::Close)
-        super("#{close.reply_code} - #{close.reply_text}")
-      end
     end
   end
 end
