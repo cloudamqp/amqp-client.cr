@@ -105,7 +105,6 @@ class AMQP::Client
       socket.sync = false
       socket.read_buffering = true
       socket.buffer_size = 16384
-      socket.write_timeout = 15
     end
   end
 
