@@ -98,7 +98,7 @@ class AMQP::Client
             end
           end
         end
-      rescue ex : IO::Error
+      rescue ex : IO::Error | OpenSSL::Error
         LOG.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
         break
       rescue ex
@@ -130,7 +130,11 @@ class AMQP::Client
           return
         end
       end
-      @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
+      begin
+        @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
+      rescue ex
+        raise Error.new(cause: ex)
+      end
       LOG.debug { "sent #{frame.inspect}" }
     end
 

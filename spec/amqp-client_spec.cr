@@ -273,4 +273,16 @@ describe AMQP::Client do
       ch.exchange_declare("", "direct").should be_nil
     end
   end
+
+  it "IO::Errors are raised as AMQP::Client::Error" do
+    expect_raises(AMQP::Client::Error) do
+      AMQP::Client.new(port: 1).connect
+    end
+  end
+
+  it "TLS exceptions are raised as AMQP::Client::Error" do
+    expect_raises(AMQP::Client::Error) do
+      AMQP::Client.new(port: 5672, tls: true).connect
+    end
+  end
 end
