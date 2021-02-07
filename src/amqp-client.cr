@@ -71,7 +71,8 @@ class AMQP::Client
       socket = connect_tcp
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
     end
-  rescue ex : IO::Error | OpenSSL::Error
+  rescue ex
+    raise ex if ex.is_a?(Error)
     raise Error.new(cause: ex)
   end
 
