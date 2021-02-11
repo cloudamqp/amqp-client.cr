@@ -16,10 +16,10 @@ class AMQP::Client
   end
 
   def self.start(host = "localhost", port = 5672, vhost = "/",
-                 user = "guest", password = "guest", tls = false,
+                 user = "guest", password = "guest", tls = false, websocket = false,
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, &blk : AMQP::Client::Connection -> _)
-    conn = self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, name).connect
+    conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name).connect
     yield conn
   ensure
     conn.try &.close
@@ -30,10 +30,15 @@ class AMQP::Client
     self.new(uri)
   end
 
+  WS_SCHEMES = %w[ws wss http https]
+  TLS_SCHEMES = %w[amqps wss https]
+  SCHEME_PORT = { "amqp" => 5672, "amqps" => 5671, "ws" => 80, "wss" => 443, "http" => 80, "https" => 443 }
+
   def self.new(uri : URI)
-    tls = uri.scheme == "amqps"
+    tls = TLS_SCHEMES.includes? uri.scheme
+    websocket = WS_SCHEMES.includes? uri.scheme
     host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
-    port = uri.port || (tls ? 5671 : 5672)
+    port = uri.port || SCHEME_PORT[uri.scheme]
     vhost =
       if (path = uri.path) && path.bytesize > 1
         URI.decode_www_form(path[1..-1])
@@ -52,11 +57,11 @@ class AMQP::Client
                   else             OpenSSL::SSL::VerifyMode::PEER
                   end
     name = arguments.fetch("name", nil).try { |n| URI.decode_www_form(n) }
-    self.new(host, port, vhost, user, password, tls, channel_max, frame_max, heartbeat, verify_mode, name)
+    self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name)
   end
 
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
-                 @tls = false, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
+                 @tls = false, @websocket = false, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  @verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME))
   end
 
@@ -64,6 +69,10 @@ class AMQP::Client
     if @host.starts_with? '/'
       socket = connect_unix
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
+    elsif @websocket
+      websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls)
+      io = WebSocketIO.new(websocket)
+      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
     elsif @tls
       socket = connect_tls(connect_tcp)
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)

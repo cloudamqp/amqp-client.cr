@@ -14,7 +14,7 @@ class AMQP::Client
     @closing_frame : Frame::Connection::Close?
     @reply_frames = ::Channel(Frame).new
 
-    def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
+    def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                    @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
       spawn read_loop, name: "AMQP::Client#read_loop", same_thread: true
     end
@@ -167,7 +167,7 @@ class AMQP::Client
       @channels.clear
     end
 
-    def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client,
+    def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                    user, password, vhost,
                    channel_max, frame_max, heartbeat, name : String?)
       io.read_timeout = 15
