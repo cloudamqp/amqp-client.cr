@@ -65,6 +65,7 @@ class AMQP::Client
 
     def flow(active : Bool)
       write Frame::Channel::Flow.new(@id, active)
+      expect Frame::Channel::FlowOk
     end
 
     def closed?
