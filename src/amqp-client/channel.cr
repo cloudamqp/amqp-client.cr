@@ -79,7 +79,9 @@ class AMQP::Client
       @returns.close
       @confirms.close
       @consumer_blocks.each_value(&.close)
+      @consumer_blocks.clear
       @consumers.each_value(&.close)
+      @consumers.clear
     end
 
     @next_body_io = IO::Memory.new(0)
@@ -149,7 +151,7 @@ class AMQP::Client
     end
 
     private def process_cancel_ok(f : Frame::Basic::CancelOk)
-      if deliveries = @consumers[f.consumer_tag]?
+      if deliveries = @consumers.delete(f.consumer_tag)
         deliveries.send({f, nil, nil})
       else
         LOG.warn { "Consumer tag '#{f.consumer_tag}' already cancelled" }
@@ -171,7 +173,6 @@ class AMQP::Client
         f, props, body_io = deliveries.receive
         case f
         when Frame::Basic::CancelOk
-          @consumers.delete(f.consumer_tag)
           if cb = @consumer_blocks.delete f.consumer_tag
             cb.close
           end
