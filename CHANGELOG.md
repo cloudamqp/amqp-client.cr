@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2021-04-01
+
+### Fixed
+
+- Avoid trying to cancel already closed consumers
+- Version is reported correctly
+
 ## [1.0.0] - 2021-03-23
 
 ### Changed
