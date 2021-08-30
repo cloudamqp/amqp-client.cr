@@ -247,12 +247,15 @@ class AMQP::Client
 
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props = Properties.new) : UInt64
+      raise ClosedException.new(@closing_frame) if @closing_frame
+
       @connection.with_lock do |c|
         c.unsafe_write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
         c.unsafe_write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, props)
         pos = 0_u32
+        frame_max = @connection.frame_max
         until pos == bytesize
-          length = Math.min(@connection.frame_max, bytesize.to_u32 - pos)
+          length = Math.min(frame_max, bytesize.to_u32 - pos)
           case body
           when Bytes
             c.unsafe_write Frame::BytesBody.new(@id, length, body[pos.to_i32, length.to_i32])
@@ -521,6 +524,7 @@ class AMQP::Client
     end
 
     private def write(frame)
+      raise ClosedException.new(@closing_frame) if @closing_frame
       @connection.write frame
     end
 
