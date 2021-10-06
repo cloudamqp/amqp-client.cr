@@ -95,6 +95,27 @@ describe AMQP::Client do
     end
   end
 
+  it "should raise ClosedException when trying to use a closed channel" do
+    with_channel do |ch|
+      expect_raises(AMQP::Client::Channel::ClosedException) do
+        ch.queue_declare("foobar", passive: true)
+      end
+      expect_raises(AMQP::Client::Channel::ClosedException) do
+        ch.queue
+      end
+    end
+  end
+
+  it "should not break connection on Channel::ClosedException" do
+    with_connection do |c|
+      ch = c.channel
+      expect_raises(AMQP::Client::Channel::ClosedException) do
+        ch.queue_declare("foobar", passive: true)
+      end
+      c.closed?.should eq false
+    end
+  end
+
   it "should delete a queue" do
     with_channel do |ch|
       q = ch.queue("crystal-q1")
