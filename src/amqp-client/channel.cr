@@ -51,6 +51,7 @@ class AMQP::Client
     end
 
     def close(frame : Frame::Channel::Close) : Nil
+      write Frame::Channel::CloseOk.new(@id)
       @closed = true
       @closing_frame = frame
       LOG.info { "Channel closed by server: #{frame.inspect}" } unless @on_close
@@ -59,7 +60,6 @@ class AMQP::Client
       rescue ex
         LOG.error(exception: ex) { "Uncaught exception in on_close block" }
       end
-      write Frame::Channel::CloseOk.new(@id)
       cleanup
     end
 
