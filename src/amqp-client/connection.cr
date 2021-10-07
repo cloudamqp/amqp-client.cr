@@ -68,7 +68,11 @@ class AMQP::Client
             else
               LOG.info { "Connection closed by server: #{f.reply_text} (code #{f.reply_code})" }
             end
-            write Frame::Connection::CloseOk.new
+            begin
+              write Frame::Connection::CloseOk.new
+            rescue ex
+              LOG.error(exception: ex) { "Couldn't write CloseOk frame" }
+            end
             @closing_frame = f
             return
           when Frame::Connection::CloseOk

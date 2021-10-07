@@ -51,7 +51,11 @@ class AMQP::Client
     end
 
     def close(frame : Frame::Channel::Close) : Nil
-      write Frame::Channel::CloseOk.new(@id)
+      begin
+        write Frame::Channel::CloseOk.new(@id)
+      rescue ex
+        LOG.error(exception: ex) { "Couldn't write CloseOk frame" }
+      end
       @closed = true
       @closing_frame = frame
       LOG.info { "Channel closed by server: #{frame.inspect}" } unless @on_close
