@@ -57,12 +57,18 @@ class AMQP::Client
                   else             OpenSSL::SSL::VerifyMode::PEER
                   end
     name = arguments.fetch("name", nil).try { |n| URI.decode_www_form(n) }
-    self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name)
+    tcp_nodelay = arguments.fetch("tcp_nodelay", "") == "true"
+    ka_args = arguments.fetch("tcp_keepalive", "60:10:3").split(":", 3)
+    tcp_keepalive = { idle: ka_args[0].to_i, interval: ka_args[1].to_i, count: ka_args[2].to_i }
+    self.new(host, port, vhost, user, password, tls, websocket,
+             channel_max, frame_max, heartbeat, verify_mode, name,
+             tcp_nodelay, tcp_keepalive)
   end
 
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
                  @tls = false, @websocket = false, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
-                 @verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME))
+                 @verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
+                 @tcp_nodelay = false, @tcp_keepalive = { idle: 60, interval: 10, count: 3 })
   end
 
   def connect : Connection
@@ -88,10 +94,10 @@ class AMQP::Client
   private def connect_tcp
     socket = TCPSocket.new(@host, @port, connect_timeout: 15)
     socket.keepalive = true
-    socket.tcp_nodelay = false
-    socket.tcp_keepalive_idle = 60
-    socket.tcp_keepalive_count = 3
-    socket.tcp_keepalive_interval = 10
+    socket.tcp_nodelay = @tcp_nodelay
+    socket.tcp_keepalive_idle = @tcp_keepalive[:idle]
+    socket.tcp_keepalive_count = @tcp_keepalive[:count]
+    socket.tcp_keepalive_interval = @tcp_keepalive[:interval]
     socket.sync = false
     socket.read_buffering = true
     socket.buffer_size = 16384
