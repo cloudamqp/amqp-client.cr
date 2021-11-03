@@ -65,6 +65,8 @@ class AMQP::Client
              tcp_nodelay, tcp_keepalive)
   end
 
+  getter host, port, vhost, user, tls, websocket
+
   def initialize(@host = "localhost", @port = 5672, @vhost = "/", @user = "guest", @password = "guest",
                  @tls = false, @websocket = false, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  @verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
