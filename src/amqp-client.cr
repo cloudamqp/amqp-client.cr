@@ -57,7 +57,7 @@ class AMQP::Client
                   else             OpenSSL::SSL::VerifyMode::PEER
                   end
     name = arguments.fetch("name", nil).try { |n| URI.decode_www_form(n) }
-    tcp_nodelay = arguments.fetch("tcp_nodelay", "") == "true"
+    tcp_nodelay = arguments.has_key?("tcp_nodelay")
     ka_args = arguments.fetch("tcp_keepalive", "60:10:3").split(":", 3)
     tcp_keepalive = { idle: ka_args[0].to_i, interval: ka_args[1].to_i, count: ka_args[2].to_i }
     self.new(host, port, vhost, user, password, tls, websocket,
