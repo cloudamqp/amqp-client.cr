@@ -90,7 +90,7 @@ class AMQP::Client
     end
   rescue ex
     raise ex if ex.is_a?(Error)
-    raise Error.new(cause: ex)
+    raise Error.new(ex.message, cause: ex)
   end
 
   private def connect_tcp
