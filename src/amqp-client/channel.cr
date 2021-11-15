@@ -15,18 +15,11 @@ class AMQP::Client
     @confirm_id = 0_u64
     @server_flow = true
 
-    @server_frames = ::Channel(Frame).new
     @reply_frames = ::Channel(Frame).new
-    @next_msg_ready = ::Channel(Nil).new
-
-    alias DeliveryOrCancel = Tuple(Frame::Basic::Deliver, Properties, IO::Memory) | Tuple(Frame::Basic::CancelOk, Nil, Nil)
-
-    @returns = ::Channel(Tuple(Frame::Basic::Return, Properties, IO::Memory)).new(1024)
+    @basic_get = ::Channel(GetMessage?).new
     @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(8192)
 
     def initialize(@connection : Connection, @id : UInt16)
-      spawn read_loop, name: "Channel #{@id} read_loop", same_thread: true
-      spawn return_loop, name: "Channel #{@id} return_loop", same_thread: true
       spawn confirm_loop, name: "Channel #{@id} confirm_loop", same_thread: true
     end
 
@@ -78,9 +71,8 @@ class AMQP::Client
 
     def cleanup
       @closed = true
-      @server_frames.close
       @reply_frames.close
-      @returns.close
+      @basic_get.close
       @confirms.close
       @consumer_blocks.each_value(&.close)
       @consumer_blocks.clear
@@ -88,50 +80,44 @@ class AMQP::Client
       @consumers.clear
     end
 
-    @next_body_io = IO::Memory.new(0)
+    @next_msg_deliver : Frame::Basic::Deliver | Frame::Basic::Return | Frame::Basic::GetOk | Nil
+    @next_msg_props : AMQ::Protocol::Properties?
+    @next_body_io : IO::Memory?
     @next_body_size = 0_u32
-    @next_msg_props = AMQ::Protocol::Properties.new
 
     def incoming(frame)
       case frame
       when Frame::Basic::Deliver,
            Frame::Basic::Return,
-           Frame::Basic::Cancel,
-           Frame::Basic::CancelOk
-        @server_frames.send frame
-      when Frame::Basic::Ack, Frame::Basic::Nack
-        @confirms.send frame
+           Frame::Basic::GetOk
+        @next_msg_deliver = frame
+      when Frame::Basic::GetEmpty
+        @basic_get.send(nil)
       when Frame::Header
         @next_msg_props = frame.properties
         @next_body_size = frame.body_size.to_u32
         @next_body_io = IO::Memory.new(frame.body_size)
-        @next_msg_ready.send nil if frame.body_size.zero?
+        process_deliver if frame.body_size.zero?
       when Frame::Body
-        IO.copy(frame.body, @next_body_io, frame.body_size)
-        if @next_body_io.pos == @next_body_size
-          @next_body_io.rewind
-          @next_msg_ready.send nil
+        body_io = @next_body_io.not_nil!
+        IO.copy(frame.body, body_io, frame.body_size)
+        if body_io.pos == @next_body_size
+          body_io.rewind
+          process_deliver
         end
+      when Frame::Basic::Cancel
+        process_cancel(frame.consumer_tag, frame.no_wait)
+      when Frame::Basic::CancelOk
+        process_cancel_ok(frame.consumer_tag)
+      when Frame::Basic::Ack, Frame::Basic::Nack
+        @confirms.send frame
       when Frame::Channel::Flow
         process_flow frame.active
       when Frame::Channel::Close
         close frame
       else
         @reply_frames.send frame
-      end
-    end
-
-    private def read_loop
-      LOG.context.set channel_id: @id.to_i, fiber: "read_loop"
-      loop do
-        frame = @server_frames.receive? || break
-        case frame
-        when Frame::Basic::Deliver  then process_deliver(frame)
-        when Frame::Basic::Return   then process_return(frame)
-        when Frame::Basic::Cancel   then process_cancel(frame)
-        when Frame::Basic::CancelOk then process_cancel_ok(frame)
-        else                             raise UnexpectedFrame.new(frame)
-        end
+        Fiber.yield
       end
     end
 
@@ -141,95 +127,81 @@ class AMQP::Client
       @on_cancel = blk
     end
 
-    private def process_cancel(f : Frame::Basic::Cancel)
-      LOG.warn { "Consumer #{f.consumer_tag} cancelled by server" } unless @on_cancel || @closed || @connection.closed?
+    private def process_cancel(consumer_tag : String, no_wait : Bool)
+      LOG.warn { "Consumer #{consumer_tag} cancelled by server" } unless @on_cancel || @closed || @connection.closed?
       begin
-        @on_cancel.try &.call(f.consumer_tag)
+        @on_cancel.try &.call(consumer_tag)
       rescue ex
         LOG.error(exception: ex) { "Uncaught exception in on_cancel" }
       end
 
-      cancel_ok = Frame::Basic::CancelOk.new(@id, f.consumer_tag)
-      process_cancel_ok(cancel_ok)
-      write cancel_ok unless f.no_wait
+      process_cancel_ok(consumer_tag)
+      write Frame::Basic::CancelOk.new(@id, consumer_tag) unless no_wait
     end
 
-    private def process_cancel_ok(f : Frame::Basic::CancelOk)
-      if deliveries = @consumers.delete(f.consumer_tag)
-        deliveries.send({f, nil, nil})
+    private def process_cancel_ok(consumer_tag : String)
+      if deliveries = @consumers.delete(consumer_tag)
+        deliveries.close
       else
-        LOG.warn { "Consumer tag '#{f.consumer_tag}' already cancelled" }
+        LOG.warn { "Consumer tag '#{consumer_tag}' already cancelled" }
       end
     end
 
-    private def process_deliver(f : Frame::Basic::Deliver)
-      @next_msg_ready.receive
-      if deliveries = @consumers[f.consumer_tag]?
-        deliveries.send({f, @next_msg_props, @next_body_io})
+    private def process_deliver
+      case f = @next_msg_deliver
+      when Frame::Basic::Deliver
+        if deliveries = @consumers[f.consumer_tag]?
+          msg = DeliverMessage.new(self, f.exchange, f.routing_key,
+                                   f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
+                                   f.redelivered)
+          deliveries.send(msg)
+        else
+          LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
+        end
+      when Frame::Basic::Return
+        msg = ReturnedMessage.new(f.reply_code, f.reply_text,
+                                  f.exchange, f.routing_key, @next_msg_props.not_nil!, @next_body_io.not_nil!)
+        if on_return = @on_return
+          spawn on_return.call(msg), name: "AMQP::Client::Channel#on_return"
+        else
+          LOG.error { "Message returned but no on_return block defined: #{msg.inspect}" }
+        end
+      when Frame::Basic::GetOk
+        msg = GetMessage.new(self, f.exchange, f.routing_key,
+                             f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
+                             f.redelivered, f.message_count)
+        @basic_get.send(msg)
       else
-        LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
+        raise Error.new("BUG: Unexpected process_delivery frame #{f.inspect}")
       end
+    ensure
+      @next_msg_deliver = nil
+      @next_msg_props = nil
+      @next_body_io = nil
+      @next_body_size = 0_u32
     end
 
     private def consume(consumer_tag, deliveries, blk)
       LOG.context.set channel_id: @id.to_i, consumer: consumer_tag, fiber: "consumer##{consumer_tag}"
       loop do
-        f, props, body_io = deliveries.receive
-        case f
-        when Frame::Basic::CancelOk
-          if cb = @consumer_blocks.delete f.consumer_tag
-            cb.close
-          end
-          deliveries.close
-          break
-        when Frame::Basic::Deliver
-          props = props.not_nil!
-          body_io = body_io.not_nil!
-          msg = DeliverMessage.new(self, f.exchange, f.routing_key,
-            f.delivery_tag, props, body_io, f.redelivered)
-          begin
-            blk.call(msg)
-          rescue ex
-            if cb = @consumer_blocks.delete f.consumer_tag
-              cb.send ex
-            else
-              LOG.error(exception: ex) { "Uncaught exception in consumer" }
-            end
+        msg = deliveries.receive? || break
+        begin
+          blk.call(msg)
+        rescue ex
+          if cb = @consumer_blocks.delete consumer_tag
+            cb.send ex
+          else
+            LOG.error(exception: ex) { "Uncaught exception in consumer" }
           end
         end
-      rescue ::Channel::ClosedError
-        break
       end
+      @consumer_blocks.delete(consumer_tag).try &.close
     end
 
     @on_return : Proc(ReturnedMessage, Nil)?
 
     def on_return(&blk : ReturnedMessage -> Nil)
       @on_return = blk
-    end
-
-    private def process_return(return_frame)
-      @next_msg_ready.receive
-      @returns.send({return_frame, @next_msg_props, @next_body_io})
-    end
-
-    private def return_loop
-      LOG.context.set channel_id: @id.to_i, fiber: "return_loop"
-      loop do
-        f, props, body_io = @returns.receive? || break
-        msg = ReturnedMessage.new(f.reply_code, f.reply_text,
-          f.exchange, f.routing_key,
-          props, body_io)
-        if @on_return
-          begin
-            @on_return.try &.call(msg)
-          rescue ex
-            LOG.error(exception: ex) { "Uncaught exception in on_return" }
-          end
-        else
-          LOG.error { "Message returned but no on_return block defined: #{msg.inspect}" }
-        end
-      end
     end
 
     private def process_flow(active : Bool)
@@ -344,26 +316,14 @@ class AMQP::Client
 
     def basic_get(queue : String, no_ack : Bool) : GetMessage?
       write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
-      f = next_frame
-      case f
-      when Frame::Basic::GetOk    then get_message(f)
-      when Frame::Basic::GetEmpty then nil
-      else                             raise UnexpectedFrame.new(f)
-      end
-    end
-
-    private def get_message(f) : GetMessage
-      @next_msg_ready.receive
-      GetMessage.new(self, f.exchange, f.routing_key,
-        f.delivery_tag, @next_msg_props, @next_body_io,
-        f.redelivered, f.message_count)
+      @basic_get.receive
     end
 
     def has_subscriber?(consumer_tag)
       @consumers.has_key? consumer_tag
     end
 
-    @consumers = Sync(Hash(String, ::Channel(DeliveryOrCancel))).new
+    @consumers = Sync(Hash(String, ::Channel(DeliverMessage))).new
     @consumer_blocks = Sync(Hash(String, ::Channel(Exception))).new
 
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
@@ -372,7 +332,7 @@ class AMQP::Client
       raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, args)
       ok = expect Frame::Basic::ConsumeOk
-      delivery_channel = ::Channel(DeliveryOrCancel).new(8192)
+      delivery_channel = ::Channel(DeliverMessage).new(8192)
       @consumers[ok.consumer_tag] = delivery_channel
       work_pool.times do |i|
         spawn consume(ok.consumer_tag, delivery_channel, blk),
