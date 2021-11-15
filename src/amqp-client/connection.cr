@@ -9,10 +9,10 @@ class AMQP::Client
   class Connection
     LOG = AMQP::Client::LOG.for(self)
 
-    getter channel_max, frame_max, log
-    getter? closed = false
-    getter closing_frame : Frame::Connection::Close?
     @reply_frames = ::Channel(Frame).new
+    getter closing_frame : Frame::Connection::Close?
+    getter channel_max, frame_max
+    getter? closed = false
 
     def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                    @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
@@ -97,7 +97,8 @@ class AMQP::Client
               LOG.error { "Channel #{f.channel} not open for frame #{f.inspect}" }
             end
 
-            if f.is_a?(Frame::Channel::Close) || f.is_a?(Frame::Channel::CloseOk)
+            case f
+            when Frame::Channel::Close, Frame::Channel::CloseOk
               @channels.delete f.channel
             end
           end
