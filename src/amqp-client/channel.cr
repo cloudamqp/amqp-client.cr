@@ -10,17 +10,16 @@ class AMQP::Client
 
     LOG = AMQP::Client::Connection::LOG.for(self)
 
-    @closed = false
-    @confirm_mode = false
-    @confirm_id = 0_u64
-    @server_flow = true
-
     @reply_frames = ::Channel(Frame).new
     @basic_get = ::Channel(GetMessage?).new
-    @confirms = ::Channel(Frame::Basic::Ack | Frame::Basic::Nack).new(8192)
+    @confirm_id = 0_u64
+    @connection : Connection
+    @id : UInt16
+    @confirm_mode = false
+    @server_flow = true
+    @closed = false
 
     def initialize(@connection : Connection, @id : UInt16)
-      spawn confirm_loop, name: "Channel #{@id} confirm_loop", same_thread: true
     end
 
     def open
@@ -73,7 +72,8 @@ class AMQP::Client
       @closed = true
       @reply_frames.close
       @basic_get.close
-      @confirms.close
+      @on_confirm.each_value &.call(false)
+      @on_confirm.clear
       @consumer_blocks.each_value(&.close)
       @consumer_blocks.clear
       @consumers.each_value(&.close)
@@ -109,8 +109,10 @@ class AMQP::Client
         process_cancel(frame.consumer_tag, frame.no_wait)
       when Frame::Basic::CancelOk
         process_cancel_ok(frame.consumer_tag)
-      when Frame::Basic::Ack, Frame::Basic::Nack
-        @confirms.send frame
+      when Frame::Basic::Ack
+        process_confirm(true, frame.delivery_tag, frame.multiple)
+      when Frame::Basic::Nack
+        process_confirm(false, frame.delivery_tag, frame.multiple)
       when Frame::Channel::Flow
         process_flow frame.active
       when Frame::Channel::Close
@@ -242,7 +244,7 @@ class AMQP::Client
         end
       end
       if @confirm_mode
-        @confirm_id += 1_u64
+        @confirm_id = @confirm_id &+ 1_u64
       else
         0_u64
       end
@@ -284,33 +286,19 @@ class AMQP::Client
       end
     end
 
-    private def confirm_loop
-      LOG.context.set channel_id: @id.to_i, fiber: "confirm_loop"
-      loop do
-        confirm = @confirms.receive? || break
-        case confirm
-        when Frame::Basic::Ack, Frame::Basic::Nack
-          acked = confirm.is_a? Frame::Basic::Ack
-          @last_confirm = {confirm.delivery_tag, acked}
-          if confirm.multiple
-            @on_confirm.reject! do |msgid, blk|
-              if msgid <= confirm.delivery_tag
-                blk.call acked
-                true
-              else
-                false
-              end
-            end
-          elsif blk = @on_confirm.delete confirm.delivery_tag
+    private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
+      @last_confirm = {delivery_tag, acked}
+      if multiple
+        @on_confirm.reject! do |msgid, blk|
+          if msgid <= delivery_tag
             blk.call acked
+            true
+          else
+            false
           end
-        else raise UnexpectedFrame.new(confirm)
         end
-      end
-      @on_confirm.reject! do |msgid, blk|
-        LOG.debug { "Channel #{@id} hasn't been able to confirm delivery tag #{msgid}" }
-        blk.call false
-        true
+      elsif blk = @on_confirm.delete delivery_tag
+        blk.call acked
       end
     end
 
