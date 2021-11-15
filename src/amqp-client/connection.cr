@@ -11,7 +11,7 @@ class AMQP::Client
 
     getter channel_max, frame_max, log
     getter? closed = false
-    @closing_frame : Frame::Connection::Close?
+    getter closing_frame : Frame::Connection::Close?
     @reply_frames = ::Channel(Frame).new
 
     def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,

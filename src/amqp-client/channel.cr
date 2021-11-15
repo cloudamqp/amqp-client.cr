@@ -511,7 +511,11 @@ class AMQP::Client
     private def next_frame : Frame
       @reply_frames.receive
     rescue ex : ::Channel::ClosedError
-      raise ClosedException.new(@closing_frame, cause: ex)
+      if conn_close = @connection.closing_frame
+        raise Connection::ClosedException.new(conn_close)
+      else
+        raise ClosedException.new(@closing_frame, cause: ex)
+      end
     end
 
     macro expect(clz)
