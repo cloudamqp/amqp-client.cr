@@ -8,8 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Can configure tcp keepalive settings with ?tcp_keepalive=60:10:3, (idle, interval, count)
 - Can configure tcp nodelay settings with ?tcp_nodelay
+- Support for AMQP Transactions
+
+### Fixed
+
+- Each connection is now using 95% less memory, down to 37KB/connection
 
 ## [1.0.3] - 2021-10-08
 
