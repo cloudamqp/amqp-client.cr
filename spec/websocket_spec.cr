@@ -1,6 +1,6 @@
 require "./spec_helper"
 
-describe AMQP::Client do
+describe "Websocket client" do
   it "should connect over websocket" do
     c = AMQP::Client.new("ws://localhost:15672")
     conn = c.connect
@@ -169,8 +169,7 @@ describe AMQP::Client do
 
   it "raises exception on write when the server has closed the connection" do
     with_ws_channel do |ch|
-      # rabbitmq doesn't implement client flow
-      ch.flow(false)
+      ch.exchange_declare("foo", "bar", no_wait: true)
       sleep 0.1
       # by now we should've gotten the connection closed by the server
       expect_raises(AMQP::Client::Connection::ClosedException) do
