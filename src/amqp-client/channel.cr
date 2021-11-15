@@ -376,7 +376,8 @@ class AMQP::Client
       @consumers[ok.consumer_tag] = delivery_channel
       work_pool.times do |i|
         spawn consume(ok.consumer_tag, delivery_channel, blk),
-          name: "AMQPconsumer##{ok.consumer_tag} ##{i}", same_thread: true
+          same_thread: i.zero?, # only force put the first fiber on same thread
+          name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
       end
       if block
         cb = @consumer_blocks[ok.consumer_tag] = ::Channel(Exception).new
