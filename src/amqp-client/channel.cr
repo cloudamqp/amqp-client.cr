@@ -488,6 +488,21 @@ class AMQP::Client
       expect Frame::Basic::RecoverOk
     end
 
+    def tx_select
+      write Frame::Tx::Select.new(@id)
+      expect Frame::Tx::SelectOk
+    end
+
+    def tx_commit
+      write Frame::Tx::Commit.new(@id)
+      expect Frame::Tx::CommitOk
+    end
+
+    def tx_rollback
+      write Frame::Tx::Rollback.new(@id)
+      expect Frame::Tx::RollbackOk
+    end
+
     private def write(frame)
       raise ClosedException.new(@closing_frame) if @closing_frame
       @connection.write frame
