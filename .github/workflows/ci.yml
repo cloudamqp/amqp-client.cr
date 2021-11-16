@@ -23,7 +23,7 @@ jobs:
 
     services:
       avalanchemq:
-        image: cloudamqp/avalanchmq
+        image: cloudamqp/avalanchemq
         ports:
           - 5672/tcp
           - 15672/tcp
