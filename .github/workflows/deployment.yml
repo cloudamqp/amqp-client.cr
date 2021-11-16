@@ -15,7 +15,7 @@ jobs:
         run: apk add --no-cache rsync
       - uses: actions/checkout@v2
       - name: Build
-        run:  crystal docs lib/amq-protocol/src/amq-protocol.cr src/amqp-client.cr
+        run:  crystal docs src/amqp-client.cr
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@4.1.5
         with:
