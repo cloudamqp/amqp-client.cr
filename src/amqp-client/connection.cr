@@ -173,8 +173,7 @@ class AMQP::Client
     end
 
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
-                   user, password, vhost,
-                   channel_max, frame_max, heartbeat, name : String?)
+                   user, password, vhost, channel_max, frame_max, heartbeat, name : String?)
       io.read_timeout = 15
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
@@ -202,7 +201,7 @@ class AMQP::Client
       io.flush
       tune = Frame.from_io(io) do |f|
         case f
-        when Frame::Connection::Tune then next f
+        when Frame::Connection::Tune then f
         when Frame::Connection::Close
           raise Connection::ClosedException.new(f.as(Frame::Connection::Close))
         else
@@ -219,7 +218,7 @@ class AMQP::Client
       io.flush
       Frame.from_io(io) do |f|
         case f
-        when Frame::Connection::OpenOk then next
+        when Frame::Connection::OpenOk then f
         when Frame::Connection::Close
           raise Connection::ClosedException.new(f.as(Frame::Connection::Close))
         else

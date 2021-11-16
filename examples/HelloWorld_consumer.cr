@@ -5,7 +5,7 @@ AMQP::Client.start("amqps://user:password@hostname/vhost") do |c|
     q = ch.queue("hello")
     puts "Waiting for messages. To exit press CTRL+C"
     q.subscribe(block: true) do |msg|
-      puts "Received: #{msg.body_io.to_s}"
+      puts "Received: #{msg.body_io}"
     end
   end
 end

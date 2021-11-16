@@ -259,7 +259,7 @@ describe AMQP::Client do
       sleep 5 # RabbitMQ is slow
       HTTP::Client.get("http://guest:guest@localhost:15672/api/connections") do |resp|
         conns = JSON.parse resp.body_io
-        names = conns.as_a.map { |c| c.dig("client_properties", "connection_name") }
+        names = conns.as_a.map &.dig("client_properties", "connection_name")
         names.should contain "My Name"
       end
     end

@@ -8,7 +8,7 @@ AMQP::Client.start("amqps://user:password@hostname/vhost") do |c|
     end
     puts "Waiting for logs. To exit press CTRL+C"
     q.subscribe(no_ack: false, block: true) do |msg|
-      puts "Received: #{msg.body_io.to_s}"
+      puts "Received: #{msg.body_io}"
       msg.ack
       puts "Done"
     end
