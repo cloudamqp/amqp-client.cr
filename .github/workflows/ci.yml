@@ -5,7 +5,6 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    container: crystallang/crystal:0.36.1
     continue-on-error: true
 
     steps:
@@ -13,33 +12,31 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Crystal Ameba Linter
-        uses: crystal-ameba/github-action@v0.2.4
+        uses: crystal-ameba/github-action@v0.2.12
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   spec:
     name: Spec
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    container: 84codes/crystal:latest-ubuntu-20.04
+
+    services:
+      avalanchemq:
+        image: cloudamqp/avalanchmq
+        ports:
+          - 5672/tcp
+          - 15672/tcp
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
-      - name: Install AvalancheMQ
-        run: |
-          curl -L https://packagecloud.io/cloudamqp/avalanchemq/gpgkey | sudo apt-key add -
-          echo "deb https://packagecloud.io/cloudamqp/avalanchemq/ubuntu/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/avalanchemq.list
-          sudo apt-get update -q
-          sudo apt-get install -qq avalanchemq
-
-      - name: Install Crystal
-        run: |
-          wget https://crystal-lang.org/install.sh
-          chmod +x install.sh
-          sudo ./install.sh --crystal=0.36.1
 
       - name: Shards install
         run: shards install
 
       - name: Spec
         run: crystal spec --no-color --order random
+
+      - name: Format
+        run: crystal tool format --check
