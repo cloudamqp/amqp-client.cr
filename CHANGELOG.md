@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2021-11-16
+
 ### Added
 
 - Can configure tcp keepalive settings with ?tcp_keepalive=60:10:3, (idle, interval, count)
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Each connection is now using 95% less memory, down to 37KB/connection
+- Each connection is now using 95% less memory, 37KB/connection
 
 ## [1.0.3] - 2021-10-08
 
