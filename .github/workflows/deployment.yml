@@ -6,7 +6,7 @@ on:
       - master
 
 jobs:
-  deploy_docs:
+  docs:
     runs-on: ubuntu-latest
     container:
       image: 84codes/crystal:latest-alpine
@@ -14,9 +14,11 @@ jobs:
       - name: Install rsync
         run: apk add --no-cache rsync
       - uses: actions/checkout@v2
-      - name: Build
+      - name: Install shards
+        run: shards install
+      - name: Build docs
         run:  crystal docs src/amqp-client.cr
-      - name: Deploy
+      - name: Deploy docs
         uses: JamesIves/github-pages-deploy-action@4.1.5
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
