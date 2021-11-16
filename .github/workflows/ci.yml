@@ -25,8 +25,8 @@ jobs:
       avalanchemq:
         image: cloudamqp/avalanchemq
         ports:
-          - 5672/tcp
-          - 15672/tcp
+          - 5672:5672
+          - 15672:15672
 
     steps:
       - name: Checkout
