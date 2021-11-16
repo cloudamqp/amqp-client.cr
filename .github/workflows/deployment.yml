@@ -9,13 +9,11 @@ jobs:
   deploy_docs:
     runs-on: ubuntu-latest
     container:
-      image: crystallang/crystal:latest-alpine
+      image: 84codes/crystal:latest-alpine
     steps:
-      - name: Install Build Dependencies
-        run: apk add --update rsync
+      - name: Install rsync
+        run: apk add --no-cache rsync
       - uses: actions/checkout@v2
-      - name: Install Dependencies
-        run: shards install --production
       - name: Build
         run:  crystal docs lib/amq-protocol/src/amq-protocol.cr src/amqp-client.cr
       - name: Deploy
