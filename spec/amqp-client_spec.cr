@@ -200,7 +200,7 @@ describe AMQP::Client do
       ch.exchange_declare("foo", "bar", no_wait: true)
       sleep 0.1
       # by now we should've gotten the connection closed by the server
-      expect_raises(AMQP::Client::Connection::ClosedException) do
+      expect_raises(AMQP::Client::Channel::ClosedException) do
         ch.queue
       end
     end
@@ -260,7 +260,7 @@ describe AMQP::Client do
     AMQP::Client.start(name: "My Name") do |_|
       names = Array(String).new
       5.times do
-        HTTP::Client.get("http://guest:guest@localhost:15672/api/connections") do |resp|
+        HTTP::Client.get("http://guest:guest@#{AMQP::Client::AMQP_HOST}:15672/api/connections") do |resp|
           conns = JSON.parse resp.body_io
           names = conns.as_a.map &.dig("client_properties", "connection_name")
           break if names.includes? "My name"
