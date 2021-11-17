@@ -7,14 +7,16 @@ describe AMQP::Client do
     end
   end
 
-  it "should connect to localhost when URI host is empty" do
-    AMQP::Client.start("amqp:///%2f") do |c|
-      c.channel.should_not be_nil
+  unless ENV["CI"]? # localhost not supported in CI
+    it "should connect to localhost when URI host is empty" do
+      AMQP::Client.start("amqp:///%2f") do |c|
+        c.channel.should_not be_nil
+      end
     end
   end
 
   it "should connect to localhost when URI path is empty" do
-    AMQP::Client.start("amqp://localhost/") do |c|
+    AMQP::Client.start do |c|
       c.channel.should_not be_nil
     end
   end
@@ -246,7 +248,7 @@ describe AMQP::Client do
   end
 
   it "should open all queues" do
-    AMQP::Client.start("amqp://localhost/") do |c|
+    AMQP::Client.start do |c|
       (1_u16..c.channel_max).each do |id|
         ch = c.channel
         ch.id.should eq id
@@ -255,18 +257,22 @@ describe AMQP::Client do
   end
 
   it "should set connection name" do
-    AMQP::Client.start("amqp://localhost/?name=My+Name") do |_|
-      sleep 5 # RabbitMQ is slow
-      HTTP::Client.get("http://guest:guest@localhost:15672/api/connections") do |resp|
-        conns = JSON.parse resp.body_io
-        names = conns.as_a.map &.dig("client_properties", "connection_name")
-        names.should contain "My Name"
+    AMQP::Client.start(name: "My Name") do |_|
+      names = Array(String).new
+      5.times do
+        HTTP::Client.get("http://guest:guest@localhost:15672/api/connections") do |resp|
+          conns = JSON.parse resp.body_io
+          names = conns.as_a.map &.dig("client_properties", "connection_name")
+          break if names.includes? "My name"
+        end
+        sleep 1
       end
+      names.should contain "My Name"
     end
   end
 
   it "should not wait for connection close" do
-    conn = AMQP::Client.new("amqp://localhost/").connect
+    conn = AMQP::Client.new.connect
     conn.close(no_wait: true)
   end
 

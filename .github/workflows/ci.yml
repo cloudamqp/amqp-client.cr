@@ -37,6 +37,8 @@ jobs:
 
       - name: Spec
         run: crystal spec --no-color --order random
+        env:
+          AMQP_URL: amqp://avalanchemq
 
       - name: Format
         run: crystal tool format --check

@@ -20,7 +20,7 @@ module TestHelpers
   end
 
   def with_ws_connection
-    AMQP::Client.start("ws://localhost:15672") do |c|
+    AMQP::Client.start(websocket: true, port: 15672) do |c|
       yield c
     end
   end
