@@ -36,5 +36,13 @@ jobs:
         env:
           AMQP_URL: amqp://avalanchemq
 
-      - name: Format
+  format:
+    name: Formatting
+    runs-on: ubuntu-latest
+    container: 84codes/crystal:latest-ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Format check
         run: crystal tool format --check
