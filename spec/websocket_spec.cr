@@ -229,7 +229,7 @@ describe "Websocket client" do
   end
 
   it "should set connection name" do
-    AMQP::Client.start(websocket:true, port: 15672, name: "My Name") do |_|
+    AMQP::Client.start(websocket: true, port: 15672, name: "My Name") do |_|
       names = Array(String).new
       5.times do
         HTTP::Client.get("http://guest:guest@#{AMQP::Client::AMQP_HOST}:15672/api/connections") do |resp|
