@@ -6,18 +6,18 @@ require "log"
 require "./amqp-client/*"
 
 class AMQP::Client
-  LOG = ::Log.for(self)
-  WS_SCHEMES = { "ws", "wss", "http", "https" }
-  TLS_SCHEMES = { "amqps", "wss", "https" }
-  SCHEME_PORT = { "amqp" => 5672, "amqps" => 5671, "ws" => 80, "wss" => 443, "http" => 80, "https" => 443 }
-  AMQP_URL = ENV["AMQP_URL"]?.try { |u| URI.parse(u) }
-  AMQP_TLS = TLS_SCHEMES.includes?(AMQP_URL.try(&.scheme)) || false
-  AMQP_WS = WS_SCHEMES.includes?(AMQP_URL.try(&.scheme)) || false
-  AMQP_HOST = AMQP_URL.try(&.host) || "localhost"
-  AMQP_PORT = AMQP_URL.try(&.port) || AMQP_WS ? (AMQP_TLS ? 443 : 80) : (AMQP_TLS ? 5671 : 5672)
-  AMQP_USER = AMQP_URL.try(&.user) || "guest"
-  AMQP_PASS = AMQP_URL.try(&.password) || "guest"
-  AMQP_VHOST = AMQP_URL.try { |u| URI.decode_www_form(u.path[1..-1]) if u.path.bytesize > 1 } || "/"
+  LOG         = ::Log.for(self)
+  WS_SCHEMES  = {"ws", "wss", "http", "https"}
+  TLS_SCHEMES = {"amqps", "wss", "https"}
+  SCHEME_PORT = {"amqp" => 5672, "amqps" => 5671, "ws" => 80, "wss" => 443, "http" => 80, "https" => 443}
+  AMQP_URL    = ENV["AMQP_URL"]?.try { |u| URI.parse(u) }
+  AMQP_TLS    = TLS_SCHEMES.includes?(AMQP_URL.try(&.scheme)) || false
+  AMQP_WS     = WS_SCHEMES.includes?(AMQP_URL.try(&.scheme)) || false
+  AMQP_HOST   = AMQP_URL.try(&.host) || "localhost"
+  AMQP_PORT   = AMQP_URL.try(&.port) || AMQP_WS ? (AMQP_TLS ? 443 : 80) : (AMQP_TLS ? 5671 : 5672)
+  AMQP_USER   = AMQP_URL.try(&.user) || "guest"
+  AMQP_PASS   = AMQP_URL.try(&.password) || "guest"
+  AMQP_VHOST  = AMQP_URL.try { |u| URI.decode_www_form(u.path[1..-1]) if u.path.bytesize > 1 } || "/"
 
   def self.start(url : String | URI, &blk : AMQP::Client::Connection -> _)
     conn = self.new(url).connect
@@ -66,10 +66,10 @@ class AMQP::Client
     name = arguments.fetch("name", nil).try { |n| URI.decode_www_form(n) }
     tcp_nodelay = arguments.has_key?("tcp_nodelay")
     ka_args = arguments.fetch("tcp_keepalive", "60:10:3").split(":", 3)
-    tcp_keepalive = { idle: ka_args[0].to_i, interval: ka_args[1].to_i, count: ka_args[2].to_i }
+    tcp_keepalive = {idle: ka_args[0].to_i, interval: ka_args[1].to_i, count: ka_args[2].to_i}
     self.new(host, port, vhost, user, password, tls, websocket,
-             channel_max, frame_max, heartbeat, verify_mode, name,
-             tcp_nodelay, tcp_keepalive)
+      channel_max, frame_max, heartbeat, verify_mode, name,
+      tcp_nodelay, tcp_keepalive)
   end
 
   getter host, port, vhost, user, tls, websocket
@@ -77,7 +77,7 @@ class AMQP::Client
   def initialize(@host = AMQP_HOST, @port = AMQP_PORT, @vhost = AMQP_VHOST, @user = AMQP_USER, @password = AMQP_PASS,
                  @tls = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  @verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
-                 @tcp_nodelay = false, @tcp_keepalive = { idle: 60, interval: 10, count: 3 })
+                 @tcp_nodelay = false, @tcp_keepalive = {idle: 60, interval: 10, count: 3})
   end
 
   def connect : Connection

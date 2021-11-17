@@ -154,15 +154,15 @@ class AMQP::Client
       when Frame::Basic::Deliver
         if deliveries = @consumers[f.consumer_tag]?
           msg = DeliverMessage.new(self, f.exchange, f.routing_key,
-                                   f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
-                                   f.redelivered)
+            f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
+            f.redelivered)
           deliveries.send(msg)
         else
           LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
         end
       when Frame::Basic::Return
         msg = ReturnedMessage.new(f.reply_code, f.reply_text,
-                                  f.exchange, f.routing_key, @next_msg_props.not_nil!, @next_body_io.not_nil!)
+          f.exchange, f.routing_key, @next_msg_props.not_nil!, @next_body_io.not_nil!)
         if on_return = @on_return
           spawn on_return.call(msg), name: "AMQP::Client::Channel#on_return"
         else
@@ -170,8 +170,8 @@ class AMQP::Client
         end
       when Frame::Basic::GetOk
         msg = GetMessage.new(self, f.exchange, f.routing_key,
-                             f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
-                             f.redelivered, f.message_count)
+          f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
+          f.redelivered, f.message_count)
         @basic_get.send(msg)
       else
         raise Error.new("BUG: Unexpected process_delivery frame #{f.inspect}")
