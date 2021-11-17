@@ -85,7 +85,7 @@ class AMQP::Client
     @next_body_io : IO::Memory?
     @next_body_size = 0_u32
 
-    def incoming(frame)
+    def incoming(frame) # ameba:disable Metrics/CyclomaticComplexity
       case frame
       when Frame::Basic::Deliver,
            Frame::Basic::Return,
