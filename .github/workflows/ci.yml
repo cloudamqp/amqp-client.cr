@@ -24,7 +24,7 @@ jobs:
     services:
       avalanchemq:
         image: cloudamqp/avalanchemq
-        options: --entrypoint "[\"avalanchemq\", \"-b\", \"0.0.0.0\", \"--guest-only-loopback=false\"]"
+        options: --entrypoint "\[\"avalanchemq\", \"-b\", \"0.0.0.0\", \"--guest-only-loopback=false\"\]"
         ports:
           - 5672:5672
           - 15672:15672
