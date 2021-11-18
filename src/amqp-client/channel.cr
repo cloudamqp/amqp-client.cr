@@ -587,7 +587,7 @@ class AMQP::Client
 
     private macro expect(clz)
       frame = next_frame
-      frame.as?({{ clz }}) || raise UnexpectedFrame.new(frame)
+      frame.as?({{ clz }}) || raise Error::UnexpectedFrame.new(frame)
     end
 
     def inspect(io : IO) : Nil

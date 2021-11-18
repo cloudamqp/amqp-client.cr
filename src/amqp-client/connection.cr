@@ -199,8 +199,8 @@ class AMQP::Client
     rescue ex
       case ex
       when IO::EOFError
-        raise Connection::ClosedException.new("Connection closed by server", ex)
-      when Connection::ClosedException
+        raise ClosedException.new("Connection closed by server", ex)
+      when ClosedException
         io.write_bytes(Frame::Connection::CloseOk.new, IO::ByteFormat::NetworkEndian) rescue nil
       else nil
       end
@@ -213,7 +213,7 @@ class AMQP::Client
     private def self.start(io, user, password, name)
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
-      Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise UnexpectedFrame.new(f) }
+      Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise Error::UnexpectedFrame.new(f) }
       props = Arguments.new
       props["connection_name"] = name if name
       props["product"] = "amqp-client.cr"
@@ -241,9 +241,9 @@ class AMQP::Client
         case f
         when Frame::Connection::Tune then f
         when Frame::Connection::Close
-          raise Connection::ClosedException.new(f)
+          raise ClosedException.new(f)
         else
-          raise UnexpectedFrame.new(f)
+          raise Error::UnexpectedFrame.new(f)
         end
       end
       channel_max = tune.channel_max.zero? ? channel_max : Math.min(tune.channel_max, channel_max)
@@ -261,9 +261,9 @@ class AMQP::Client
         case f
         when Frame::Connection::OpenOk then f
         when Frame::Connection::Close
-          raise Connection::ClosedException.new(f)
+          raise ClosedException.new(f)
         else
-          raise UnexpectedFrame.new(f)
+          raise Error::UnexpectedFrame.new(f)
         end
       end
     end
