@@ -1,6 +1,7 @@
 require "http/web_socket"
 
 class AMQP::Client
+  # :nodoc:
   class WebSocketIO < ::IO
     include IO::Buffered
 

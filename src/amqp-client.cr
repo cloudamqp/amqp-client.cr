@@ -6,18 +6,26 @@ require "log"
 require "./amqp-client/*"
 
 class AMQP::Client
-  LOG         = ::Log.for(self)
-  WS_SCHEMES  = {"ws", "wss", "http", "https"}
-  TLS_SCHEMES = {"amqps", "wss", "https"}
-  SCHEME_PORT = {"amqp" => 5672, "amqps" => 5671, "ws" => 80, "wss" => 443, "http" => 80, "https" => 443}
-  AMQP_URL    = ENV["AMQP_URL"]?.try { |u| URI.parse(u) }
-  AMQP_TLS    = TLS_SCHEMES.includes?(AMQP_URL.try(&.scheme)) || false
-  AMQP_WS     = WS_SCHEMES.includes?(AMQP_URL.try(&.scheme)) || false
-  AMQP_HOST   = AMQP_URL.try(&.host) || "localhost"
-  AMQP_PORT   = AMQP_URL.try(&.port) || AMQP_WS ? (AMQP_TLS ? 443 : 80) : (AMQP_TLS ? 5671 : 5672)
-  AMQP_USER   = AMQP_URL.try(&.user) || "guest"
-  AMQP_PASS   = AMQP_URL.try(&.password) || "guest"
-  AMQP_VHOST  = AMQP_URL.try { |u| URI.decode_www_form(u.path[1..-1]) if u.path.bytesize > 1 } || "/"
+  private LOG         = ::Log.for(self)
+  private WS_SCHEMES  = {"ws", "wss", "http", "https"}
+  private TLS_SCHEMES = {"amqps", "wss", "https"}
+  private SCHEME_PORT = {"amqp" => 5672, "amqps" => 5671, "ws" => 80, "wss" => 443, "http" => 80, "https" => 443}
+  # :nodoc:
+  AMQP_URL = ENV["AMQP_URL"]?.try { |u| URI.parse(u) }
+  # :nodoc:
+  AMQP_TLS = TLS_SCHEMES.includes?(AMQP_URL.try(&.scheme)) || false
+  # :nodoc:
+  AMQP_WS = WS_SCHEMES.includes?(AMQP_URL.try(&.scheme)) || false
+  # :nodoc:
+  AMQP_HOST = AMQP_URL.try(&.host) || "localhost"
+  # :nodoc:
+  AMQP_PORT = AMQP_URL.try(&.port) || AMQP_WS ? (AMQP_TLS ? 443 : 80) : (AMQP_TLS ? 5671 : 5672)
+  # :nodoc:
+  AMQP_USER = AMQP_URL.try(&.user) || "guest"
+  # :nodoc:
+  AMQP_PASS = AMQP_URL.try(&.password) || "guest"
+  # :nodoc:
+  AMQP_VHOST = AMQP_URL.try { |u| URI.decode_www_form(u.path[1..-1]) if u.path.bytesize > 1 } || "/"
 
   def self.start(url : String | URI, &blk : AMQP::Client::Connection -> _)
     conn = self.new(url).connect
@@ -80,6 +88,7 @@ class AMQP::Client
                  @tcp_nodelay = false, @tcp_keepalive = {idle: 60, interval: 10, count: 3})
   end
 
+  # Establish a connection
   def connect : Connection
     if @host.starts_with? '/'
       socket = connect_unix
@@ -133,7 +142,10 @@ class AMQP::Client
     end
   end
 
+  # :nodoc:
   alias Frame = AMQ::Protocol::Frame
+  # :nodoc:
   alias Arguments = AMQ::Protocol::Table
+  # :nodoc:
   alias Properties = AMQ::Protocol::Properties
 end

@@ -7,20 +7,21 @@ require "../amqp-client"
 
 class AMQP::Client
   class Connection
-    LOG = AMQP::Client::LOG.for(self)
+    private LOG = ::Log.for(self)
 
     @reply_frames = ::Channel(Frame).new
     getter closing_frame : Frame::Connection::Close?
     getter channel_max, frame_max
     getter? closed = false
 
-    def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
-                   @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
+    protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
+                             @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
       spawn read_loop, name: "AMQP::Client#read_loop", same_thread: true
     end
 
     @channels = Hash(UInt16, Channel).new
 
+    # Opens a channel
     def channel(id : Int? = nil)
       if id
         raise "channel_max reached" if id > @channel_max
@@ -48,6 +49,7 @@ class AMQP::Client
 
     @on_close : Proc(UInt16, String, Nil)?
 
+    # Callback that's called if the `Connection` is closed by the server
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
     end
@@ -128,6 +130,7 @@ class AMQP::Client
 
     @write_lock = Mutex.new
 
+    # :nodoc:
     def write(frame : Frame)
       @write_lock.synchronize do
         unsafe_write(frame)
@@ -135,6 +138,7 @@ class AMQP::Client
       end
     end
 
+    # :nodoc:
     def unsafe_write(frame : Frame)
       if @closed
         if f = @closing_frame
@@ -151,6 +155,7 @@ class AMQP::Client
       LOG.debug { "sent #{frame.inspect}" }
     end
 
+    # :nodoc:
     def with_lock(&blk : self -> _)
       @write_lock.synchronize do
         yield self
@@ -158,10 +163,13 @@ class AMQP::Client
       end
     end
 
-    def close(msg = "", no_wait = false)
+    # Close the connection the server.
+    #
+    # The *reason* might be logged by the server
+    def close(reason = "", no_wait = false)
       return if @closed
       LOG.debug { "Closing connection" }
-      write Frame::Connection::Close.new(200_u16, msg, 0_u16, 0_u16)
+      write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
       return if no_wait
       while frame = @reply_frames.receive?
         if frame.as?(Frame::Connection::CloseOk)

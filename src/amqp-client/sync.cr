@@ -1,4 +1,5 @@
 class AMQP::Client
+  # :nodoc:
   struct Sync(T)
     @obj : T
     @mutex = Mutex.new

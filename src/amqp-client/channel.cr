@@ -6,10 +6,10 @@ require "./sync"
 
 class AMQP::Client
   class Channel
+    private LOG = ::Log.for(self)
+
+    # Channel ID
     getter id
-
-    LOG = AMQP::Client::Connection::LOG.for(self)
-
     @reply_frames = ::Channel(Frame).new
     @basic_get = ::Channel(GetMessage?).new
     @confirm_id = 0_u64
@@ -19,9 +19,11 @@ class AMQP::Client
     @server_flow = true
     @closed = false
 
+    # :nodoc:
     def initialize(@connection : Connection, @id : UInt16)
     end
 
+    # :nodoc:
     def open
       write Frame::Channel::Open.new(@id)
       expect Frame::Channel::OpenOk
@@ -30,18 +32,22 @@ class AMQP::Client
 
     @on_close : Proc(UInt16, String, Nil)?
 
+    # Callback that will be called if the channel is closed by the server
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
     end
 
-    def close : Nil
+    # Close the channel
+    # The *reason* might be logged by the server
+    def close(reason = "", code = 200) : Nil
       return if @closed
       @closed = true
-      write Frame::Channel::Close.new(@id, 200, "", 0, 0)
+      write Frame::Channel::Close.new(@id, code, reason, 0, 0)
       expect Frame::Channel::CloseOk
       cleanup
     end
 
+    # :nodoc:
     def close(frame : Frame::Channel::Close) : Nil
       begin
         write Frame::Channel::CloseOk.new(@id)
@@ -59,6 +65,8 @@ class AMQP::Client
       cleanup
     end
 
+    # Stop/start the flow of messages to consumers
+    # Not supported by all brokers
     def flow(active : Bool)
       write Frame::Channel::Flow.new(@id, active)
       expect Frame::Channel::FlowOk
@@ -68,6 +76,7 @@ class AMQP::Client
       @closed
     end
 
+    # :nodoc:
     def cleanup
       @closed = true
       @reply_frames.close
@@ -85,6 +94,7 @@ class AMQP::Client
     @next_body_io : IO::Memory?
     @next_body_size = 0_u32
 
+    # :nodoc:
     def incoming(frame) # ameba:disable Metrics/CyclomaticComplexity
       case frame
       when Frame::Basic::Deliver,
@@ -107,8 +117,6 @@ class AMQP::Client
         end
       when Frame::Basic::Cancel
         process_cancel(frame.consumer_tag, frame.no_wait)
-      when Frame::Basic::CancelOk
-        process_cancel_ok(frame.consumer_tag)
       when Frame::Basic::Ack
         process_confirm(true, frame.delivery_tag, frame.multiple)
       when Frame::Basic::Nack
@@ -125,6 +133,8 @@ class AMQP::Client
 
     @on_cancel : Proc(String, Nil)?
 
+    # Callback that will be called if a consumer is cancelled by the server
+    # The argument to the callback is the consumer tag
     def on_cancel(&blk : String -> Nil)
       @on_cancel = blk
     end
@@ -136,17 +146,15 @@ class AMQP::Client
       rescue ex
         LOG.error(exception: ex) { "Uncaught exception in on_cancel" }
       end
-
-      process_cancel_ok(consumer_tag)
-      write Frame::Basic::CancelOk.new(@id, consumer_tag) unless no_wait
-    end
-
-    private def process_cancel_ok(consumer_tag : String)
       if deliveries = @consumers.delete(consumer_tag)
         deliveries.close
       else
         LOG.warn { "Consumer tag '#{consumer_tag}' already cancelled" }
       end
+      write Frame::Basic::CancelOk.new(@id, consumer_tag) unless no_wait
+    end
+
+    private def process_cancel_ok(consumer_tag : String)
     end
 
     private def process_deliver
@@ -202,6 +210,7 @@ class AMQP::Client
 
     @on_return : Proc(ReturnedMessage, Nil)?
 
+    # Callback that is called if a published message is returned by the server
     def on_return(&blk : ReturnedMessage -> Nil)
       @on_return = blk
     end
@@ -211,25 +220,29 @@ class AMQP::Client
       write Frame::Channel::FlowOk.new(@id, active)
     end
 
-    def basic_publish(bytes : Bytes, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
-      basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, props)
+    # Publish a *bytes* message, to an *exchange* with *routing_key*
+    def basic_publish(bytes : Bytes, exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new)
+      basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, properties)
     end
 
-    def basic_publish(str : String, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
-      basic_publish(str.to_slice, exchange, routing_key, mandatory, immediate, props)
+    # Publish a *string* message, to an *exchange* with *routing_key*
+    def basic_publish(string : String, exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new)
+      basic_publish(string.to_slice, exchange, routing_key, mandatory, immediate, properties)
     end
 
-    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
-      basic_publish(io, io.bytesize, exchange, routing_key, mandatory, immediate, props)
+    # Publish an *io* message, to an *exchange* with *routing_key*
+    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new)
+      basic_publish(io, io.bytesize, exchange, routing_key, mandatory, immediate, properties)
     end
 
+    # Publish a message with a set *bytesize*, to an *exchange* with *routing_key*
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
-                      mandatory = false, immediate = false, props = Properties.new) : UInt64
+                      mandatory = false, immediate = false, properties = Properties.new) : UInt64
       raise ClosedException.new(@closing_frame) if @closing_frame
 
       @connection.with_lock do |c|
         c.unsafe_write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
-        c.unsafe_write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, props)
+        c.unsafe_write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, properties)
         pos = 0_u32
         frame_max = @connection.frame_max
         until pos == bytesize
@@ -250,19 +263,19 @@ class AMQP::Client
       end
     end
 
-    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new) : Bool
+    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new) : Bool
       confirm_select
-      msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, props)
+      msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, properties)
       wait_for_confirm(msgid)
     end
 
-    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props = Properties.new) : Bool
+    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, properties = Properties.new) : Bool
       confirm_select
-      msgid = basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, props)
+      msgid = basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties)
       wait_for_confirm(msgid)
     end
 
-    # Block until confirmed
+    # Block until confirmed published message with *msgid* returned from `basic_publish`
     def wait_for_confirm(msgid) : Bool
       ch = ::Channel(Bool).new
       on_confirm(msgid) do |acked|
@@ -302,11 +315,14 @@ class AMQP::Client
       end
     end
 
-    def basic_get(queue : String, no_ack : Bool) : GetMessage?
+    # Get a single message form a *queue*
+    # The message must eventually be acked or rejected if *no_ack* is false
+    def basic_get(queue : String, no_ack = true) : GetMessage?
       write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
-      @basic_get.receive
+      @basic_get.receive?
     end
 
+    # :nodoc:
     def has_subscriber?(consumer_tag)
       @consumers.has_key? consumer_tag
     end
@@ -314,11 +330,19 @@ class AMQP::Client
     @consumers = Sync(Hash(String, ::Channel(DeliverMessage))).new
     @consumer_blocks = Sync(Hash(String, ::Channel(Exception))).new
 
+    # Consume messages from a *queue*
+    #
+    # * Make sure to eventually ack or reject each message if *no_ack* is false
+    # * The *exclusive* flags ensures that only a single consumer receives messages from the queue at the time
+    # * The method will *block* if the flag is set, until the consumer/channel/connection is closed or the callback raises an exception
+    # * To let multiple fibers process messages increase *work_pool*
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
-                      block = false, args = Arguments.new, work_pool = 1,
+                      block = false, arguments = Arguments.new, work_pool = 1,
                       &blk : DeliverMessage -> Nil)
       raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
-      write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, args)
+      raise ArgumentError.new("At least one worker required") if work_pool < 1
+
+      write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
       ok = expect Frame::Basic::ConsumeOk
       delivery_channel = ::Channel(DeliverMessage).new(8192)
       @consumers[ok.consumer_tag] = delivery_channel
@@ -337,27 +361,45 @@ class AMQP::Client
       ok.consumer_tag
     end
 
-    def basic_cancel(consumer_tag) : Nil
-      write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait: false)
+    # Cancel the consumer with the *consumer_tag*
+    def basic_cancel(consumer_tag, no_wait = false) : Nil
+      if @consumers.has_key? consumer_tag
+        write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
+        expect Frame::Basic::CancelOk unless no_wait
+        Fiber.yield # process as many incoming messages as possible before closing the channel
+        if deliveries = @consumers.delete(consumer_tag)
+          deliveries.close
+          return
+        end
+      end
+      LOG.warn { "Consumer tag '#{consumer_tag}' already cancelled" }
     end
 
+    # Acknowledge a message with *delivery_tag*,
+    # or all message up and including *delivery_tag* if *multiple* set set
     def basic_ack(delivery_tag : UInt64, multiple = false) : Nil
       write Frame::Basic::Ack.new(@id, delivery_tag, multiple)
     end
 
+    # Reject a message with *delivery_tag*, optionally *requeue* it
     def basic_reject(delivery_tag : UInt64, requeue = false) : Nil
       write Frame::Basic::Reject.new(@id, delivery_tag, requeue)
     end
 
+    # Reject a message with *delivery_tag*, optionally *requeue* it
+    # Reject all message up to and including *delivery_tag* if *multiple* is true
     def basic_nack(delivery_tag : UInt64, requeue = false, multiple = false) : Nil
       write Frame::Basic::Nack.new(@id, delivery_tag, multiple, requeue)
     end
 
+    # Set prefetch limit to *count* messages,
+    # no more messages will be delivered to the consumer until one or more message have been acknowledged or rejected
     def basic_qos(count, global = false) : Nil
       write Frame::Basic::Qos.new(@id, 0_u32, count.to_u16, global)
       expect Frame::Basic::QosOk
     end
 
+    # Alias for `basic_qos`
     def prefetch(count, global = false) : Nil
       basic_qos(count, global)
     end
@@ -369,19 +411,22 @@ class AMQP::Client
     end
 
     # Declares a queue with a name, by default durable and not auto-deleted
-    def queue(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, args = Arguments.new)
-      q = queue_declare(name, passive, durable, exclusive, auto_delete, args)
+    def queue(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, arguments = Arguments.new)
+      q = queue_declare(name, passive, durable, exclusive, auto_delete, arguments)
       Queue.new(self, q[:queue_name])
     end
 
-    def queue_declare(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, args = Arguments.new)
+    # Declare a queue with *name*
+    # *passive* will raise if the queue doesn't already exists
+    # *durable* will make the queue durable on the server (note that messages have have the persistent flag set to make the messages persistent)
+    # *exclusive* will make the queue exclusive to the channel and will be deleted when the channel is closed
+    # *auto_delete* will delete the queue when the last consumer as stopped consuming
+    def queue_declare(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, arguments = Arguments.new)
       durable = false if name.empty?
       exclusive = true if name.empty?
       auto_delete = true if name.empty?
       no_wait = false
-      write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable,
-        exclusive, auto_delete, no_wait,
-        args)
+      write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable, exclusive, auto_delete, no_wait, arguments)
       f = expect Frame::Queue::DeclareOk
       {
         queue_name:     f.queue_name,
@@ -390,25 +435,29 @@ class AMQP::Client
       }
     end
 
+    # Delete a queue
     def queue_delete(name : String, if_unused = false, if_empty = false)
       write Frame::Queue::Delete.new(@id, 0_u16, name, if_unused, if_empty, no_wait: false)
       f = expect Frame::Queue::DeleteOk
       {message_count: f.message_count}
     end
 
+    # Purge/empty a queue, will return the number of messages deleted
     def queue_purge(name : String)
       write Frame::Queue::Purge.new(@id, 0_u16, name, no_wait: false)
       f = expect Frame::Queue::PurgeOk
       {message_count: f.message_count}
     end
 
-    def queue_bind(queue : String, exchange : String, routing_key : String, no_wait = false, args = Arguments.new) : Nil
-      write Frame::Queue::Bind.new(@id, 0_u16, queue, exchange, routing_key, no_wait, args)
+    # Bind a *queue* to an *exchange*, with a *routing_key* and optionally some *arguments*
+    def queue_bind(queue : String, exchange : String, routing_key : String, no_wait = false, arguments = Arguments.new) : Nil
+      write Frame::Queue::Bind.new(@id, 0_u16, queue, exchange, routing_key, no_wait, arguments)
       expect Frame::Queue::BindOk unless no_wait
     end
 
-    def queue_unbind(queue : String, exchange : String, routing_key : String, args = Arguments.new) : Nil
-      write Frame::Queue::Unbind.new(@id, 0_u16, queue, exchange, routing_key, args)
+    # Unbind a *queue* from an *exchange*, with a *routing_key* and optionally some *arguments*
+    def queue_unbind(queue : String, exchange : String, routing_key : String, arguments = Arguments.new) : Nil
+      write Frame::Queue::Unbind.new(@id, 0_u16, queue, exchange, routing_key, arguments)
       expect Frame::Queue::UnbindOk
     end
 
@@ -432,38 +481,44 @@ class AMQP::Client
       Exchange.new(self, "")
     end
 
+    # Convinence method for Exchange handling
     def exchange(name, type, passive = false, durable = true, exclusive = false,
-                 internal = false, auto_delete = false, args = Arguments.new)
-      exchange_declare(name, type, passive, durable, exclusive, internal, auto_delete, false, args)
+                 internal = false, auto_delete = false, arguments = Arguments.new)
+      exchange_declare(name, type, passive, durable, exclusive, internal, auto_delete, false, arguments)
       Exchange.new(self, name)
     end
 
+    # Declares an exchange
     def exchange_declare(name : String, type : String, passive = false,
                          durable = true, exclusive = false,
                          internal = false, auto_delete = false,
-                         no_wait = false, args = Arguments.new) : Nil
+                         no_wait = false, arguments = Arguments.new) : Nil
       return if name.empty? # the default exchange cannot be declared
       write Frame::Exchange::Declare.new(@id, 0_u16, name, type, passive,
         durable, auto_delete, internal,
-        no_wait, args)
+        no_wait, arguments)
       expect Frame::Exchange::DeclareOk unless no_wait
     end
 
+    # Deletes an exchange
     def exchange_delete(name, if_unused = false, no_wait = false) : Nil
       write Frame::Exchange::Delete.new(@id, 0_u16, name, if_unused, no_wait)
       expect Frame::Exchange::DeleteOk unless no_wait
     end
 
-    def exchange_bind(source : String, destination : String, routing_key : String, no_wait = false, args = Arguments.new) : Nil
-      write Frame::Exchange::Bind.new(@id, 0_u16, source, destination, routing_key, no_wait, args)
+    # Bind an exchange to another exchange
+    def exchange_bind(source : String, destination : String, routing_key : String, no_wait = false, arguments = Arguments.new) : Nil
+      write Frame::Exchange::Bind.new(@id, 0_u16, source, destination, routing_key, no_wait, arguments)
       expect Frame::Exchange::BindOk unless no_wait
     end
 
-    def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, args = Arguments.new) : Nil
-      write Frame::Exchange::Unbind.new(@id, 0_u16, source, destination, routing_key, no_wait, args)
+    # Unbind an exchange from another exchange
+    def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, arguments = Arguments.new) : Nil
+      write Frame::Exchange::Unbind.new(@id, 0_u16, source, destination, routing_key, no_wait, arguments)
       expect Frame::Queue::UnbindOk unless no_wait
     end
 
+    # Sets the channel in publish confirm mode, each published message will be acked or nacked
     def confirm_select(no_wait = false) : Nil
       return if @confirm_mode
       write Frame::Confirm::Select.new(@id, no_wait)
@@ -471,24 +526,48 @@ class AMQP::Client
       @confirm_mode = true
     end
 
-    def basic_recover(requeue) : Nil
+    # Tell the broker to either deliver all unacknowledge messages again if *requeue* is false or rejecting all if *requeue* is true
+    #
+    # Unacknowledged messages retrived by `basic_get` are requeued regardless.
+    def basic_recover(requeue : Bool) : Nil
       write Frame::Basic::Recover.new(@id, requeue)
       expect Frame::Basic::RecoverOk
     end
 
-    def tx_select
+    @tx = false
+
+    # Set the Channel in transaction mode
+    def tx_select : Nil
+      return if @tx
       write Frame::Tx::Select.new(@id)
       expect Frame::Tx::SelectOk
+      @tx = true
     end
 
-    def tx_commit
+    # Commit a transaction
+    def tx_commit : Nil
       write Frame::Tx::Commit.new(@id)
       expect Frame::Tx::CommitOk
     end
 
-    def tx_rollback
+    # Rollback a transaction
+    def tx_rollback : Nil
       write Frame::Tx::Rollback.new(@id)
       expect Frame::Tx::RollbackOk
+    end
+
+    # Commits a transaction if the block returns,
+    # rolls back the transaction if the block raises an exception
+    def transaction
+      tx_select
+      begin
+        yield
+      rescue ex
+        tx_rollback
+        raise ex
+      else
+        tx_commit
+      end
     end
 
     private def write(frame)
@@ -506,7 +585,7 @@ class AMQP::Client
       end
     end
 
-    macro expect(clz)
+    private macro expect(clz)
       frame = next_frame
       frame.as?({{ clz }}) || raise UnexpectedFrame.new(frame)
     end

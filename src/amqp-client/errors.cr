@@ -1,14 +1,13 @@
 class AMQP::Client
   class Error < Exception
-  end
+    class UnexpectedFrame < Error
+      def initialize
+        super
+      end
 
-  class UnexpectedFrame < Error
-    def initialize
-      super
-    end
-
-    def initialize(frame : Frame)
-      super(frame.inspect)
+      def initialize(frame : Frame)
+        super(frame.inspect)
+      end
     end
   end
 
