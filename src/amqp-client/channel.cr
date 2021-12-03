@@ -325,7 +325,7 @@ class AMQP::Client
 
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
       ok = expect Frame::Basic::ConsumeOk
-      delivery_channel = ::Channel(DeliverMessage).new(8192)
+      delivery_channel = ::Channel(DeliverMessage).new
       @consumers[ok.consumer_tag] = delivery_channel
       if block
         begin
