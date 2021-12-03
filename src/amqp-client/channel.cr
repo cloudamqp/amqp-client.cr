@@ -220,6 +220,11 @@ class AMQP::Client
       write Frame::Channel::FlowOk.new(@id, active)
     end
 
+    @[Deprecated("Rename props to properties")]
+    def basic_publish(body, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
+      basic_publish(body, exchange, routing_key, mandatory, immediate, props)
+    end
+
     # Publish a *bytes* message, to an *exchange* with *routing_key*
     def basic_publish(bytes : Bytes, exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new)
       basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, properties)
@@ -261,6 +266,11 @@ class AMQP::Client
       else
         0_u64
       end
+    end
+
+    @[Deprecated("Rename props to properties")]
+    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props = Properties.new)
+      basic_publish_confirm(msg, exchange, routing_key, mandatory, immediate, props)
     end
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new) : Bool
