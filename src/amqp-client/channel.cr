@@ -417,14 +417,15 @@ class AMQP::Client
     end
 
     # Declare a queue with *name*
-    # *passive* will raise if the queue doesn't already exists
+    # *passive* will raise if the queue doesn't already exists, other arguments are ignored
     # *durable* will make the queue durable on the server (note that messages have have the persistent flag set to make the messages persistent)
     # *exclusive* will make the queue exclusive to the channel and will be deleted when the channel is closed
     # *auto_delete* will delete the queue when the last consumer as stopped consuming
-    def queue_declare(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, arguments = Arguments.new)
-      durable = false if name.empty?
-      exclusive = true if name.empty?
-      auto_delete = true if name.empty?
+    def queue_declare(name : String, passive = false,
+                      durable = name.empty? ? false : true,
+                      exclusive = name.empty? ? true : false,
+                      auto_delete = name.empty? ? true : false,
+                      arguments = Arguments.new)
       no_wait = false
       write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable, exclusive, auto_delete, no_wait, arguments)
       f = expect Frame::Queue::DeclareOk
