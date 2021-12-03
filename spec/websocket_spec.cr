@@ -139,7 +139,7 @@ describe "Websocket client" do
     with_ws_channel do |ch|
       q = ch.queue
       props = AMQ::Protocol::Properties.new(content_type: "text/plain", delivery_mode: 1_u8)
-      q.publish "hej", props: props
+      q.publish "hej", properties: props
       if msg = q.get(no_ack: true)
         msg.properties.content_type.should eq props.content_type
         msg.properties.delivery_mode.should eq props.delivery_mode
@@ -154,8 +154,8 @@ describe "Websocket client" do
       q = ch.queue
       props1 = AMQ::Protocol::Properties.new(headers: AMQ::Protocol::Table.new({"h" => "1"}))
       props2 = AMQ::Protocol::Properties.new(headers: AMQ::Protocol::Table.new({"h" => "2"} of String => AMQ::Protocol::Field))
-      q.publish_confirm "1", props: props1
-      q.publish_confirm "2", props: props2
+      q.publish_confirm "1", properties: props1
+      q.publish_confirm "2", properties: props2
       msg1 = q.get(no_ack: true)
       msg2 = q.get(no_ack: true)
       msg1.should_not be_nil
