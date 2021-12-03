@@ -328,15 +328,14 @@ class AMQP::Client
       delivery_channel = ::Channel(DeliverMessage).new
       @consumers[ok.consumer_tag] = delivery_channel
       if block
-        begin
-          while msg = delivery_channel.receive?
+        while msg = delivery_channel.receive?
+          begin
             yield msg
+          rescue ex
+            basic_cancel(ok.consumer_tag, no_wait: true)
+            basic_reject(msg.delivery_tag, requeue: true)
+            raise ex
           end
-        rescue ex
-          write Frame::Basic::Cancel.new(@id, ok.consumer_tag, no_wait: true)
-          @consumers.delete ok.consumer_tag
-          delivery_channel.close
-          raise ex
         end
       else
         work_pool.times do |i|
@@ -355,8 +354,9 @@ class AMQP::Client
           blk.call(msg)
         rescue ex
           LOG.error(exception: ex) { "Uncaught exception in consumer, cancelling consumer, requeuing message" }
-          msg.reject(requeue: true)
           basic_cancel(consumer_tag)
+          basic_reject(msg.delivery_tag, requeue: true)
+          break
         end
       end
     end
