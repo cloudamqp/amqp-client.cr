@@ -83,8 +83,6 @@ class AMQP::Client
       @basic_get.close
       @on_confirm.each_value &.call(false)
       @on_confirm.clear
-      @consumer_blocks.each_value(&.close)
-      @consumer_blocks.clear
       @consumers.each_value(&.close)
       @consumers.clear
     end
@@ -189,23 +187,6 @@ class AMQP::Client
       @next_msg_props = nil
       @next_body_io = nil
       @next_body_size = 0_u32
-    end
-
-    private def consume(consumer_tag, deliveries, blk)
-      LOG.context.set channel_id: @id.to_i, consumer: consumer_tag, fiber: "consumer##{consumer_tag}"
-      loop do
-        msg = deliveries.receive? || break
-        begin
-          blk.call(msg)
-        rescue ex
-          if cb = @consumer_blocks.delete consumer_tag
-            cb.send ex
-          else
-            LOG.error(exception: ex) { "Uncaught exception in consumer" }
-          end
-        end
-      end
-      @consumer_blocks.delete(consumer_tag).try &.close
     end
 
     @on_return : Proc(ReturnedMessage, Nil)?
@@ -328,7 +309,6 @@ class AMQP::Client
     end
 
     @consumers = Sync(Hash(String, ::Channel(DeliverMessage))).new
-    @consumer_blocks = Sync(Hash(String, ::Channel(Exception))).new
 
     # Consume messages from a *queue*
     #
@@ -341,24 +321,44 @@ class AMQP::Client
                       &blk : DeliverMessage -> Nil)
       raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
       raise ArgumentError.new("At least one worker required") if work_pool < 1
+      raise ArgumentError.new("When blocking, only one worker can be in use") if block && work_pool > 1
 
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
       ok = expect Frame::Basic::ConsumeOk
       delivery_channel = ::Channel(DeliverMessage).new(8192)
       @consumers[ok.consumer_tag] = delivery_channel
-      work_pool.times do |i|
-        spawn consume(ok.consumer_tag, delivery_channel, blk),
-          same_thread: i.zero?, # only force put the first fiber on same thread
-          name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
-      end
       if block
-        cb = @consumer_blocks[ok.consumer_tag] = ::Channel(Exception).new
-        if ex = cb.receive?
+        begin
+          while msg = delivery_channel.receive?
+            yield msg
+          end
+        rescue ex
           write Frame::Basic::Cancel.new(@id, ok.consumer_tag, no_wait: true)
+          @consumers.delete ok.consumer_tag
+          delivery_channel.close
           raise ex
+        end
+      else
+        work_pool.times do |i|
+          spawn consume(ok.consumer_tag, delivery_channel, blk),
+            same_thread: i.zero?, # only force put the first fiber on same thread
+            name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
         end
       end
       ok.consumer_tag
+    end
+
+    private def consume(consumer_tag, deliveries, blk)
+      LOG.context.set channel_id: @id.to_i, consumer: consumer_tag, fiber: "consumer##{consumer_tag}"
+      while msg = deliveries.receive?
+        begin
+          blk.call(msg)
+        rescue ex
+          LOG.error(exception: ex) { "Uncaught exception in consumer, cancelling consumer, requeuing message" }
+          msg.reject(requeue: true)
+          basic_cancel(consumer_tag)
+        end
+      end
     end
 
     # Cancel the consumer with the *consumer_tag*
