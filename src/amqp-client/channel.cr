@@ -42,7 +42,7 @@ class AMQP::Client
     def close(reason = "", code = 200) : Nil
       return if @closed
       @closed = true
-      write Frame::Channel::Close.new(@id, code, reason, 0, 0)
+      write Frame::Channel::Close.new(@id, code.to_u16, reason, 0, 0)
       expect Frame::Channel::CloseOk
       cleanup
     end
