@@ -21,7 +21,16 @@ require "amqp-client"
 
 AMQP::Client.start("amqp://guest:guest@localhost") do |c|
   c.channel do |ch|
+    # Always set a prefetch limit before consuming
+    ch.prefetch(100)
+
+    # Declare a temporary queue
+    q = ch.queue("")
+
+    # Declare a durable queue
     q = ch.queue("my-queue")
+
+    # Subscribe to it, and manually acknowledge messages when processed
     q.subscribe(no_ack: false) do |msg|
       puts "Received: #{msg.body_io.to_s}"
       ch.basic_ack(msg.delivery_tag)
@@ -62,7 +71,7 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
     name, message_count, consumer_count =
       ch.queue_declare(name: "myqueue", passive: false, durable: true,
                        exclusive: false, auto_delete: false,
-                       args = Arguments.new)
+                       arguments: AMQP::Client::Arguments.new)
     q = ch.queue # temporary queue that is deleted when the channel is closed
     ch.queue_purge("myqueue")
     ch.queue_bind("myqueue", "amq.topic", "routing-key")
