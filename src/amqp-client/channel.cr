@@ -9,12 +9,12 @@ class AMQP::Client
     private LOG = ::Log.for(self)
 
     # Channel ID
-    getter id
+    @connection : Connection
     @reply_frames = ::Channel(Frame).new
     @basic_get = ::Channel(GetMessage?).new
     @confirm_id = 0_u64
-    @connection : Connection
-    @id : UInt16
+    getter id
+    @prefetch_count = 0u16
     @confirm_mode = false
     @server_flow = true
     @closed = false
@@ -397,6 +397,7 @@ class AMQP::Client
     def basic_qos(count, global = false) : Nil
       write Frame::Basic::Qos.new(@id, 0_u32, count.to_u16, global)
       expect Frame::Basic::QosOk
+      @prefetch_count = count.to_u16
     end
 
     # Alias for `basic_qos`
