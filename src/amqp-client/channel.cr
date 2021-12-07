@@ -321,44 +321,42 @@ class AMQP::Client
                       &blk : DeliverMessage -> Nil)
       raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
       raise ArgumentError.new("At least one worker required") if work_pool < 1
-      raise ArgumentError.new("When blocking, only one worker can be in use") if block && work_pool > 1
 
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
       ok = expect Frame::Basic::ConsumeOk
-      delivery_channel = ::Channel(DeliverMessage).new
+      done = ::Channel(Exception?).new
+      delivery_channel = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
       @consumers[ok.consumer_tag] = delivery_channel
+      work_pool.times do |i|
+        spawn consume(ok.consumer_tag, delivery_channel, done, blk),
+          same_thread: i.zero?, # only force put the first fiber on same thread
+          name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
+      end
       if block
-        while msg = delivery_channel.receive?
-          begin
-            yield msg
-          rescue ex
-            basic_cancel(ok.consumer_tag, no_wait: true)
-            basic_reject(msg.delivery_tag, requeue: true)
+        work_pool.times do
+          if ex = done.receive
+            done.close
             raise ex
           end
-        end
-      else
-        work_pool.times do |i|
-          spawn consume(ok.consumer_tag, delivery_channel, blk),
-            same_thread: i.zero?, # only force put the first fiber on same thread
-            name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
         end
       end
       ok.consumer_tag
     end
 
-    private def consume(consumer_tag, deliveries, blk)
+    private def consume(consumer_tag, deliveries, done, blk)
       LOG.context.set channel_id: @id.to_i, consumer: consumer_tag, fiber: "consumer##{consumer_tag}"
       while msg = deliveries.receive?
         begin
           blk.call(msg)
         rescue ex
-          LOG.error(exception: ex) { "Uncaught exception in consumer, cancelling consumer, requeuing message" }
+          LOG.error(exception: ex) { "Uncaught exception in consumer, cancelling and requeuing message" }
           basic_cancel(consumer_tag)
           basic_reject(msg.delivery_tag, requeue: true)
-          break
+          done.send(ex) rescue nil
+          return
         end
       end
+      done.send(nil) rescue nil
     end
 
     # Cancel the consumer with the *consumer_tag*
