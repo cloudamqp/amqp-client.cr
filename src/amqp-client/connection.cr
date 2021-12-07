@@ -20,24 +20,27 @@ class AMQP::Client
     end
 
     @channels = Hash(UInt16, Channel).new
+    @channels_lock = Mutex.new
 
     # Opens a channel
     def channel(id : Int? = nil)
-      if id
-        raise "channel_max reached" if id > @channel_max
-        if ch = @channels.fetch(id, nil)
-          return ch
-        else
-          ch = @channels[id] = Channel.new(self, id)
+      @channels_lock.synchronize do
+        if id
+          raise "channel_max reached" if id > @channel_max
+          if ch = @channels.fetch(id, nil)
+            return ch
+          else
+            ch = @channels[id] = Channel.new(self, id)
+            return ch.open
+          end
+        end
+        1_u16.upto(@channel_max) do |i|
+          next if @channels.has_key? i
+          ch = @channels[i] = Channel.new(self, i)
           return ch.open
         end
+        raise "channel_max reached"
       end
-      1_u16.upto(@channel_max) do |i|
-        next if @channels.has_key? i
-        ch = @channels[i] = Channel.new(self, i)
-        return ch.open
-      end
-      raise "channel_max reached"
     end
 
     def channel(&blk : Channel -> _)
@@ -93,8 +96,10 @@ class AMQP::Client
       @closed = true
       @io.close rescue nil
       @reply_frames.close
-      @channels.each_value &.cleanup
-      @channels.clear
+      @channels_lock.synchronize do
+        @channels.each_value &.cleanup
+        @channels.clear
+      end
     end
 
     private def process_close(f)
@@ -124,7 +129,9 @@ class AMQP::Client
 
       case f
       when Frame::Channel::Close, Frame::Channel::CloseOk
-        @channels.delete f.channel
+        @channels_lock.synchronize do
+          @channels.delete f.channel
+        end
       end
     end
 
