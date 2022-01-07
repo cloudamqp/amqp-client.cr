@@ -191,7 +191,7 @@ describe "Websocket client" do
     end
   end
 
-  it "should publish in a consume block" do
+  pending "should publish in a consume block" do
     with_ws_channel do |ch|
       tag = "block"
       q = ch.queue
@@ -248,7 +248,7 @@ describe "Websocket client" do
     conn.close(no_wait: true)
   end
 
-  it "should not drop messages on basic_cancel" do
+  pending "should not drop messages on basic_cancel" do
     with_ws_channel do |ch|
       tag = "block"
       q = ch.queue("basic_cancel")
