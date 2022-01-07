@@ -306,6 +306,8 @@ class AMQP::Client
     def basic_get(queue : String, no_ack = true) : GetMessage?
       write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
       @basic_get.receive?
+    ensure
+      raise ClosedException.new(@closing_frame) if @closing_frame
     end
 
     # :nodoc:
