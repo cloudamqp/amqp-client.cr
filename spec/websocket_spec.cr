@@ -191,7 +191,7 @@ describe "Websocket client" do
     end
   end
 
-  pending "should publish in a consume block" do
+  it "should publish in a consume block" do
     with_ws_channel do |ch|
       tag = "block"
       q = ch.queue
@@ -201,7 +201,7 @@ describe "Websocket client" do
         q.publish "again"
         msg.ack
         b = true
-        q.unsubscribe(tag)
+        q.unsubscribe(tag, no_wait: true)
       end
       b.should be_true
     end
