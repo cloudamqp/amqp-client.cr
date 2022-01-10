@@ -108,6 +108,16 @@ describe AMQP::Client do
     end
   end
 
+  context "Channel#basic_get" do
+    it "should raise ClosedException when trying to use non-existing queue" do
+      with_channel do |ch|
+        expect_raises(AMQP::Client::Channel::ClosedException, /404/) do
+          ch.basic_get("foobar", no_ack: true)
+        end
+      end
+    end
+  end
+
   it "should not break connection on Channel::ClosedException" do
     with_connection do |c|
       ch = c.channel

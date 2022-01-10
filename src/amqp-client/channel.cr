@@ -305,7 +305,15 @@ class AMQP::Client
     # The message must eventually be acked or rejected if *no_ack* is false
     def basic_get(queue : String, no_ack = true) : GetMessage?
       write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
-      @basic_get.receive?
+      @basic_get.receive
+    rescue ex : ::Channel::ClosedError
+      if cf = @connection.closing_frame
+        raise Connection::ClosedException.new(cf)
+      elsif cf = @closing_frame
+        raise ClosedException.new(cf, cause: ex)
+      else
+        raise ex
+      end
     end
 
     # :nodoc:
