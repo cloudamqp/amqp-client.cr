@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Memory usage per connection is down 95%
+- Allow custom queue properties also for temporary queues (where name is empty)
+
+### Added
+
+- Log warning that user should increase prefetch limit, when the read loop have to wait to deliver messages to worker(s)
+- Queue#unsubscribe now supports the no_wait argument
+- Better API documentation
+
+### Changed
+
+- Blocking consumers can now also have multiple workers
+- Better exception handling in blocking consumers
+- Reduced cyclomatic complexity in many methods
+
 ## [1.0.4] - 2021-11-16
 
 ### Added
