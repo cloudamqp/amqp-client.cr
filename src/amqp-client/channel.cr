@@ -202,23 +202,23 @@ class AMQP::Client
     end
 
     # Publish a *bytes* message, to an *exchange* with *routing_key*
-    def basic_publish(bytes : Bytes, exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new)
+    def basic_publish(bytes : Bytes, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new)
       basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, properties)
     end
 
     # Publish a *string* message, to an *exchange* with *routing_key*
-    def basic_publish(string : String, exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new)
+    def basic_publish(string : String, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new)
       basic_publish(string.to_slice, exchange, routing_key, mandatory, immediate, properties)
     end
 
     # Publish an *io* message, to an *exchange* with *routing_key*
-    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new)
+    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new)
       basic_publish(io, io.bytesize, exchange, routing_key, mandatory, immediate, properties)
     end
 
     # Publish a message with a set *bytesize*, to an *exchange* with *routing_key*
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
-                      mandatory = false, immediate = false, properties = Properties.new) : UInt64
+                      mandatory = false, immediate = false, props properties = Properties.new) : UInt64
       raise ClosedException.new(@closing_frame) if @closing_frame
 
       @connection.with_lock do |c|
@@ -244,13 +244,13 @@ class AMQP::Client
       end
     end
 
-    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, properties = Properties.new) : Bool
+    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
       confirm_select
       msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, properties)
       wait_for_confirm(msgid)
     end
 
-    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, properties = Properties.new) : Bool
+    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
       confirm_select
       msgid = basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties)
       wait_for_confirm(msgid)
@@ -317,7 +317,7 @@ class AMQP::Client
     # * The method will *block* if the flag is set, until the consumer/channel/connection is closed or the callback raises an exception
     # * To let multiple fibers process messages increase *work_pool*
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
-                      block = false, arguments = Arguments.new, work_pool = 1,
+                      block = false, args arguments = Arguments.new, work_pool = 1,
                       &blk : DeliverMessage -> Nil)
       raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
       raise ArgumentError.new("At least one worker required") if work_pool < 1
@@ -410,7 +410,7 @@ class AMQP::Client
     end
 
     # Declares a queue with a name, by default durable and not auto-deleted
-    def queue(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, arguments = Arguments.new)
+    def queue(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, args arguments = Arguments.new)
       q = queue_declare(name, passive, durable, exclusive, auto_delete, arguments)
       Queue.new(self, q[:queue_name])
     end
@@ -424,7 +424,7 @@ class AMQP::Client
                       durable = name.empty? ? false : true,
                       exclusive = name.empty? ? true : false,
                       auto_delete = name.empty? ? true : false,
-                      arguments = Arguments.new)
+                      args arguments = Arguments.new)
       no_wait = false
       write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable, exclusive, auto_delete, no_wait, arguments)
       f = expect Frame::Queue::DeclareOk
@@ -450,13 +450,13 @@ class AMQP::Client
     end
 
     # Bind a *queue* to an *exchange*, with a *routing_key* and optionally some *arguments*
-    def queue_bind(queue : String, exchange : String, routing_key : String, no_wait = false, arguments = Arguments.new) : Nil
+    def queue_bind(queue : String, exchange : String, routing_key : String, no_wait = false, args arguments = Arguments.new) : Nil
       write Frame::Queue::Bind.new(@id, 0_u16, queue, exchange, routing_key, no_wait, arguments)
       expect Frame::Queue::BindOk unless no_wait
     end
 
     # Unbind a *queue* from an *exchange*, with a *routing_key* and optionally some *arguments*
-    def queue_unbind(queue : String, exchange : String, routing_key : String, arguments = Arguments.new) : Nil
+    def queue_unbind(queue : String, exchange : String, routing_key : String, args arguments = Arguments.new) : Nil
       write Frame::Queue::Unbind.new(@id, 0_u16, queue, exchange, routing_key, arguments)
       expect Frame::Queue::UnbindOk
     end
@@ -483,7 +483,7 @@ class AMQP::Client
 
     # Convinence method for Exchange handling
     def exchange(name, type, passive = false, durable = true, exclusive = false,
-                 internal = false, auto_delete = false, arguments = Arguments.new)
+                 internal = false, auto_delete = false, args arguments = Arguments.new)
       exchange_declare(name, type, passive, durable, exclusive, internal, auto_delete, false, arguments)
       Exchange.new(self, name)
     end
@@ -492,7 +492,7 @@ class AMQP::Client
     def exchange_declare(name : String, type : String, passive = false,
                          durable = true, exclusive = false,
                          internal = false, auto_delete = false,
-                         no_wait = false, arguments = Arguments.new) : Nil
+                         no_wait = false, args arguments = Arguments.new) : Nil
       return if name.empty? # the default exchange cannot be declared
       write Frame::Exchange::Declare.new(@id, 0_u16, name, type, passive,
         durable, auto_delete, internal,
@@ -507,13 +507,13 @@ class AMQP::Client
     end
 
     # Bind an exchange to another exchange
-    def exchange_bind(source : String, destination : String, routing_key : String, no_wait = false, arguments = Arguments.new) : Nil
+    def exchange_bind(source : String, destination : String, routing_key : String, no_wait = false, args arguments = Arguments.new) : Nil
       write Frame::Exchange::Bind.new(@id, 0_u16, source, destination, routing_key, no_wait, arguments)
       expect Frame::Exchange::BindOk unless no_wait
     end
 
     # Unbind an exchange from another exchange
-    def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, arguments = Arguments.new) : Nil
+    def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, args arguments = Arguments.new) : Nil
       write Frame::Exchange::Unbind.new(@id, 0_u16, source, destination, routing_key, no_wait, arguments)
       expect Frame::Queue::UnbindOk unless no_wait
     end

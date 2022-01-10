@@ -11,24 +11,24 @@ class AMQP::Client
     end
 
     # Bind the exchange to another exchange
-    def bind(exchange : String, routing_key : String, no_wait = false, arguments = Arguments.new)
+    def bind(exchange : String, routing_key : String, no_wait = false, args arguments = Arguments.new)
       @channel.exchange_bind(@name, exchange, routing_key, no_wait, arguments)
       self
     end
 
     # Unbind the exchange from another exchange
-    def unbind(exchange : String, routing_key : String, no_wait = false, arguments = Arguments.new)
+    def unbind(exchange : String, routing_key : String, no_wait = false, args arguments = Arguments.new)
       @channel.exchange_unbind(@name, exchange, routing_key, no_wait, arguments)
       self
     end
 
     # Publish a message to the exchange
-    def publish(message, routing_key : String, mandatory = false, immediate = false, properties = Properties.new)
+    def publish(message, routing_key : String, mandatory = false, immediate = false, props properties = Properties.new)
       @channel.basic_publish(message, @name, routing_key, mandatory, immediate, properties)
     end
 
     # Publish and confirm a message to the exchange
-    def publish_confirm(message, routing_key : String, mandatory = false, immediate = false, properties = Properties.new)
+    def publish_confirm(message, routing_key : String, mandatory = false, immediate = false, props properties = Properties.new)
       @channel.basic_publish_confirm(message, @name, routing_key, mandatory, immediate, properties)
     end
 
