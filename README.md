@@ -85,6 +85,14 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
 end
 ```
 
+## Performance
+
+1-byte messages, without properties/headers:
+
+| Publish rate | Consume rate |
+| ------------ | ------------ |
+| 1.200.000 msgs/s | 1.000.000 msgs/s |
+
 ## Contributing
 
 1. [Fork it](https://github.com/cloudamqp/amqp-client.cr/fork)
