@@ -162,7 +162,12 @@ class AMQP::Client
           msg = DeliverMessage.new(self, f.exchange, f.routing_key,
             f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
             f.redelivered)
-          deliveries.send(msg)
+          select
+          when deliveries.send(msg)
+          when timeout(1.seconds)
+            LOG.warn { "Consumer tag '#{f.consumer_tag}' overloaded, increase prefetch and/or work_pool" }
+            deliveries.send(msg)
+          end
         else
           LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
         end
