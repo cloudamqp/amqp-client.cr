@@ -14,8 +14,8 @@ class AMQP::Client
     end
   end
 
-  # Message delivered to a consumer
-  struct DeliverMessage
+  # Abstract message, use both for Get and Delivered messages
+  abstract struct Message
     getter exchange, routing_key, properties, body_io, delivery_tag, redelivered
 
     # :nodoc:
@@ -41,9 +41,13 @@ class AMQP::Client
     end
   end
 
+  # Message delivered to a consumer
+  struct DeliverMessage < Message
+  end
+
   # Message retrived by `Channel#basic_get`
-  struct GetMessage
-    getter exchange, routing_key, properties, body_io, delivery_tag, redelivered, message_count
+  struct GetMessage < Message
+    getter message_count
 
     # :nodoc:
     def initialize(@channel : Channel, @exchange : String,
@@ -51,21 +55,6 @@ class AMQP::Client
                    @properties : AMQ::Protocol::Properties,
                    @body_io : IO::Memory, @redelivered : Bool,
                    @message_count : UInt32)
-    end
-
-    # Acknowledge the message
-    def ack(multiple = false)
-      @channel.basic_ack(@delivery_tag, multiple: multiple)
-    end
-
-    # Negatively acknowledge (reject) the message
-    def nack(multiple = false, requeue = false)
-      @channel.basic_nack(@delivery_tag, multiple: multiple, requeue: requeue)
-    end
-
-    # Reject the message
-    def reject(requeue = false)
-      @channel.basic_reject(@delivery_tag, requeue: requeue)
     end
   end
 end
