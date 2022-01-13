@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore AMQP::Client::Message, as a abstract struct for Deliver and Get messages
+- Requeue messages received for cancelled consumers
+
+### Changed
+
+- Make basic_cancel no_wait by default, so that consumers with prefetch 0 won't block on it.
+
 ## [1.0.5] - 2022-01-11
 
 ### Fixed
