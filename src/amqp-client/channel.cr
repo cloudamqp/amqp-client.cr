@@ -162,14 +162,20 @@ class AMQP::Client
           msg = DeliverMessage.new(self, f.exchange, f.routing_key,
             f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
             f.redelivered)
-          select
-          when deliveries.send(msg)
-          when timeout(1.seconds)
-            LOG.warn { "Consumer tag '#{f.consumer_tag}' overloaded, increase prefetch and/or work_pool" }
-            deliveries.send(msg)
+          begin
+            select
+            when deliveries.send(msg)
+            when timeout(1.seconds)
+              LOG.warn { "Consumer tag '#{f.consumer_tag}' overloaded, increase prefetch and/or work_pool" }
+              deliveries.send(msg)
+            end
+          rescue ::Channel::ClosedError
+            LOG.warn { "Consumer tag '#{f.consumer_tag}' is canceled, requeuing message" }
+            basic_reject(f.delivery_tag, requeue: true)
           end
         else
-          LOG.warn { "Consumer tag '#{f.consumer_tag}' not found" }
+          LOG.warn { "Consumer tag '#{f.consumer_tag}' not found, requeuing message" }
+          basic_reject(f.delivery_tag, requeue: true)
         end
       when Frame::Basic::Return
         msg = ReturnedMessage.new(f.reply_code, f.reply_text,
