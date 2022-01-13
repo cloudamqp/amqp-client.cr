@@ -71,7 +71,7 @@ class AMQP::Client
     # Unsubscribe from the queue
     #
     # See `Channel#basic_cancel` for more details
-    def unsubscribe(consumer_tag, no_wait = false)
+    def unsubscribe(consumer_tag, no_wait = true)
       @channel.basic_cancel(consumer_tag, no_wait)
       self
     end

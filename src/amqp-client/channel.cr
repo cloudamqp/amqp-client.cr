@@ -369,7 +369,7 @@ class AMQP::Client
           blk.call(msg)
         rescue ex
           LOG.error(exception: ex) { "Uncaught exception in consumer, cancelling and requeuing message" }
-          basic_cancel(consumer_tag)
+          basic_cancel(consumer_tag, no_wait: true)
           basic_reject(msg.delivery_tag, requeue: true)
           done.send(ex) rescue nil
           return
@@ -379,7 +379,7 @@ class AMQP::Client
     end
 
     # Cancel the consumer with the *consumer_tag*
-    def basic_cancel(consumer_tag, no_wait = false) : Nil
+    def basic_cancel(consumer_tag, no_wait = true) : Nil
       if @consumers.has_key? consumer_tag
         write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
         expect Frame::Basic::CancelOk unless no_wait
