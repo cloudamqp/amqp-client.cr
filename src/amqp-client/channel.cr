@@ -170,11 +170,11 @@ class AMQP::Client
               deliveries.send(msg)
             end
           rescue ::Channel::ClosedError
-            LOG.warn { "Consumer tag '#{f.consumer_tag}' is canceled, requeuing message" }
+            LOG.debug { "Consumer tag '#{f.consumer_tag}' is canceled, requeuing message" }
             basic_reject(f.delivery_tag, requeue: true)
           end
         else
-          LOG.warn { "Consumer tag '#{f.consumer_tag}' not found, requeuing message" }
+          LOG.debug { "Consumer tag '#{f.consumer_tag}' not found, requeuing message" }
           basic_reject(f.delivery_tag, requeue: true)
         end
       when Frame::Basic::Return
