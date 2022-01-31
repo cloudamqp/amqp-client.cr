@@ -223,8 +223,14 @@ class AMQP::Client
     end
 
     # Publish an *io* message, to an *exchange* with *routing_key*
+    # Only data from the current position of the IO to the end will be published. The position will be restored after publish.
     def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new)
-      basic_publish(io, io.bytesize, exchange, routing_key, mandatory, immediate, properties)
+      start_pos = io.pos
+      begin
+        basic_publish(io, io.bytesize - start_pos, exchange, routing_key, mandatory, immediate, properties)
+      ensure
+        io.pos = start_pos
+      end
     end
 
     # Publish a message with a set *bytesize*, to an *exchange* with *routing_key*
