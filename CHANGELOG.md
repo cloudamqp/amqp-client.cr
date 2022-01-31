@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.7] - 2022-01-31
+
 ### Fixed
 
 - VERSION is correct (not the version of the app the lib is included in)
