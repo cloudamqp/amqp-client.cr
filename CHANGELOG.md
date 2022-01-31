@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- VERSION is correct (not the version of the app the lib is included in)
+
+### Changed
+
+- Default connection_name to PROGRAM_NAME, for easier identifitcation in the server's connection listing
+
 ## [1.0.6] - 2022-01-13
 
 ### Fixed
