@@ -321,4 +321,8 @@ describe AMQP::Client do
       AMQP::Client.new(port: 5672, tls: true).connect
     end
   end
+
+  it "version matches shard version" do
+    AMQP::Client::VERSION == {{ `shards version`.stringify }}
+  end
 end

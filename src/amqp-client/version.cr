@@ -1,3 +1,3 @@
 class AMQP::Client
-  VERSION = {{ `shards version`.stringify }}
+  VERSION = "1.0.6"
 end
