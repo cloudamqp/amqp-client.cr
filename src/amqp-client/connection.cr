@@ -197,7 +197,7 @@ class AMQP::Client
 
     # Connection negotiation
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
-                   user, password, vhost, channel_max, frame_max, heartbeat, name : String?)
+                   user, password, vhost, channel_max, frame_max, heartbeat, name = File.basename(PROGRAM_NAME))
       io.read_timeout = 15
       start(io, user, password, name)
       tune(io, channel_max, frame_max, heartbeat)
@@ -221,20 +221,21 @@ class AMQP::Client
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise Error::UnexpectedFrame.new(f) }
-      props = Arguments.new
-      props["connection_name"] = name if name
-      props["product"] = "amqp-client.cr"
-      props["platform"] = "Crystal"
-      props["version"] = AMQP::Client::VERSION
-      capabilities = Arguments.new
-      capabilities["publisher_confirms"] = true
-      capabilities["exchange_exchange_bindings"] = true
-      capabilities["basic.nack"] = true
-      capabilities["per_consumer_qos"] = true
-      capabilities["authentication_failure_close"] = true
-      capabilities["consumer_cancel_notify"] = true
-      capabilities["connection.blocked"] = true
-      props["capabilities"] = capabilities
+      props = Arguments.new({
+        connection_name: name,
+        product:         "amqp-client.cr",
+        platform:        "Crystal",
+        version:         AMQP::Client::VERSION,
+        capabilities:    Arguments.new({
+          "publisher_confirms":           true,
+          "exchange_exchange_bindings":   true,
+          "basic.nack":                   true,
+          "per_consumer_qos":             true,
+          "authentication_failure_close": true,
+          "consumer_cancel_notify":       true,
+          "connection.blocked":           true,
+        }),
+      })
       user = URI.decode_www_form(user)
       password = URI.decode_www_form(password)
       response = "\u0000#{user}\u0000#{password}"
