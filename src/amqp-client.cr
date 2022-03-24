@@ -73,8 +73,8 @@ class AMQP::Client
                   end
     name = arguments.fetch("name", nil).try { |n| URI.decode_www_form(n) }
     tcp_nodelay = arguments.has_key?("tcp_nodelay")
-    ka_args = arguments.fetch("tcp_keepalive", "60:10:3").split(":", 3)
-    tcp_keepalive = {idle: ka_args[0].to_i, interval: ka_args[1].to_i, count: ka_args[2].to_i}
+    ka_args = arguments.fetch("tcp_keepalive", "60:10:3").split(':', 3).map &.to_i
+    tcp_keepalive = {idle: ka_args[0], interval: ka_args[1], count: ka_args[2]}
     self.new(host, port, vhost, user, password, tls, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
       tcp_nodelay, tcp_keepalive)
@@ -110,12 +110,12 @@ class AMQP::Client
   end
 
   private def connect_tcp
-    socket = TCPSocket.new(@host, @port, connect_timeout: 15)
-    socket.keepalive = true
-    socket.tcp_nodelay = @tcp_nodelay
-    socket.tcp_keepalive_idle = @tcp_keepalive[:idle]
-    socket.tcp_keepalive_count = @tcp_keepalive[:count]
-    socket.tcp_keepalive_interval = @tcp_keepalive[:interval]
+    socket = TCPSocket.new(@host, @port, connect_timeout: 60)
+    socket.keepalive = true if @tcp_keepalive[:idle].positive?
+    socket.tcp_keepalive_idle = @tcp_keepalive[:idle] if @tcp_keepalive[:idle].positive?
+    socket.tcp_keepalive_count = @tcp_keepalive[:count] if @tcp_keepalive[:count].positive?
+    socket.tcp_keepalive_interval = @tcp_keepalive[:interval] if @tcp_keepalive[:interval].positive?
+    socket.tcp_nodelay = true if @tcp_nodelay
     socket.sync = false
     socket.read_buffering = true
     socket.buffer_size = 16384
