@@ -76,19 +76,27 @@ class AMQP::Client
     name = arguments.fetch("name", nil).try { |n| URI.decode_www_form(n) }
     tcp_nodelay = arguments.has_key?("tcp_nodelay")
     ka_args = arguments.fetch("tcp_keepalive", "60:10:3").split(':', 3).map &.to_i
-    tcp_keepalive = {idle: ka_args[0], interval: ka_args[1], count: ka_args[2]}
+    recv_buffer_size = arguments.fetch("recv_buffer_size", nil).try &.to_i
+    send_buffer_size = arguments.fetch("send_buffer_size", nil).try &.to_i
+    buffer_size = arguments.fetch("buffer_size", "16384").to_i
+    tcp = TCPConfig.new(nodelay: tcp_nodelay,
+      keepalive_idle: ka_args[0], keepalive_interval: ka_args[1], keepalive_count: ka_args[2],
+      recv_buffer_size: recv_buffer_size, send_buffer_size: send_buffer_size)
     self.new(host, port, vhost, user, password, tls, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
-      tcp_nodelay, tcp_keepalive)
+      tcp, buffer_size)
   end
 
-  getter host, port, vhost, user, websocket
-  getter tls : OpenSSL::SSL::Context::Client?
+  property host, port, vhost, user, websocket, tcp, buffer_size
+  property tls : OpenSSL::SSL::Context::Client?
+
+  # record Tune, channel_max = 1024u16, frame_max = 131_072u32, heartbeat = 0u16
+  record TCPConfig, nodelay = false, keepalive_idle = 60, keepalive_interval = 10, keepalive_count = 3, send_buffer_size : Int32? = nil, recv_buffer_size : Int32? = nil
 
   def initialize(@host = AMQP_HOST, @port = AMQP_PORT, @vhost = AMQP_VHOST, @user = AMQP_USER, @password = AMQP_PASS,
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
-                 @tcp_nodelay = false, @tcp_keepalive = {idle: 60, interval: 10, count: 3})
+                 @tcp = TCPConfig.new, @buffer_size = 16384)
     if tls.is_a? OpenSSL::SSL::Context::Client
       @tls = tls
     elsif tls == true
@@ -119,24 +127,20 @@ class AMQP::Client
 
   private def connect_tcp
     socket = TCPSocket.new(@host, @port, connect_timeout: 60)
-    socket.keepalive = true if @tcp_keepalive[:idle].positive?
-    socket.tcp_keepalive_idle = @tcp_keepalive[:idle] if @tcp_keepalive[:idle].positive?
-    socket.tcp_keepalive_count = @tcp_keepalive[:count] if @tcp_keepalive[:count].positive?
-    socket.tcp_keepalive_interval = @tcp_keepalive[:interval] if @tcp_keepalive[:interval].positive?
-    socket.tcp_nodelay = true if @tcp_nodelay
-    socket.sync = false
-    socket.read_buffering = true
-    socket.buffer_size = 16384
+    socket.keepalive = true if @tcp.keepalive_idle.positive?
+    socket.tcp_keepalive_idle = @tcp.keepalive_idle if @tcp.keepalive_idle.positive?
+    socket.tcp_keepalive_count = @tcp.keepalive_count if @tcp.keepalive_count.positive?
+    socket.tcp_keepalive_interval = @tcp.keepalive_interval if @tcp.keepalive_interval.positive?
+    socket.tcp_nodelay = true if @tcp.nodelay
+    @tcp.recv_buffer_size.try { |v| socket.recv_buffer_size = v }
+    @tcp.send_buffer_size.try { |v| socket.send_buffer_size = v }
+    socket.buffer_size = @buffer_size
     socket
   end
 
   private def connect_tls(socket, context)
-    socket.sync = true
-    socket.read_buffering = false
     tls_socket = OpenSSL::SSL::Socket::Client.new(socket, context, sync_close: true, hostname: @host)
-    tls_socket.sync = false
-    tls_socket.read_buffering = true
-    tls_socket.buffer_size = 16384
+    tls_socket.buffer_size = @buffer_size
     tls_socket
   end
 
@@ -144,7 +148,7 @@ class AMQP::Client
     UNIXSocket.new(@host).tap do |socket|
       socket.sync = false
       socket.read_buffering = true
-      socket.buffer_size = 16384
+      socket.buffer_size = @buffer_size
     end
   end
 
