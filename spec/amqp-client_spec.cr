@@ -322,6 +322,22 @@ describe AMQP::Client do
     end
   end
 
+  it "can connect over TLS" do
+    c = AMQP::Client.new(port: 5671, tls: true, verify_mode: OpenSSL::SSL::VerifyMode::NONE).connect
+    pending! "CI doesn't support TLS"
+    c.@io.class.should eq OpenSSL::SSL::Socket::Client
+  end
+
+  it "can reuse TLS context between multiple connections" do
+    ctx = OpenSSL::SSL::Context::Client.insecure
+    client = AMQP::Client.new(port: 5671, tls: ctx)
+    pending! "CI doesn't support TLS"
+    conn1 = client.connect
+    conn2 = client.connect
+    conn1.@io.class.should eq OpenSSL::SSL::Socket::Client
+    conn2.@io.class.should eq OpenSSL::SSL::Socket::Client
+  end
+
   it "version matches shard version" do
     AMQP::Client::VERSION == {{ `shards version`.stringify }}
   end
