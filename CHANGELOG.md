@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2022-03-27
+
+### Added
+
+- A OpenSSL::SSL::Context::Client can be passed to AMQP::Client and will be reused for multiple connection, saving considerable amount of memory
+
 ## [1.0.8] - 2022-03-24
 
-### Changed
+### Added
 
 - Make it possible to disable TCP keepalive (by setting the values to 0)
 
