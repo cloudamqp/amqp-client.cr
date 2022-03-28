@@ -56,32 +56,35 @@ class AMQP::Client
     websocket = WS_SCHEMES.includes? uri.scheme
     host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
     port = uri.port || SCHEME_PORT[uri.scheme]
-    vhost =
-      if (path = uri.path) && path.bytesize > 1
-        URI.decode_www_form(path[1..-1])
-      else
-        "/"
-      end
+    vhost = uri.path.bytesize > 1 ? URI.decode_www_form(uri.path[1..-1]) : "/"
     user = uri.user || "guest"
     password = uri.password || "guest"
-    arguments = uri.query_params
-    LOG.debug { "Opening connection to #{host} with arguments #{arguments}" }
-    heartbeat = arguments.fetch("heartbeat", 0).to_u16
-    frame_max = arguments.fetch("frame_max", 131_072).to_u32
-    channel_max = arguments.fetch("channel_max", 1024).to_u16
-    verify_mode = case arguments.fetch("verify", "").downcase
-                  when "none" then OpenSSL::SSL::VerifyMode::NONE
-                  else             OpenSSL::SSL::VerifyMode::PEER
-                  end
-    name = arguments.fetch("name", nil).try { |n| URI.decode_www_form(n) }
-    tcp_nodelay = arguments.has_key?("tcp_nodelay")
-    ka_args = arguments.fetch("tcp_keepalive", "60:10:3").split(':', 3).map &.to_i
-    recv_buffer_size = arguments.fetch("recv_buffer_size", nil).try &.to_i
-    send_buffer_size = arguments.fetch("send_buffer_size", nil).try &.to_i
-    buffer_size = arguments.fetch("buffer_size", "16384").to_i
-    tcp = TCPConfig.new(nodelay: tcp_nodelay,
-      keepalive_idle: ka_args[0], keepalive_interval: ka_args[1], keepalive_count: ka_args[2],
-      recv_buffer_size: recv_buffer_size, send_buffer_size: send_buffer_size)
+    LOG.debug { "Opening connection to #{host} with arguments #{uri.query_params}" }
+    heartbeat = 0_u16
+    frame_max = 131_072_u32
+    channel_max = 1024_u16
+    verify_mode = OpenSSL::SSL::VerifyMode::PEER
+    name = File.basename(PROGRAM_NAME)
+    buffer_size = 16384
+    tcp = TCPConfig.new
+    uri.query_params.each do |key, value|
+      case key
+      when "name"             then name = URI.decode_www_form(value)
+      when "heartbeat"        then heartbeat = value.to_u16
+      when "frame_max"        then frame_max = value.to_u32
+      when "channel_max"      then channel_max = value.to_u16
+      when "buffer_size"      then buffer_size = value.to_i
+      when "tcp_nodelay"      then tcp.nodelay = true
+      when "recv_buffer_size" then tcp.recv_buffer_size = value.to_i
+      when "send_buffer_size" then tcp.send_buffer_size = value.to_i
+      when "tcp_keepalive"
+        ka = value.split(':', 3).map &.to_i
+        tcp.keepalive_idle, tcp.keepalive_interval, tcp.keepalive_count = ka
+      when "verify"
+        verify_mode = OpenSSL::SSL::VerifyMode::NONE if value =~ /^none$/i
+      else raise ArgumentError.new("Invalid parameter: #{key}")
+      end
+    end
     self.new(host, port, vhost, user, password, tls, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
       tcp, buffer_size)
@@ -91,7 +94,9 @@ class AMQP::Client
   property tls : OpenSSL::SSL::Context::Client?
 
   # record Tune, channel_max = 1024u16, frame_max = 131_072u32, heartbeat = 0u16
-  record TCPConfig, nodelay = false, keepalive_idle = 60, keepalive_interval = 10, keepalive_count = 3, send_buffer_size : Int32? = nil, recv_buffer_size : Int32? = nil
+  record TCPConfig, nodelay = false, keepalive_idle = 60, keepalive_interval = 10, keepalive_count = 3, send_buffer_size : Int32? = nil, recv_buffer_size : Int32? = nil do
+    property nodelay, keepalive_idle, keepalive_interval, keepalive_count, send_buffer_size, recv_buffer_size
+  end
 
   def initialize(@host = AMQP_HOST, @port = AMQP_PORT, @vhost = AMQP_VHOST, @user = AMQP_USER, @password = AMQP_PASS,
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
@@ -134,21 +139,30 @@ class AMQP::Client
     socket.tcp_nodelay = true if @tcp.nodelay
     @tcp.recv_buffer_size.try { |v| socket.recv_buffer_size = v }
     @tcp.send_buffer_size.try { |v| socket.send_buffer_size = v }
-    socket.buffer_size = @buffer_size
+    set_socket_buffers(socket)
     socket
   end
 
   private def connect_tls(socket, context)
-    tls_socket = OpenSSL::SSL::Socket::Client.new(socket, context, sync_close: true, hostname: @host)
-    tls_socket.buffer_size = @buffer_size
-    tls_socket
+    OpenSSL::SSL::Socket::Client.new(socket, context, sync_close: true, hostname: @host).tap do |tls_socket|
+      set_socket_buffers(tls_socket)
+    end
   end
 
   private def connect_unix
     UNIXSocket.new(@host).tap do |socket|
+      set_socket_buffers(socket)
+    end
+  end
+
+  private def set_socket_buffers(socket)
+    if @buffer_size.positive?
+      socket.buffer_size = @buffer_size
       socket.sync = false
       socket.read_buffering = true
-      socket.buffer_size = @buffer_size
+    else
+      socket.sync = true
+      socket.read_buffering = false
     end
   end
 
