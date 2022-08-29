@@ -198,7 +198,7 @@ class AMQP::Client
     # Connection negotiation
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                    user, password, vhost, channel_max, frame_max, heartbeat, name = File.basename(PROGRAM_NAME))
-      io.read_timeout = 15
+      io.read_timeout = 60
       start(io, user, password, name)
       tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
