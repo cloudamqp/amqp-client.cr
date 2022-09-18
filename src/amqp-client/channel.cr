@@ -356,6 +356,7 @@ class AMQP::Client
         work_pool.times do
           if ex = done.receive
             done.close
+            basic_cancel(ok.consumer_tag, no_wait: true)
             raise ex
           end
         end
