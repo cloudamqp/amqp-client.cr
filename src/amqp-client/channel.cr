@@ -163,12 +163,7 @@ class AMQP::Client
             f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
             f.redelivered)
           begin
-            select
-            when deliveries.send(msg)
-            when timeout(1.seconds)
-              LOG.warn { "Consumer tag '#{f.consumer_tag}' overloaded, increase prefetch and/or work_pool" }
-              deliveries.send(msg)
-            end
+            deliveries.send(msg)
           rescue ::Channel::ClosedError
             LOG.debug { "Consumer tag '#{f.consumer_tag}' is canceled, requeuing message" }
             basic_reject(f.delivery_tag, requeue: true) rescue nil
