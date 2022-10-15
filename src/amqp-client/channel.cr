@@ -503,16 +503,15 @@ class AMQP::Client
     end
 
     # Convinence method for Exchange handling
-    def exchange(name, type, passive = false, durable = true, exclusive = false,
+    def exchange(name, type, passive = false, durable = true,
                  internal = false, auto_delete = false, args arguments = Arguments.new)
-      exchange_declare(name, type, passive, durable, exclusive, internal, auto_delete, false, arguments)
+      exchange_declare(name, type, passive, durable, internal, auto_delete, false, arguments)
       Exchange.new(self, name)
     end
 
     # Declares an exchange
     def exchange_declare(name : String, type : String, passive = false,
-                         durable = true, exclusive = false,
-                         internal = false, auto_delete = false,
+                         durable = true, internal = false, auto_delete = false,
                          no_wait = false, args arguments = Arguments.new) : Nil
       return if name.empty? # the default exchange cannot be declared
       write Frame::Exchange::Declare.new(@id, 0_u16, name, type, passive,
