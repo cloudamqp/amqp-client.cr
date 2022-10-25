@@ -126,8 +126,13 @@ class AMQP::Client
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
     end
   rescue ex
-    raise ex if ex.is_a?(Error)
-    raise Error.new(ex.message, cause: ex)
+    case ex
+    when Error then raise ex
+    when Connection::ClosedException
+      # agument the exception with connection details
+      raise Connection::ClosedException.new(ex.message, @host, @user, @vhost)
+    else raise Error.new(ex.message, cause: ex)
+    end
   end
 
   private def connect_tcp

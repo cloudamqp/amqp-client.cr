@@ -247,11 +247,9 @@ class AMQP::Client
     private def self.tune(io, channel_max, frame_max, heartbeat)
       tune = Frame.from_io(io) do |f|
         case f
-        when Frame::Connection::Tune then f
-        when Frame::Connection::Close
-          raise ClosedException.new(f)
-        else
-          raise Error::UnexpectedFrame.new(f)
+        when Frame::Connection::Tune  then f
+        when Frame::Connection::Close then raise ClosedException.new(f)
+        else                               raise Error::UnexpectedFrame.new(f)
         end
       end
       channel_max = tune.channel_max.zero? ? channel_max : Math.min(tune.channel_max, channel_max)

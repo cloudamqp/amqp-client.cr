@@ -17,8 +17,12 @@ class AMQP::Client
         super(message, cause)
       end
 
-      def initialize(close : Frame::Connection::Close)
-        super("#{close.reply_code} - #{close.reply_text}")
+      def initialize(frame : Frame::Connection::Close)
+        super("#{frame.reply_text} (#{frame.reply_code})")
+      end
+
+      def initialize(host, user, vhost, message)
+        super "#{message} host=#{host} user=#{user} vhost=#{vhost}"
       end
     end
   end
