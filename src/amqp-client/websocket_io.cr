@@ -19,12 +19,12 @@ class AMQP::Client
       spawn @ws.run, name: "websocket run"
     end
 
-    def unbuffered_read(bytes : Bytes)
-      @r.read(bytes)
+    def unbuffered_read(slice : Bytes)
+      @r.read(slice)
     end
 
-    def unbuffered_write(bytes : Bytes) : Nil
-      @ws.send(bytes)
+    def unbuffered_write(slice : Bytes) : Nil
+      @ws.send(slice)
     end
 
     def read_timeout=(timeout)
