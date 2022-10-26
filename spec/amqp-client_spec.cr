@@ -341,4 +341,11 @@ describe AMQP::Client do
   it "version matches shard version" do
     AMQP::Client::VERSION == {{ `shards version`.stringify }}
   end
+
+  it "ACCESS refused error includes connection details" do
+    c = AMQP::Client.new(user: "foo")
+    expect_raises(AMQP::Client::Connection::ClosedException, /user=foo/) do
+      c.connect
+    end
+  end
 end

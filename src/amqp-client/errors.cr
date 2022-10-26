@@ -21,7 +21,7 @@ class AMQP::Client
         super("#{frame.reply_text} (#{frame.reply_code})")
       end
 
-      def initialize(host, user, vhost, message)
+      def initialize(message, host, user, vhost)
         super "#{message} host=#{host} user=#{user} vhost=#{vhost}"
       end
     end

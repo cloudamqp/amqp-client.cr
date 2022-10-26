@@ -127,11 +127,11 @@ class AMQP::Client
     end
   rescue ex
     case ex
-    when Error then raise ex
     when Connection::ClosedException
       # agument the exception with connection details
       raise Connection::ClosedException.new(ex.message, @host, @user, @vhost)
-    else raise Error.new(ex.message, cause: ex)
+    when Error then raise ex
+    else            raise Error.new(ex.message, cause: ex)
     end
   end
 
