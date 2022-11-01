@@ -380,7 +380,7 @@ class AMQP::Client
     end
 
     # Cancel the consumer with the *consumer_tag*
-    def basic_cancel(consumer_tag, no_wait = false) : Nil
+    def basic_cancel(consumer_tag, no_wait = true) : Nil
       if @consumers.has_key? consumer_tag
         write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
         expect Frame::Basic::CancelOk unless no_wait
