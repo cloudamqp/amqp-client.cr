@@ -346,7 +346,7 @@ class AMQP::Client
       delivery_channel = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
       @consumers[ok.consumer_tag] = delivery_channel
       work_pool.times do |i|
-        spawn consume(ok.consumer_tag, delivery_channel, done, blk),
+        spawn consume(ok.consumer_tag, delivery_channel, done, no_ack, blk),
           same_thread: i.zero?, # only force put the first fiber on same thread
           name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
       end
@@ -354,23 +354,24 @@ class AMQP::Client
         work_pool.times do
           if ex = done.receive
             done.close
-            basic_cancel(ok.consumer_tag, no_wait: true)
             raise ex
           end
         end
+      else
+        done.close
       end
       ok.consumer_tag
     end
 
-    private def consume(consumer_tag, deliveries, done, blk)
+    private def consume(consumer_tag, deliveries, done, no_ack, blk)
       LOG.context.set channel_id: @id.to_i, consumer: consumer_tag, fiber: "consumer##{consumer_tag}"
       while msg = deliveries.receive?
         begin
           blk.call(msg)
         rescue ex
-          LOG.error(exception: ex) { "Uncaught exception in consumer, cancelling and requeuing message" }
+          LOG.error(exception: ex) { "Uncaught exception in consumer, cancelling #{no_ack ? "" : "and requeuing message"}" }
           basic_cancel(consumer_tag, no_wait: true)
-          basic_reject(msg.delivery_tag, requeue: true)
+          basic_reject(msg.delivery_tag, requeue: true) unless no_ack
           done.send(ex) rescue nil
           return
         end
