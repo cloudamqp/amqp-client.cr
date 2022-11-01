@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Install rsync
         run: apk add --no-cache rsync
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install shards
         run: shards install
       - name: Build docs
