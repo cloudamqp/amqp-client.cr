@@ -43,6 +43,7 @@ class AMQP::Client
       return if @closed
       @closed = true
       write Frame::Channel::Close.new(@id, code.to_u16, reason, 0, 0)
+      @consumers.each_value &.close
       expect Frame::Channel::CloseOk
       cleanup
     end
@@ -83,7 +84,7 @@ class AMQP::Client
       @basic_get.close
       @on_confirm.each_value &.call(false)
       @on_confirm.clear
-      @consumers.each_value(&.close)
+      @consumers.each_value &.close
       @consumers.clear
     end
 
