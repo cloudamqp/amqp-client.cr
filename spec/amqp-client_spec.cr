@@ -299,7 +299,40 @@ describe AMQP::Client do
       end
       sleep 0.5
       (q.message_count + messages_handled).should eq 5
-      q.delete
+    end
+  end
+
+  it "should close channel if unexpected exception in consume block, so that unacked msgs doesn't lay around" do
+    with_channel do |ch|
+      q = ch.queue("unexpected")
+      5.times { q.publish("") }
+      expect_raises(Exception, "myerror") do
+        q.subscribe(no_ack: false, block: true) do |msg|
+          msg.ack
+          raise "myerror"
+        end
+      end
+      ch.closed?.should be_true
+      with_channel do |ch2|
+        q = ch2.queue_delete("unexpected")
+        q[:message_count].should eq 4
+      end
+    end
+  end
+
+  it "should close channel if unexpected exception in consume block" do
+    with_channel do |ch|
+      q = ch.queue("unexpected")
+      5.times { q.publish("") }
+      q.subscribe(no_ack: false, block: false, work_pool: 2) do |_msg|
+        raise "myerror"
+      end
+      sleep 0.1
+      ch.closed?.should be_true
+      with_channel do |ch2|
+        q = ch2.queue_delete("unexpected")
+        q[:message_count].should eq 5
+      end
     end
   end
 
