@@ -116,6 +116,8 @@ class AMQP::Client
         end
       when Frame::Basic::Cancel
         process_cancel(frame.consumer_tag, frame.no_wait)
+      when Frame::Basic::CancelOk
+        process_cancel_ok(frame.consumer_tag)
       when Frame::Basic::Ack
         process_confirm(true, frame.delivery_tag, frame.multiple)
       when Frame::Basic::Nack
@@ -154,6 +156,9 @@ class AMQP::Client
     end
 
     private def process_cancel_ok(consumer_tag : String)
+      if deliveries = @consumers.delete(consumer_tag)
+        deliveries.close
+      end
     end
 
     private def process_deliver
@@ -372,7 +377,7 @@ class AMQP::Client
         begin
           blk.call(msg)
         rescue ex
-          LOG.error(exception: ex) { "Uncaught exception in consumer, closing channel to prevent unacked messages" }
+          LOG.error(exception: ex) { "Uncaught exception in consumer, closing channel" }
           close("Uncaught exception in consumer #{consumer_tag}", 500)
           done.send(ex) rescue nil
           return
@@ -382,17 +387,18 @@ class AMQP::Client
     end
 
     # Cancel the consumer with the *consumer_tag*
-    def basic_cancel(consumer_tag, no_wait = true) : Nil
+    # Even with *no_wait* = false the method will return immediately, but outstanding deliveries will be processed.
+    def basic_cancel(consumer_tag, no_wait = false) : Nil
       if @consumers.has_key? consumer_tag
         write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
-        expect Frame::Basic::CancelOk unless no_wait
-        Fiber.yield # process as many incoming messages as possible before closing the channel
-        if deliveries = @consumers.delete(consumer_tag)
-          deliveries.close
-          return
+        if no_wait
+          if deliveries = @consumers.delete(consumer_tag)
+            deliveries.close
+          end
         end
+      else
+        LOG.info { "Consumer tag '#{consumer_tag}' already cancelled" }
       end
-      LOG.warn { "Consumer tag '#{consumer_tag}' already cancelled" }
     end
 
     # Acknowledge a message with *delivery_tag*,
