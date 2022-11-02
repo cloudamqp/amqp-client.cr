@@ -166,7 +166,7 @@ class AMQP::Client
           begin
             deliveries.send(msg)
           rescue ::Channel::ClosedError
-            LOG.debug { "Consumer tag '#{f.consumer_tag}' is canceled" } unless @closed
+            LOG.debug { "Consumer tag '#{f.consumer_tag}' is cancelled" } unless @closed
           end
         else
           LOG.debug { "Consumer tag '#{f.consumer_tag}' not found" } unless @closed
@@ -335,6 +335,8 @@ class AMQP::Client
     # * The *exclusive* flags ensures that only a single consumer receives messages from the queue at the time
     # * The method will *block* if the flag is set, until the consumer/channel/connection is closed or the callback raises an exception
     # * To let multiple fibers process messages increase *work_pool*
+    # Make sure to handle all exceptions in the consume block,
+    # as unhandeled exceptions will cause the channel to be closed (to prevent dangling unacked messages and exception floods).
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
                       block = false, args arguments = Arguments.new, work_pool = 1,
                       &blk : DeliverMessage -> Nil)
@@ -344,10 +346,10 @@ class AMQP::Client
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
       ok = expect Frame::Basic::ConsumeOk
       done = ::Channel(Exception?).new
-      delivery_channel = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
-      @consumers[ok.consumer_tag] = delivery_channel
+      deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
+      @consumers[ok.consumer_tag] = deliveries
       work_pool.times do |i|
-        spawn consume(ok.consumer_tag, delivery_channel, done, no_ack, blk),
+        spawn consume(ok.consumer_tag, deliveries, done, i, blk),
           same_thread: i.zero?, # only force put the first fiber on same thread
           name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
       end
@@ -364,15 +366,14 @@ class AMQP::Client
       ok.consumer_tag
     end
 
-    private def consume(consumer_tag, deliveries, done, no_ack, blk)
-      LOG.context.set channel_id: @id.to_i, consumer: consumer_tag, fiber: "consumer##{consumer_tag}"
+    private def consume(consumer_tag, deliveries, done, i, blk)
+      LOG.context.set channel_id: @id.to_i, consumer: consumer_tag, worker: i
       while msg = deliveries.receive?
         begin
           blk.call(msg)
         rescue ex
-          LOG.error(exception: ex) { "Uncaught exception in consumer, cancelling #{no_ack ? "" : "and requeuing message"}" }
-          basic_cancel(consumer_tag, no_wait: true)
-          basic_reject(msg.delivery_tag, requeue: true) unless no_ack
+          LOG.error(exception: ex) { "Uncaught exception in consumer, closing channel to prevent unacked messages" }
+          close("Uncaught exception in consumer #{consumer_tag}", 500)
           done.send(ex) rescue nil
           return
         end
