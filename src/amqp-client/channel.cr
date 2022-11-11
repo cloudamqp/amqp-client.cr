@@ -237,7 +237,7 @@ class AMQP::Client
                       mandatory = false, immediate = false, props properties = Properties.new) : UInt64
       raise ClosedException.new(@closing_frame) if @closing_frame
 
-      @connection.with_lock do |c|
+      @connection.with_lock(flush: !@tx) do |c|
         c.unsafe_write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
         c.unsafe_write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, properties)
         pos = 0_u32
