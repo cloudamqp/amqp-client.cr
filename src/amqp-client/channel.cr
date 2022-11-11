@@ -128,7 +128,6 @@ class AMQP::Client
         close frame
       else
         @reply_frames.send frame
-        Fiber.yield
       end
     end
 
