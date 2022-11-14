@@ -81,8 +81,7 @@ class AMQP::Client
       @closed = true
       @reply_frames.close
       @basic_get.close
-      @on_confirm.each_value &.call(false)
-      @on_confirm.clear
+      @confirms.close
       @consumers.each_value &.close
       @consumers.clear
     end
@@ -118,9 +117,9 @@ class AMQP::Client
       when Frame::Basic::CancelOk
         process_cancel_ok(frame.consumer_tag)
       when Frame::Basic::Ack
-        process_confirm(true, frame.delivery_tag, frame.multiple)
+        process_confirm(frame.delivery_tag, frame.multiple, true)
       when Frame::Basic::Nack
-        process_confirm(false, frame.delivery_tag, frame.multiple)
+        process_confirm(frame.delivery_tag, frame.multiple, false)
       when Frame::Channel::Flow
         process_flow frame.active
       when Frame::Channel::Close
@@ -275,41 +274,39 @@ class AMQP::Client
 
     # Block until confirmed published message with *msgid* returned from `basic_publish`
     def wait_for_confirm(msgid) : Bool
-      ch = ::Channel(Bool).new
-      on_confirm(msgid) do |acked|
-        ch.send(acked)
+      loop do
+        last_confirm, ok = @last_confirm
+        return ok if last_confirm >= msgid
+        delivery_tag, multiple, ok = @confirms.receive
+        return ok if multiple && delivery_tag >= msgid
+        return ok if delivery_tag == msgid
       end
-      ch.receive
-    ensure
+    rescue ::Channel::ClosedError
       raise ClosedException.new(@closing_frame) if @closing_frame
+      false
     end
 
-    @on_confirm = Sync(Hash(UInt64, Proc(Bool, Nil))).new
+    @confirms = NonBlockingChannel({UInt64, Bool, Bool}).new
     @last_confirm = {0_u64, true}
 
-    def on_confirm(msgid, &blk : Bool -> Nil)
-      raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
-      last_confirm, last_confirm_ok = @last_confirm
-      if last_confirm >= msgid.to_u64
-        blk.call last_confirm_ok
-      else
-        @on_confirm[msgid.to_u64] = blk
+    def on_confirm(msgid : Int, &blk : Bool -> Nil) : Nil
+      last_confirm, ok = @last_confirm
+      return yield(ok) if last_confirm >= msgid
+
+      spawn(name: "AMQPClient wait_for_confirm #{msgid}") do
+        loop do
+          delivery_tag, ok = @last_confirm
+          break blk.call(ok) if delivery_tag >= msgid
+          delivery_tag, multiple, ok = @confirms.receive? || break
+          break blk.call(ok) if multiple && delivery_tag >= msgid
+          break blk.call(ok) if delivery_tag == msgid
+        end
       end
     end
 
-    private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
+    private def process_confirm(delivery_tag : UInt64, multiple : Bool, acked : Bool)
       @last_confirm = {delivery_tag, acked}
-      if multiple
-        @on_confirm.reject! do |msgid, blk|
-          if msgid <= delivery_tag
-            blk.call acked
-            true
-          else
-            false
-          end
-        end
-      elsif blk = @on_confirm.delete delivery_tag
-        blk.call acked
+      while @confirms.try_send?({delivery_tag, multiple, acked})
       end
     end
 
@@ -620,6 +617,24 @@ class AMQP::Client
 
     def inspect(io : IO) : Nil
       io << "#<" << self.class.name << " @id=" << @id << '>'
+    end
+
+    private class NonBlockingChannel(T) < ::Channel(T)
+      # Sends a value to the channel if it has capacity.
+      # It doesn't block if the channel doesn't have capacity.
+      #
+      # Returns `true` if the value could be deliviered immediately, `false` otherwise, also when the channel is closed.
+      def try_send?(value : T) : Bool
+        @lock.lock
+        case send_internal(value)
+        in .delivered?
+          true
+        in .none?, .closed?
+          false
+        end
+      ensure
+        @lock.unlock
+      end
     end
   end
 end
