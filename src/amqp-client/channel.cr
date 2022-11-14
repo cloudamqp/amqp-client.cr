@@ -6,7 +6,7 @@ require "./sync"
 
 class AMQP::Client
   class Channel
-    private LOG = ::Log.for(self)
+    private Log = ::Log.for(self)
 
     # Channel ID
     @connection : Connection
@@ -53,15 +53,15 @@ class AMQP::Client
       begin
         write Frame::Channel::CloseOk.new(@id)
       rescue ex
-        LOG.error(exception: ex) { "Couldn't write CloseOk frame" }
+        Log.error(exception: ex) { "Couldn't write CloseOk frame" }
       end
       @closed = true
       @closing_frame = frame
-      LOG.info { "Channel closed by server: #{frame.inspect}" } unless @on_close
+      Log.info { "Channel closed by server: #{frame.inspect}" } unless @on_close
       begin
         @on_close.try &.call(frame.reply_code, frame.reply_text)
       rescue ex
-        LOG.error(exception: ex) { "Uncaught exception in on_close block" }
+        Log.error(exception: ex) { "Uncaught exception in on_close block" }
       end
       cleanup
     end
@@ -140,16 +140,16 @@ class AMQP::Client
     end
 
     private def process_cancel(consumer_tag : String, no_wait : Bool)
-      LOG.warn { "Consumer #{consumer_tag} cancelled by server" } unless @on_cancel || @closed || @connection.closed?
+      Log.warn { "Consumer #{consumer_tag} cancelled by server" } unless @on_cancel || @closed || @connection.closed?
       begin
         @on_cancel.try &.call(consumer_tag)
       rescue ex
-        LOG.error(exception: ex) { "Uncaught exception in on_cancel" }
+        Log.error(exception: ex) { "Uncaught exception in on_cancel" }
       end
       if deliveries = @consumers.delete(consumer_tag)
         deliveries.close
       else
-        LOG.warn { "Consumer tag '#{consumer_tag}' already cancelled" }
+        Log.warn { "Consumer tag '#{consumer_tag}' already cancelled" }
       end
       write Frame::Basic::CancelOk.new(@id, consumer_tag) unless no_wait
     end
@@ -170,10 +170,10 @@ class AMQP::Client
           begin
             deliveries.send(msg)
           rescue ::Channel::ClosedError
-            LOG.debug { "Consumer tag '#{f.consumer_tag}' is cancelled" } unless @closed
+            Log.debug { "Consumer tag '#{f.consumer_tag}' is cancelled" } unless @closed
           end
         else
-          LOG.debug { "Consumer tag '#{f.consumer_tag}' not found" } unless @closed
+          Log.debug { "Consumer tag '#{f.consumer_tag}' not found" } unless @closed
         end
       when Frame::Basic::Return
         msg = ReturnedMessage.new(f.reply_code, f.reply_text,
@@ -181,7 +181,7 @@ class AMQP::Client
         if on_return = @on_return
           spawn on_return.call(msg), name: "AMQP::Client::Channel#on_return"
         else
-          LOG.error { "Message returned but no on_return block defined: #{msg.inspect}" }
+          Log.error { "Message returned but no on_return block defined: #{msg.inspect}" }
         end
       when Frame::Basic::GetOk
         msg = GetMessage.new(self, f.exchange, f.routing_key,
@@ -371,12 +371,12 @@ class AMQP::Client
     end
 
     private def consume(consumer_tag, deliveries, done, i, blk)
-      LOG.context.set channel_id: @id.to_i, consumer: consumer_tag, worker: i
+      Log.context.set channel_id: @id.to_i, consumer: consumer_tag, worker: i
       while msg = deliveries.receive?
         begin
           blk.call(msg)
         rescue ex
-          LOG.error(exception: ex) { "Uncaught exception in consumer, closing channel" }
+          Log.error(exception: ex) { "Uncaught exception in consumer, closing channel" }
           close("Uncaught exception in consumer #{consumer_tag}", 500)
           done.send(ex) rescue nil
           return
@@ -396,7 +396,7 @@ class AMQP::Client
           end
         end
       else
-        LOG.info { "Consumer tag '#{consumer_tag}' already cancelled" }
+        Log.info { "Consumer tag '#{consumer_tag}' already cancelled" }
       end
     end
 

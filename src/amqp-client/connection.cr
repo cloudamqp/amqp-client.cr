@@ -7,7 +7,7 @@ require "../amqp-client"
 
 class AMQP::Client
   class Connection
-    private LOG = ::Log.for(self)
+    private Log = ::Log.for(self)
 
     @reply_frames = ::Channel(Frame).new
     getter closing_frame : Frame::Connection::Close?
@@ -61,7 +61,7 @@ class AMQP::Client
       io = @io
       loop do
         Frame.from_io(io) do |f|
-          LOG.debug { "recv #{f.inspect}" }
+          Log.debug { "recv #{f.inspect}" }
           case f
           when Frame::Connection::Close
             process_close(f)
@@ -70,14 +70,14 @@ class AMQP::Client
             begin
               @reply_frames.send f
             rescue ::Channel::ClosedError
-              LOG.debug { "CloseOk ignored by user" }
+              Log.debug { "CloseOk ignored by user" }
             end
             return
           when Frame::Connection::Blocked
-            LOG.info { "Blocked by server, reason: #{f.reason}" }
+            Log.info { "Blocked by server, reason: #{f.reason}" }
             @write_lock.lock
           when Frame::Connection::Unblocked
-            LOG.info { "Unblocked by server" }
+            Log.info { "Unblocked by server" }
             @write_lock.unlock
           when Frame::Heartbeat
             write f
@@ -86,10 +86,10 @@ class AMQP::Client
           end
         end
       rescue ex : IO::Error | OpenSSL::Error
-        LOG.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
+        Log.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
         break
       rescue ex
-        LOG.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
+        Log.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
         break
       end
     ensure
@@ -107,15 +107,15 @@ class AMQP::Client
         begin
           on_close.call(f.reply_code, f.reply_text)
         rescue ex
-          LOG.error(exception: ex) { "Uncaught exception in on_close block" }
+          Log.error(exception: ex) { "Uncaught exception in on_close block" }
         end
       else
-        LOG.info { "Connection closed by server: #{f.reply_text} (code #{f.reply_code})" }
+        Log.info { "Connection closed by server: #{f.reply_text} (code #{f.reply_code})" }
       end
       begin
         write Frame::Connection::CloseOk.new
       rescue ex
-        LOG.error(exception: ex) { "Couldn't write CloseOk frame" }
+        Log.error(exception: ex) { "Couldn't write CloseOk frame" }
       end
       @closing_frame = f
     end
@@ -124,7 +124,7 @@ class AMQP::Client
       if ch = @channels.fetch(f.channel, nil)
         ch.incoming f
       else
-        LOG.error { "Channel #{f.channel} not open for frame #{f.inspect}" }
+        Log.error { "Channel #{f.channel} not open for frame #{f.inspect}" }
       end
 
       case f
@@ -159,7 +159,7 @@ class AMQP::Client
       rescue ex
         raise Error.new(cause: ex)
       end
-      LOG.debug { "sent #{frame.inspect}" }
+      Log.debug { "sent #{frame.inspect}" }
     end
 
     # :nodoc:
@@ -175,18 +175,18 @@ class AMQP::Client
     # The *reason* might be logged by the server
     def close(reason = "", no_wait = false)
       return if @closed
-      LOG.debug { "Closing connection" }
+      Log.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
       return if no_wait
       while frame = @reply_frames.receive?
         if frame.as?(Frame::Connection::CloseOk)
-          LOG.debug { "Server confirmed close" }
+          Log.debug { "Server confirmed close" }
           return
         end
       end
-      LOG.debug { "Server didn't confirm close" }
+      Log.debug { "Server didn't confirm close" }
     rescue ex : IO::Error
-      LOG.info { "Socket already closed, can't send close frame" }
+      Log.info { "Socket already closed, can't send close frame" }
     ensure
       @closed = true
       @reply_frames.close

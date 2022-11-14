@@ -6,7 +6,7 @@ require "log"
 require "./amqp-client/*"
 
 class AMQP::Client
-  private LOG         = ::Log.for(self)
+  private Log         = ::Log.for(self)
   private WS_SCHEMES  = {"ws", "wss", "http", "https"}
   private TLS_SCHEMES = {"amqps", "wss", "https"}
   private SCHEME_PORT = {"amqp" => 5672, "amqps" => 5671, "ws" => 80, "wss" => 443, "http" => 80, "https" => 443}
@@ -59,7 +59,7 @@ class AMQP::Client
     vhost = uri.path.bytesize > 1 ? URI.decode_www_form(uri.path[1..-1]) : "/"
     user = uri.user || "guest"
     password = uri.password || "guest"
-    LOG.debug { "Opening connection to #{host} with arguments #{uri.query_params}" }
+    Log.debug { "Opening connection to #{host} with arguments #{uri.query_params}" }
     heartbeat = 0_u16
     frame_max = 131_072_u32
     channel_max = 1024_u16
