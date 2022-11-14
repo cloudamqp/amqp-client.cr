@@ -6,15 +6,18 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     continue-on-error: true
-
+    container: 84codes/crystal:latest-ubuntu-20.04
     steps:
-      - name: Checkout
+      - uses: actions/checkout@v3
+      - name: Checkout ameba
         uses: actions/checkout@v3
-
-      - name: Crystal Ameba Linter
-        uses: crystal-ameba/github-action@v0.5.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repository: crystal-ameba/ameba
+          path: ameba
+      - name: Build ameba
+        run: make -C ameba
+      - name: Run ameba
+        run: ameba/bin/ameba
 
   spec:
     name: Spec
