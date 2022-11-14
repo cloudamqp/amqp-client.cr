@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     container: 84codes/crystal:latest-ubuntu-20.04
     services:
-      avalanchemq:
-        image: cloudamqp/avalanchemq
+      lavinmq:
+        image: cloudamqp/lavinmq
 
     steps:
       - name: Checkout
@@ -34,7 +34,7 @@ jobs:
       - name: Spec
         run: crystal spec --no-color --order random
         env:
-          AMQP_URL: amqp://avalanchemq
+          AMQP_URL: amqp://lavinmq
 
   format:
     name: Formatting
