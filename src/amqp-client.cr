@@ -51,7 +51,7 @@ class AMQP::Client
     self.new(uri)
   end
 
-  def self.new(uri : URI)
+  def self.new(uri : URI) # ameba:disable Metrics/CyclomaticComplexity
     tls = TLS_SCHEMES.includes? uri.scheme
     websocket = WS_SCHEMES.includes? uri.scheme
     host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
