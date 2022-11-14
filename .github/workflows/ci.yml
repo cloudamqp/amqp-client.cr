@@ -35,7 +35,7 @@ jobs:
         run: shards install
 
       - name: Spec
-        run: crystal spec --no-color --order random
+        run: crystal spec --order random
         env:
           AMQP_URL: amqp://lavinmq
 
