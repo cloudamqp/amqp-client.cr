@@ -125,6 +125,9 @@ class AMQP::Client
         process_flow frame.active
       when Frame::Channel::Close
         close frame
+      when Frame::Basic::ConsumeOk
+        @reply_frames.send frame
+        Fiber.yield # yield so that the consumer can be added to the hash before msgs are read
       else
         @reply_frames.send frame
       end
