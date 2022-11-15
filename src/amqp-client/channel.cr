@@ -8,12 +8,11 @@ class AMQP::Client
   class Channel
     private Log = ::Log.for(self)
 
-    # Channel ID
     @connection : Connection
     @reply_frames = ::Channel(Frame).new
     @basic_get = ::Channel(GetMessage?).new
     @confirm_id = 0_u64
-    getter id
+    getter id # Channel ID
     @prefetch_count = 0u16
     @confirm_mode = false
     @server_flow = true
