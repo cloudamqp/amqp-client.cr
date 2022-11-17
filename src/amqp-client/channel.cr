@@ -313,7 +313,7 @@ class AMQP::Client
       end
     end
 
-    # Get a single message form a *queue*
+    # Get a single message from a *queue*
     # The message must eventually be acked or rejected if *no_ack* is false
     def basic_get(queue : String, no_ack = true) : GetMessage?
       write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
