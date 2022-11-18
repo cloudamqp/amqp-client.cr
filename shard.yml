@@ -8,7 +8,7 @@ authors:
 dependencies:
   amq-protocol:
     github: cloudamqp/amq-protocol.cr
-    version: ~>1.0.0
+    version: ~>1
 
 crystal: ">=0.35.1"
 
