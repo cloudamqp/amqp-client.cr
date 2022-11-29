@@ -275,6 +275,8 @@ class AMQP::Client
 
     # Block until confirmed published message with *msgid* returned from `basic_publish`
     def wait_for_confirm(msgid) : Bool
+      raise Error.new("Channel not in confirm mode, call `confirm_select` first") unless @confirm_mode
+
       ch = ::Channel(Bool).new
       on_confirm(msgid) do |acked|
         ch.send(acked)
