@@ -1,5 +1,5 @@
 name: amqp-client
-version: 1.0.9
+version: 1.0.10
 
 authors:
   - Carl Hörberg <carl@cloudamqp.com>
