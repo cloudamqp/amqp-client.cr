@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Can configure multiple TCP options, both TCP and internal buffer sizes
+- Streams queue example
+
+### Changed
+
+- Default to 60s (before 15s) read timeout during connection establishment
+- Cancel consumer if callback raises unexpected exception
+- Augment Connection::ClosedException with host, user and vhost
+- Don't try to reject messages coming to a deleted consumer (might have been a noack consumer)
+
+### Fixed
+
+- Don't flush socket when publishing when in transaction mode, greatly increasing Tx publishing speed
+- Removed exchange_declare's exclusive parameter
+- Match parameter names for inherited methods
+- Close all consumers when closing Channel to prevent blocks
+- Raise an exception if trying to call wait_for_confirm on a channel that isn't in confirm mode
+
 ## [1.0.9] - 2022-03-27
 
 ### Added
