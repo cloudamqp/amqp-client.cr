@@ -55,7 +55,7 @@ class AMQP::Client
     tls = TLS_SCHEMES.includes? uri.scheme
     websocket = WS_SCHEMES.includes? uri.scheme
     host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
-    port = uri.port || SCHEME_PORT[uri.scheme]
+    port = uri.port || SCHEME_PORT[uri.scheme]? || -1
     vhost = uri.path.bytesize > 1 ? URI.decode_www_form(uri.path[1..-1]) : "/"
     user = uri.user || "guest"
     password = uri.password || "guest"
