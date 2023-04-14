@@ -200,7 +200,7 @@ class AMQP::Client
                    user, password, vhost, channel_max, frame_max, heartbeat, name = File.basename(PROGRAM_NAME))
       io.read_timeout = 60
       start(io, user, password, name)
-      tune(io, channel_max, frame_max, heartbeat)
+      channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
       Connection.new(io, channel_max, frame_max, heartbeat)
     rescue ex
@@ -258,6 +258,7 @@ class AMQP::Client
         frame_max: frame_max,
         heartbeat: heartbeat),
         IO::ByteFormat::NetworkEndian
+      {channel_max, frame_max, heartbeat}
     end
 
     private def self.open(io, vhost)
