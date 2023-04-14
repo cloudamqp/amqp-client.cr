@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Default to amqp protocol when scheme is missing from URI
+
+### Fixed
+
+- Update connection tune parameters after negotation (before eg. the frame_max wouldn't be respected if tuned to a lower value by the server)
+
 ## [1.0.10] - 2022-12-05
 
 ### Added
