@@ -79,10 +79,9 @@ class AMQP::Client
     # :nodoc:
     def cleanup
       @closed = true
+      @confirm_capacity.close
       @reply_frames.close
       @basic_get.close
-      @on_confirm.each_value &.call(false)
-      @on_confirm.clear
       @consumers.each_value &.close
       @consumers.clear
     end
@@ -235,7 +234,7 @@ class AMQP::Client
 
     # Publish a message with a set *bytesize*, to an *exchange* with *routing_key*
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
-                      mandatory = false, immediate = false, props properties = Properties.new) : UInt64
+                      mandatory = false, immediate = false, props properties = Properties.new) : Bool?
       raise ClosedException.new(@closing_frame) if @closing_frame
 
       @connection.with_lock(flush: !@tx) do |c|
@@ -255,63 +254,52 @@ class AMQP::Client
         end
       end
       if @confirm_mode
-        @confirm_id = @confirm_id &+ 1_u64
-      else
-        0_u64
+        msgid = @confirm_id &+= 1_u64
+        @unconfirmed_publishes.push msgid
+        if @unconfirmed_publishes.size >= @max_unconfirmed_publishes
+          wait_for_confirm
+        end
       end
     end
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
+      @max_unconfirmed_publishes = 1
       confirm_select
-      msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, properties)
-      wait_for_confirm(msgid)
+      basic_publish(msg, exchange, routing_key, mandatory, immediate, properties).not_nil!
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
+      @max_unconfirmed_publishes = 1
       confirm_select
-      msgid = basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties)
-      wait_for_confirm(msgid)
+      basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties).not_nil!
     end
 
     # Block until confirmed published message with *msgid* returned from `basic_publish`
-    def wait_for_confirm(msgid) : Bool
-      raise Error.new("Channel not in confirm mode, call `confirm_select` first") unless @confirm_mode
-
-      ch = ::Channel(Bool).new
-      on_confirm(msgid) do |acked|
-        ch.send(acked)
-      end
-      ch.receive
+    private def wait_for_confirm
+      @confirm_capacity.receive
     ensure
       raise ClosedException.new(@closing_frame) if @closing_frame
     end
 
-    @on_confirm = Sync(Hash(UInt64, Proc(Bool, Nil))).new
-    @last_confirm = {0_u64, true}
-
-    def on_confirm(msgid, &blk : Bool -> Nil)
-      raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
-      last_confirm, last_confirm_ok = @last_confirm
-      if last_confirm >= msgid.to_u64
-        blk.call last_confirm_ok
-      else
-        @on_confirm[msgid.to_u64] = blk
-      end
-    end
+    property max_unconfirmed_publishes = 1
+    @unconfirmed_publishes = Deque(UInt64).new
+    @confirm_capacity = ::Channel(Bool).new
 
     private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
-      @last_confirm = {delivery_tag, acked}
-      if multiple
-        @on_confirm.reject! do |msgid, blk|
-          if msgid <= delivery_tag
-            blk.call acked
-            true
-          else
-            false
-          end
+      if idx = @unconfirmed_publishes.bsearch_index { |confirm_id| confirm_id >= delivery_tag }
+        if multiple
+          @unconfirmed_publishes.shift(idx + 1)
+        else
+          @unconfirmed_publishes.delete_at(idx)
         end
-      elsif blk = @on_confirm.delete delivery_tag
-        blk.call acked
+      end
+      return if @max_unconfirmed_publishes > @unconfirmed_publishes.size
+      loop do
+        select
+        when @confirm_capacity.send acked
+        else
+          break
+        end
       end
     end
 
