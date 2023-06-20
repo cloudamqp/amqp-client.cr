@@ -79,7 +79,7 @@ class AMQP::Client
     # :nodoc:
     def cleanup
       @closed = true
-      @confirm_capacity.close
+      @unconfirmed_empty.close
       @reply_frames.close
       @basic_get.close
       @consumers.each_value &.close
@@ -234,7 +234,7 @@ class AMQP::Client
 
     # Publish a message with a set *bytesize*, to an *exchange* with *routing_key*
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
-                      mandatory = false, immediate = false, props properties = Properties.new) : Bool?
+                      mandatory = false, immediate = false, props properties = Properties.new) : UInt64?
       raise ClosedException.new(@closing_frame) if @closing_frame
 
       @connection.with_lock(flush: !@tx) do |c|
@@ -254,51 +254,56 @@ class AMQP::Client
         end
       end
       if @confirm_mode
-        msgid = @confirm_id &+= 1_u64
-        @unconfirmed_publishes.push msgid
-        if @unconfirmed_publishes.size >= @max_unconfirmed_publishes
-          wait_for_confirm
+        @confirm_lock.synchronize do
+          msgid = @confirm_id &+= 1_u64
+          @unconfirmed_publishes.push msgid
+          msgid
         end
       end
     end
 
-    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      @max_unconfirmed_publishes = 1
+    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Nil
       confirm_select
-      basic_publish(msg, exchange, routing_key, mandatory, immediate, properties).not_nil!
+      basic_publish(msg, exchange, routing_key, mandatory, immediate, properties)
+      wait_for_confirms
     end
 
-    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      @max_unconfirmed_publishes = 1
+    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Nil
       confirm_select
-      basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties).not_nil!
+      basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties)
+      wait_for_confirms
     end
 
-    # Block until confirmed published message with *msgid* returned from `basic_publish`
-    private def wait_for_confirm
-      @confirm_capacity.receive
-    ensure
+    # Returns when there are no unconfirmed publishes on the channel
+    # Raises if there was any negative acknowledgements
+    def wait_for_confirms
+      @unconfirmed_empty.receive
       raise ClosedException.new(@closing_frame) if @closing_frame
     end
 
-    property max_unconfirmed_publishes = 1
     @unconfirmed_publishes = Deque(UInt64).new
-    @confirm_capacity = ::Channel(Bool).new
+    @unconfirmed_empty = ::Channel(Bool).new
+    @confirm_lock = Mutex.new
 
     private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
-      if idx = @unconfirmed_publishes.bsearch_index { |confirm_id| confirm_id >= delivery_tag }
-        if multiple
-          @unconfirmed_publishes.shift(idx + 1)
-        else
-          @unconfirmed_publishes.delete_at(idx)
+      @confirm_lock.synchronize do
+        if @unconfirmed_publishes.first? == delivery_tag
+          @unconfirmed_publishes.shift
+        elsif idx = @unconfirmed_publishes.bsearch_index { |confirm_id| confirm_id >= delivery_tag }
+          if multiple
+            @unconfirmed_publishes.shift(idx + 1)
+          else
+            @unconfirmed_publishes.delete_at(idx)
+          end
         end
-      end
-      return if @max_unconfirmed_publishes > @unconfirmed_publishes.size
-      loop do
-        select
-        when @confirm_capacity.send acked
-        else
-          break
+        if @unconfirmed_publishes.empty?
+          loop do
+            select
+            when @unconfirmed_empty.send acked
+            else
+              break
+            end
+          end
         end
       end
     end
