@@ -79,7 +79,7 @@ class AMQP::Client
     # :nodoc:
     def cleanup
       @closed = true
-      @confirm_capacity.close
+      @unconfirmed_publishes.close
       @reply_frames.close
       @basic_get.close
       @consumers.each_value &.close
@@ -255,51 +255,37 @@ class AMQP::Client
       end
       if @confirm_mode
         msgid = @confirm_id &+= 1_u64
-        @unconfirmed_publishes.push msgid
-        if @unconfirmed_publishes.size >= @max_unconfirmed_publishes
-          wait_for_confirm
-        end
+        @unconfirmed_publishes.send msgid
+        raise "msg nacked" if @confirm_nack >= msgid
+        raise ClosedException.new(@closing_frame) if @closing_frame
       end
     end
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      @max_unconfirmed_publishes = 1
+      max_unconfirmed_publishes = 1
       confirm_select
       basic_publish(msg, exchange, routing_key, mandatory, immediate, properties).not_nil!
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      @max_unconfirmed_publishes = 1
+      max_unconfirmed_publishes = 1
       confirm_select
       basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties).not_nil!
     end
 
-    # Block until confirmed published message with *msgid* returned from `basic_publish`
-    private def wait_for_confirm
-      @confirm_capacity.receive
-    ensure
-      raise ClosedException.new(@closing_frame) if @closing_frame
+    @unconfirmed_publishes = ::Channel(UInt64).new
+    @confirm_nack = 0u64
+
+    def max_unconfirmed_publishes=(value : Int)
+      @unconfirmed_publishes = ::Channel(UInt64).new(value - 1)
     end
 
-    property max_unconfirmed_publishes = 1
-    @unconfirmed_publishes = Deque(UInt64).new
-    @confirm_capacity = ::Channel(Bool).new
-
     private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
-      if idx = @unconfirmed_publishes.bsearch_index { |confirm_id| confirm_id >= delivery_tag }
-        if multiple
-          @unconfirmed_publishes.shift(idx + 1)
-        else
-          @unconfirmed_publishes.delete_at(idx)
-        end
-      end
-      return if @max_unconfirmed_publishes > @unconfirmed_publishes.size
       loop do
-        select
-        when @confirm_capacity.send acked
-        else
-          break
-        end
+        msgid = @unconfirmed_publishes.receive
+        @confirm_nack = msgid if !acked
+        break if msgid == delivery_tag
+        raise "out of order pub confirms" if !multiple
       end
     end
 
