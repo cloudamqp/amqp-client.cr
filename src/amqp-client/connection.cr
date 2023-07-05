@@ -43,7 +43,7 @@ class AMQP::Client
       end
     end
 
-    def channel(&blk : Channel -> _)
+    def channel(& : Channel -> _)
       ch = channel
       yield ch
     ensure
@@ -171,7 +171,7 @@ class AMQP::Client
     end
 
     # :nodoc:
-    def with_lock(flush = true, &blk : self -> _)
+    def with_lock(flush = true, & : self -> _)
       @write_lock.synchronize do
         yield self
         @io.flush if flush

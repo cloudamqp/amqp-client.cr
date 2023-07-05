@@ -588,7 +588,7 @@ class AMQP::Client
 
     # Commits a transaction if the block returns,
     # rolls back the transaction if the block raises an exception
-    def transaction
+    def transaction(&)
       tx_select
       begin
         yield

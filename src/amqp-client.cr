@@ -29,7 +29,7 @@ class AMQP::Client
 
   alias TLSContext = OpenSSL::SSL::Context::Client | Bool | Nil
 
-  def self.start(url : String | URI, &blk : AMQP::Client::Connection -> _)
+  def self.start(url : String | URI, & : AMQP::Client::Connection -> _)
     conn = self.new(url).connect
     yield conn
   ensure
@@ -39,7 +39,7 @@ class AMQP::Client
   def self.start(host = AMQP_HOST, port = AMQP_PORT, vhost = AMQP_VHOST,
                  user = AMQP_USER, password = AMQP_PASS, tls : TLSContext = AMQP_TLS, websocket = AMQP_WS,
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
-                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, &blk : AMQP::Client::Connection -> _)
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, & : AMQP::Client::Connection -> _)
     conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name).connect
     yield conn
   ensure
@@ -65,7 +65,7 @@ class AMQP::Client
     channel_max = 1024_u16
     verify_mode = OpenSSL::SSL::VerifyMode::PEER
     name = File.basename(PROGRAM_NAME)
-    buffer_size = 16384
+    buffer_size = 16_384
     tcp = TCPConfig.new
     uri.query_params.each do |key, value|
       case key
@@ -101,7 +101,7 @@ class AMQP::Client
   def initialize(@host = AMQP_HOST, @port = AMQP_PORT, @vhost = AMQP_VHOST, @user = AMQP_USER, @password = AMQP_PASS,
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
-                 @tcp = TCPConfig.new, @buffer_size = 16384)
+                 @tcp = TCPConfig.new, @buffer_size = 16_384)
     if tls.is_a? OpenSSL::SSL::Context::Client
       @tls = tls
     elsif tls == true

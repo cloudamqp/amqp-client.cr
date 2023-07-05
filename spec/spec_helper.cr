@@ -7,25 +7,25 @@ Log.setup_from_env
 Spec.override_default_formatter(Spec::VerboseFormatter.new) unless ENV["CI"]?
 
 module TestHelpers
-  def with_connection(**args)
+  def with_connection(**args, &)
     AMQP::Client.start(**args) do |c|
       yield c
     end
   end
 
-  def with_channel(**args, &blk)
+  def with_channel(**args, &)
     with_connection(**args) do |c|
       yield c.channel
     end
   end
 
-  def with_ws_connection
-    AMQP::Client.start(websocket: true, port: 15672) do |c|
+  def with_ws_connection(&)
+    AMQP::Client.start(websocket: true, port: 15_672) do |c|
       yield c
     end
   end
 
-  def with_ws_channel(&blk)
+  def with_ws_channel(&)
     with_ws_connection do |c|
       yield c.channel
     end

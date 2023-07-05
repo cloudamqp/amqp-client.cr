@@ -2,7 +2,7 @@ require "./spec_helper"
 
 describe "Websocket client" do
   it "should connect over websocket" do
-    c = AMQP::Client.new(websocket: true, port: 15672)
+    c = AMQP::Client.new(websocket: true, port: 15_672)
     conn = c.connect
     conn.should_not be_nil
     conn.close
@@ -229,7 +229,7 @@ describe "Websocket client" do
   end
 
   it "should set connection name" do
-    AMQP::Client.start(websocket: true, port: 15672, name: "My Name") do |_|
+    AMQP::Client.start(websocket: true, port: 15_672, name: "My Name") do |_|
       names = Array(String).new
       5.times do
         HTTP::Client.get("http://guest:guest@#{AMQP::Client::AMQP_HOST}:15672/api/connections") do |resp|
@@ -244,7 +244,7 @@ describe "Websocket client" do
   end
 
   it "should not wait for connection close" do
-    conn = AMQP::Client.new(websocket: true, port: 15672).connect
+    conn = AMQP::Client.new(websocket: true, port: 15_672).connect
     conn.close(no_wait: true)
   end
 
