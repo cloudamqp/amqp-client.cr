@@ -210,7 +210,7 @@ describe AMQP::Client do
       ch.exchange_declare("foo", "bar", no_wait: true)
       sleep 0.1
       # by now we should've gotten the connection closed by the server
-      expect_raises(AMQP::Client::Channel::ClosedException) do
+      expect_raises(AMQP::Client::Channel::ClosedException | AMQP::Client::Connection::ClosedException) do
         ch.queue
       end
     end
