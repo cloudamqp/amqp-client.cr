@@ -121,7 +121,15 @@ class AMQP::Client
     end
 
     private def process_channel_frame(f)
-      if ch = @channels.fetch(f.channel, nil)
+      ch = case f
+           when Frame::Channel::Close, Frame::Channel::CloseOk
+             @channels_lock.synchronize do
+               @channels.delete f.channel
+             end
+           else
+             @channels.fetch(f.channel, nil)
+           end
+      if ch
         ch.incoming f
       else
         Log.error { "Channel #{f.channel} not open for frame #{f.inspect}" }
