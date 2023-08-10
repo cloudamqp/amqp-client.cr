@@ -451,33 +451,50 @@ class AMQP::Client
     # *durable* will make the queue durable on the server (note that messages have have the persistent flag set to make the messages persistent)
     # *exclusive* will make the queue exclusive to the channel and will be deleted when the channel is closed
     # *auto_delete* will delete the queue when the last consumer as stopped consuming
+    # *no_wait* will cause the method to return without waiting for a confirmation from the server
     def queue_declare(name : String, passive = false,
                       durable = name.empty? ? false : true,
                       exclusive = name.empty? ? true : false,
                       auto_delete = name.empty? ? true : false,
+                      no_wait = false,
                       args arguments = Arguments.new)
-      no_wait = false
       write Frame::Queue::Declare.new(@id, 0_u16, name, passive, durable, exclusive, auto_delete, no_wait, arguments)
-      f = expect Frame::Queue::DeclareOk
-      {
-        queue_name:     f.queue_name,
-        message_count:  f.message_count,
-        consumer_count: f.consumer_count,
-      }
+      if no_wait
+        {
+          queue_name:     name,
+          message_count:  0u32,
+          consumer_count: 0u32,
+        }
+      else
+        f = expect Frame::Queue::DeclareOk
+        {
+          queue_name:     f.queue_name,
+          message_count:  f.message_count,
+          consumer_count: f.consumer_count,
+        }
+      end
     end
 
     # Delete a queue
-    def queue_delete(name : String, if_unused = false, if_empty = false)
-      write Frame::Queue::Delete.new(@id, 0_u16, name, if_unused, if_empty, no_wait: false)
-      f = expect Frame::Queue::DeleteOk
-      {message_count: f.message_count}
+    def queue_delete(name : String, if_unused = false, if_empty = false, no_wait = false)
+      write Frame::Queue::Delete.new(@id, 0_u16, name, if_unused, if_empty, no_wait)
+      if no_wait
+        {message_count: 0u32}
+      else
+        f = expect Frame::Queue::DeleteOk
+        {message_count: f.message_count}
+      end
     end
 
     # Purge/empty a queue, will return the number of messages deleted
-    def queue_purge(name : String)
-      write Frame::Queue::Purge.new(@id, 0_u16, name, no_wait: false)
-      f = expect Frame::Queue::PurgeOk
-      {message_count: f.message_count}
+    def queue_purge(name : String, no_wait = false)
+      write Frame::Queue::Purge.new(@id, 0_u16, name, no_wait)
+      if no_wait
+        {message_count: 0u32}
+      else
+        f = expect Frame::Queue::PurgeOk
+        {message_count: f.message_count}
+      end
     end
 
     # Bind a *queue* to an *exchange*, with a *routing_key* and optionally some *arguments*
