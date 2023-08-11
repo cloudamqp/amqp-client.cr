@@ -442,7 +442,7 @@ class AMQP::Client
 
     # Declares a queue with a name, by default durable and not auto-deleted
     def queue(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, args arguments = Arguments.new)
-      q = queue_declare(name, passive, durable, exclusive, auto_delete, arguments)
+      q = queue_declare(name, passive, durable, exclusive, auto_delete, false, arguments)
       Queue.new(self, q[:queue_name])
     end
 
