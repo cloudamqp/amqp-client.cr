@@ -173,6 +173,20 @@ describe AMQP::Client do
     end
   end
 
+  it "should publish many wait for all confirms" do
+    with_channel do |ch|
+      q = ch.queue
+      ch.confirm_select
+      4000.times do
+        q.publish "hej"
+      end
+      ch.wait_for_confirms.should eq true
+      ok = q.delete
+      ok[:message_count].should eq 4000
+      ch.unconfirmed_count.should eq 0
+    end
+  end
+
   it "should publish and consume properties" do
     with_channel do |ch|
       q = ch.queue

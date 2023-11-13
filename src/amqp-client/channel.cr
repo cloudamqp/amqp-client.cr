@@ -287,7 +287,19 @@ class AMQP::Client
     end
 
     @on_confirm = Sync(Hash(UInt64, Proc(Bool, Nil))).new
+    @all_confirmed = ::Channel(Bool).new
     @last_confirm = {0_u64, true}
+
+    def unconfirmed_count
+      @on_confirm.size
+    end
+
+    # Block until all messages are confirmed
+    def wait_for_confirms : Bool
+      return true if unconfirmed_count.zero?
+
+      @all_confirmed.receive
+    end
 
     def on_confirm(msgid, &blk : Bool -> Nil)
       raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
@@ -312,6 +324,13 @@ class AMQP::Client
         end
       elsif blk = @on_confirm.delete delivery_tag
         blk.call acked
+      end
+      if unconfirmed_count.zero?
+        select
+        when @all_confirmed.send acked then true
+        else
+          false
+        end
       end
     end
 
