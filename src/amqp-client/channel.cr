@@ -279,6 +279,7 @@ class AMQP::Client
     # Returns when there are no unconfirmed publishes on the channel
     # Raises if there was any negative acknowledgements
     def wait_for_confirms : Bool
+      return true if @unconfirmed_publishes.empty?
       ok = @unconfirmed_empty.receive
       unless ok
         if frame = @closing_frame
