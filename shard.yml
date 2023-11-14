@@ -7,7 +7,6 @@ authors:
 
 dependencies:
   amq-protocol:
-    #path: ../amq-protocol.cr
     github: cloudamqp/amq-protocol.cr
     version: ~>1
 development_dependencies:
