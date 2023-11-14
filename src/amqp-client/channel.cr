@@ -234,7 +234,7 @@ class AMQP::Client
 
     # Publish a message with a set *bytesize*, to an *exchange* with *routing_key*
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
-                      mandatory = false, immediate = false, props properties = Properties.new) : UInt64?
+                      mandatory = false, immediate = false, props properties = Properties.new) : UInt64
       raise ClosedException.new(@closing_frame) if @closing_frame
 
       @connection.with_lock(flush: !@tx) do |c|
@@ -259,16 +259,18 @@ class AMQP::Client
           @unconfirmed_publishes.push msgid
           msgid
         end
+      else
+        0_u64
       end
     end
 
-    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Nil
+    def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
       confirm_select
       basic_publish(msg, exchange, routing_key, mandatory, immediate, properties)
       wait_for_confirms
     end
 
-    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Nil
+    def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
       confirm_select
       basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties)
       wait_for_confirms
@@ -276,14 +278,55 @@ class AMQP::Client
 
     # Returns when there are no unconfirmed publishes on the channel
     # Raises if there was any negative acknowledgements
-    def wait_for_confirms
-      @unconfirmed_empty.receive
+    def wait_for_confirms : Bool
+      ok = @unconfirmed_empty.receive
+      unless ok
+        if frame = @closing_frame
+          raise ClosedException.new(frame)
+        else
+          raise Error.new("BUG: got nack without closing frame")
+        end
+      end
+      ok
+    end
+
+    # Block until confirmed published message with *msgid* returned from `basic_publish`
+    @[Deprecated("Use `#wait_for_confirms` instead")]
+    def wait_for_confirm(msgid) : Bool
+      raise Error.new("Channel not in confirm mode, call `confirm_select` first") unless @confirm_mode
+
+      ch = ::Channel(Bool).new
+      on_confirm(msgid) do |acked|
+        ch.send(acked)
+      end
+      ch.receive
+    ensure
       raise ClosedException.new(@closing_frame) if @closing_frame
     end
 
     @unconfirmed_publishes = Deque(UInt64).new
     @unconfirmed_empty = ::Channel(Bool).new
     @confirm_lock = Mutex.new
+    @last_confirm = {0_u64, true}
+
+    @[Deprecated("Use `#wait_for_confirms` instead")]
+    def on_confirm(msgid, &blk : Bool -> Nil)
+      raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
+      last_confirm, last_confirm_ok = @last_confirm
+      if last_confirm >= msgid.to_u64
+        blk.call last_confirm_ok
+      elsif last_unconfirmed = @unconfirmed_publishes.last
+        if last_unconfirmed >= msgid.to_u64
+          wait_for_confirms
+          blk.call last_confirm_ok
+        else
+          raise Error.new("msgid #{msgid} not published of this channel")
+        end
+      else
+        wait_for_confirms
+        blk.call last_confirm_ok
+      end
+    end
 
     private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
       @confirm_lock.synchronize do
@@ -296,6 +339,7 @@ class AMQP::Client
             @unconfirmed_publishes.delete_at(idx)
           end
         end
+        @last_confirm = {delivery_tag, acked}
         if @unconfirmed_publishes.empty?
           loop do
             select
