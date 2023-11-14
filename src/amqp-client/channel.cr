@@ -279,6 +279,8 @@ class AMQP::Client
     # Returns when there are no unconfirmed publishes on the channel
     # Raises if there was any negative acknowledgements
     def wait_for_confirms : Bool
+      ensure_confirm_mode
+
       return true if @unconfirmed_publishes.empty?
       ok = @unconfirmed_empty.receive
       unless ok
@@ -294,7 +296,7 @@ class AMQP::Client
     # Block until confirmed published message with *msgid* returned from `basic_publish`
     @[Deprecated("Use `#wait_for_confirms` instead")]
     def wait_for_confirm(msgid) : Bool
-      raise Error.new("Channel not in confirm mode, call `confirm_select` first") unless @confirm_mode
+      ensure_confirm_mode
 
       ch = ::Channel(Bool).new
       on_confirm(msgid) do |acked|
@@ -308,24 +310,15 @@ class AMQP::Client
     @unconfirmed_publishes = Deque(UInt64).new
     @unconfirmed_empty = ::Channel(Bool).new
     @confirm_lock = Mutex.new
-    @last_confirm = {0_u64, true}
 
     @[Deprecated("Use `#wait_for_confirms` instead")]
     def on_confirm(msgid, &blk : Bool -> Nil)
       raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
-      last_confirm, last_confirm_ok = @last_confirm
-      if last_confirm >= msgid.to_u64
-        blk.call last_confirm_ok
-      elsif last_unconfirmed = @unconfirmed_publishes.last
-        if last_unconfirmed >= msgid.to_u64
-          wait_for_confirms
-          blk.call last_confirm_ok
-        else
-          raise Error.new("msgid #{msgid} not published of this channel")
-        end
+
+      if _idx = @unconfirmed_publishes.bsearch_index { |confirm_id| confirm_id >= delivery_tag }
+        blk.call wait_for_confirms
       else
-        wait_for_confirms
-        blk.call last_confirm_ok
+        raise Error.new("msgid #{msgid} ack is not expected on this channel")
       end
     end
 
@@ -340,7 +333,6 @@ class AMQP::Client
             @unconfirmed_publishes.delete_at(idx)
           end
         end
-        @last_confirm = {delivery_tag, acked}
         if @unconfirmed_publishes.empty?
           loop do
             select
@@ -351,6 +343,10 @@ class AMQP::Client
           end
         end
       end
+    end
+
+    private def ensure_confirm_mode
+      raise Error.new("Channel not in confirm mode, call `confirm_select` first") unless @confirm_mode
     end
 
     # Get a single message from a *queue*
