@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2023-11-16
+
+### Changed
+
+- `basic_publish_confirm` waits for all unconfirmed messages to be confirmed.
+- `wait_for_confirm(msgid)` and `on_confirm(msgid)` and deprecated in favour of new `wait_for_confirms`.
+
+### Added
+
+- `no_wait` support for queue declare/delete/purge.
+
 ## [1.0.12] - 2023-07-05
 
 ### Fixed
@@ -23,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Update connection tune parameters after negotation (before eg. the frame_max wouldn't be respected if tuned to a lower value by the server)
+- Update connection tune parameters after negotiation (before eg. the frame_max wouldn't be respected if tuned to a lower value by the server)
 
 ## [1.0.10] - 2022-12-05
 
