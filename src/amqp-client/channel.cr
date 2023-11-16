@@ -79,10 +79,9 @@ class AMQP::Client
     # :nodoc:
     def cleanup
       @closed = true
+      @unconfirmed_empty.close
       @reply_frames.close
       @basic_get.close
-      @on_confirm.each_value &.call(false)
-      @on_confirm.clear
       @consumers.each_value &.close
       @consumers.clear
     end
@@ -255,7 +254,11 @@ class AMQP::Client
         end
       end
       if @confirm_mode
-        @confirm_id = @confirm_id &+ 1_u64
+        @confirm_lock.synchronize do
+          msgid = @confirm_id &+= 1_u64
+          @unconfirmed_publishes.push msgid
+          msgid
+        end
       else
         0_u64
       end
@@ -263,56 +266,77 @@ class AMQP::Client
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
       confirm_select
-      msgid = basic_publish(msg, exchange, routing_key, mandatory, immediate, properties)
-      wait_for_confirm(msgid)
+      basic_publish(msg, exchange, routing_key, mandatory, immediate, properties)
+      wait_for_confirms
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
       confirm_select
-      msgid = basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties)
-      wait_for_confirm(msgid)
+      basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties)
+      wait_for_confirms
+    end
+
+    # Returns when there are no unconfirmed publishes on the channel
+    # Raises if there was any negative acknowledgements
+    def wait_for_confirms : Bool
+      ensure_confirm_mode
+
+      return true if @unconfirmed_publishes.empty?
+      ok = @unconfirmed_empty.receive
+      unless ok
+        if frame = @closing_frame
+          raise ClosedException.new(frame)
+        else
+          raise Error.new("BUG: got nack without closing frame")
+        end
+      end
+      ok
     end
 
     # Block until confirmed published message with *msgid* returned from `basic_publish`
+    @[Deprecated("Use `#wait_for_confirms` instead")]
     def wait_for_confirm(msgid) : Bool
-      raise Error.new("Channel not in confirm mode, call `confirm_select` first") unless @confirm_mode
+      ensure_confirm_mode
+      raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
+      raise Error.new "Confirm id #{msgid} not published on this channel" if msgid > @confirm_id
 
-      ch = ::Channel(Bool).new
-      on_confirm(msgid) do |acked|
-        ch.send(acked)
-      end
-      ch.receive
-    ensure
-      raise ClosedException.new(@closing_frame) if @closing_frame
+      wait_for_confirms
     end
 
-    @on_confirm = Sync(Hash(UInt64, Proc(Bool, Nil))).new
-    @last_confirm = {0_u64, true}
+    @unconfirmed_publishes = Deque(UInt64).new
+    @unconfirmed_empty = ::Channel(Bool).new
+    @confirm_lock = Mutex.new
 
+    @[Deprecated("Use `#wait_for_confirms` instead")]
     def on_confirm(msgid, &blk : Bool -> Nil)
-      raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
-      last_confirm, last_confirm_ok = @last_confirm
-      if last_confirm >= msgid.to_u64
-        blk.call last_confirm_ok
-      else
-        @on_confirm[msgid.to_u64] = blk
-      end
+      blk.call wait_for_confirm(msgid)
     end
 
     private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
-      @last_confirm = {delivery_tag, acked}
-      if multiple
-        @on_confirm.reject! do |msgid, blk|
-          if msgid <= delivery_tag
-            blk.call acked
-            true
+      @confirm_lock.synchronize do
+        if @unconfirmed_publishes.first? == delivery_tag
+          @unconfirmed_publishes.shift
+        elsif idx = @unconfirmed_publishes.bsearch_index { |confirm_id| confirm_id >= delivery_tag }
+          if multiple
+            @unconfirmed_publishes.shift(idx + 1)
           else
-            false
+            @unconfirmed_publishes.delete_at(idx)
           end
         end
-      elsif blk = @on_confirm.delete delivery_tag
-        blk.call acked
+        if @unconfirmed_publishes.empty?
+          loop do
+            select
+            when @unconfirmed_empty.send acked
+            else
+              break
+            end
+          end
+        end
       end
+    end
+
+    private def ensure_confirm_mode
+      raise Error.new("Channel not in confirm mode, call `confirm_select` first") unless @confirm_mode
     end
 
     # Get a single message from a *queue*
