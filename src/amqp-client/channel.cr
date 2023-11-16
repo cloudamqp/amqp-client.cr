@@ -297,14 +297,10 @@ class AMQP::Client
     @[Deprecated("Use `#wait_for_confirms` instead")]
     def wait_for_confirm(msgid) : Bool
       ensure_confirm_mode
+      raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
+      raise Error.new "Confirm id #{msgid} not published on this channel" if msgid > @confirm_id
 
-      ch = ::Channel(Bool).new
-      on_confirm(msgid) do |acked|
-        ch.send(acked)
-      end
-      ch.receive
-    ensure
-      raise ClosedException.new(@closing_frame) if @closing_frame
+      wait_for_confirms
     end
 
     @unconfirmed_publishes = Deque(UInt64).new
@@ -313,13 +309,7 @@ class AMQP::Client
 
     @[Deprecated("Use `#wait_for_confirms` instead")]
     def on_confirm(msgid, &blk : Bool -> Nil)
-      raise ArgumentError.new "Confirm id must be > 0" unless msgid > 0
-
-      if _idx = @unconfirmed_publishes.bsearch_index { |confirm_id| confirm_id >= delivery_tag }
-        blk.call wait_for_confirms
-      else
-        raise Error.new("msgid #{msgid} ack is not expected on this channel")
-      end
+      blk.call wait_for_confirm(msgid)
     end
 
     private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
