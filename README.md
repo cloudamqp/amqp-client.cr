@@ -1,5 +1,3 @@
-[![Build Status](https://travis-ci.org/cloudamqp/amqp-client.cr.svg?branch=master)](https://travis-ci.org/cloudamqp/amqp-client.cr)
-
 # amqp-client
 
 An AMQP 0-9-1 client for Crystal.
