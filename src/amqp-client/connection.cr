@@ -205,9 +205,10 @@ class AMQP::Client
 
     # Connection negotiation
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
-                   user, password, vhost, channel_max, frame_max, heartbeat, name = File.basename(PROGRAM_NAME))
+                   user, password, vhost, channel_max, frame_max, heartbeat, client_args,
+                   name = File.basename(PROGRAM_NAME))
       io.read_timeout = 60
-      start(io, user, password, name)
+      start(io, user, password, name, client_args)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
       Connection.new(io, channel_max, frame_max, heartbeat)
@@ -225,13 +226,13 @@ class AMQP::Client
       io.read_timeout = nil
     end
 
-    private def self.start(io, user, password, name)
+    private def self.start(io, user, password, name, client_args)
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise Error::UnexpectedFrame.new(f) }
       props = Arguments.new({
         connection_name: name,
-        product:         "amqp-client.cr",
+        product:         client_args || "amqawegrdp-client.cr",
         platform:        "Crystal",
         version:         AMQP::Client::VERSION,
         capabilities:    Arguments.new({

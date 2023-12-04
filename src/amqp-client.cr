@@ -29,8 +29,8 @@ class AMQP::Client
 
   alias TLSContext = OpenSSL::SSL::Context::Client | Bool | Nil
 
-  def self.start(url : String | URI, & : AMQP::Client::Connection -> _)
-    conn = self.new(url).connect
+  def self.start(url : String | URI, client_args = nil, & : AMQP::Client::Connection -> _)
+    conn = self.new(url, client_args).connect
     yield conn
   ensure
     conn.try &.close
@@ -39,19 +39,19 @@ class AMQP::Client
   def self.start(host = AMQP_HOST, port = AMQP_PORT, vhost = AMQP_VHOST,
                  user = AMQP_USER, password = AMQP_PASS, tls : TLSContext = AMQP_TLS, websocket = AMQP_WS,
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
-                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, & : AMQP::Client::Connection -> _)
-    conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name).connect
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, client_args = nil, & : AMQP::Client::Connection -> _)
+    conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, client_args).connect
     yield conn
   ensure
     conn.try &.close
   end
 
-  def self.new(url : String)
+  def self.new(url : String, client_args = nil)
     uri = URI.parse(url)
     self.new(uri)
   end
 
-  def self.new(uri : URI) # ameba:disable Metrics/CyclomaticComplexity
+  def self.new(uri : URI, client_args = nil) # ameba:disable Metrics/CyclomaticComplexity
     tls = TLS_SCHEMES.includes? uri.scheme
     websocket = WS_SCHEMES.includes? uri.scheme
     host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
@@ -87,7 +87,7 @@ class AMQP::Client
     end
     self.new(host, port, vhost, user, password, tls, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
-      tcp, buffer_size)
+      tcp, buffer_size, client_args)
   end
 
   property host, port, vhost, user, websocket, tcp, buffer_size
@@ -101,7 +101,7 @@ class AMQP::Client
   def initialize(@host = AMQP_HOST, @port = AMQP_PORT, @vhost = AMQP_VHOST, @user = AMQP_USER, @password = AMQP_PASS,
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
-                 @tcp = TCPConfig.new, @buffer_size = 16_384)
+                 @tcp = TCPConfig.new, @buffer_size = 16_384, @client_args : String? = nil)
     if tls.is_a? OpenSSL::SSL::Context::Client
       @tls = tls
     elsif tls == true
@@ -113,17 +113,17 @@ class AMQP::Client
   def connect : Connection
     if @host.starts_with? '/'
       socket = connect_unix
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @client_args, @name)
     elsif @websocket
       websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls)
       io = WebSocketIO.new(websocket)
-      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
+      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @client_args, @name)
     elsif ctx = @tls.as? OpenSSL::SSL::Context::Client
       socket = connect_tls(connect_tcp, ctx)
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @client_args, @name)
     else
       socket = connect_tcp
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @client_args, @name)
     end
   rescue ex
     case ex
