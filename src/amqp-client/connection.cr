@@ -205,10 +205,10 @@ class AMQP::Client
 
     # Connection negotiation
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
-                   user, password, vhost, channel_max, frame_max, heartbeat, client_args,
+                   user, password, vhost, channel_max, frame_max, heartbeat, connection_information,
                    name = File.basename(PROGRAM_NAME))
       io.read_timeout = 60
-      start(io, user, password, name, client_args)
+      start(io, user, password, name, connection_information)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
       Connection.new(io, channel_max, frame_max, heartbeat)
@@ -226,15 +226,16 @@ class AMQP::Client
       io.read_timeout = nil
     end
 
-    private def self.start(io, user, password, name, client_args)
+    private def self.start(io, user, password, name, connection_information)
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise Error::UnexpectedFrame.new(f) }
       props = Arguments.new({
         connection_name: name,
-        product:         client_args || "amqawegrdp-client.cr",
-        platform:        "Crystal",
-        version:         AMQP::Client::VERSION,
+        product:         connection_information.try(&.product) || "amqp-client.cr",
+        platform:        connection_information.try(&.platform) || "Crystal",
+        product_version:         connection_information.try(&.product_version) || AMQP::Client::VERSION,
+        platform_version:        connection_information.try(&.platform_version) || Crystal::VERSION,
         capabilities:    Arguments.new({
           "publisher_confirms":           true,
           "exchange_exchange_bindings":   true,
