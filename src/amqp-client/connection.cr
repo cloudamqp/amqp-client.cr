@@ -208,7 +208,7 @@ class AMQP::Client
                    user, password, vhost, channel_max, frame_max, heartbeat, connection_information,
                    name = File.basename(PROGRAM_NAME))
       io.read_timeout = 60
-      start(io, user, password, name, connection_information)
+      start(io, user, password, connection_information, name)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
       Connection.new(io, channel_max, frame_max, heartbeat)
@@ -226,7 +226,7 @@ class AMQP::Client
       io.read_timeout = nil
     end
 
-    private def self.start(io, user, password, name, connection_information)
+    private def self.start(io, user, password, connection_information, name)
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise Error::UnexpectedFrame.new(f) }
