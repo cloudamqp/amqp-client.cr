@@ -395,4 +395,16 @@ describe AMQP::Client do
       c.connect
     end
   end
+
+  it "should raise in blocked subscribe if channel error" do
+    with_channel do |ch|
+      q = ch.queue
+      q.publish "foo"
+      expect_raises(AMQP::Client::Channel::ClosedException, /PRECONDITION/) do
+        q.subscribe(no_ack: false, block: true) do |_|
+          ch.basic_ack 9999
+        end
+      end
+    end
+  end
 end
