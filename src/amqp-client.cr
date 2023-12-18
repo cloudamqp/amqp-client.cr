@@ -29,8 +29,8 @@ class AMQP::Client
 
   alias TLSContext = OpenSSL::SSL::Context::Client | Bool | Nil
 
-  def self.start(url : String | URI, connection_information : ConnectionInformation? = nil, & : AMQP::Client::Connection -> _)
-    conn = self.new(url, connection_information).connect
+  def self.start(url : String | URI, & : AMQP::Client::Connection -> _)
+    conn = self.new(url).connect
     yield conn
   ensure
     conn.try &.close
@@ -46,12 +46,12 @@ class AMQP::Client
     conn.try &.close
   end
 
-  def self.new(url : String, connection_information : ConnectionInformation? = nil)
+  def self.new(url : String)
     uri = URI.parse(url)
-    self.new(uri, connection_information)
+    self.new(uri)
   end
 
-  def self.new(uri : URI, connection_information : ConnectionInformation? = nil) # ameba:disable Metrics/CyclomaticComplexity
+  def self.new(uri : URI) # ameba:disable Metrics/CyclomaticComplexity
     tls = TLS_SCHEMES.includes? uri.scheme
     websocket = WS_SCHEMES.includes? uri.scheme
     host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
@@ -67,6 +67,7 @@ class AMQP::Client
     name = File.basename(PROGRAM_NAME)
     buffer_size = 16_384
     tcp = TCPConfig.new
+    connection_information = ConnectionInformation.new
     uri.query_params.each do |key, value|
       case key
       when "name"             then name = URI.decode_www_form(value)
@@ -77,6 +78,10 @@ class AMQP::Client
       when "tcp_nodelay"      then tcp.nodelay = true
       when "recv_buffer_size" then tcp.recv_buffer_size = value.to_i
       when "send_buffer_size" then tcp.send_buffer_size = value.to_i
+      when "product"          then connection_information.product = value
+      when "platform"         then connection_information.platform = value
+      when "product_version"  then connection_information.product_version = value
+      when "platform_version" then connection_information.platform_version = value
       when "tcp_keepalive"
         ka = value.split(':', 3).map &.to_i
         tcp.keepalive_idle, tcp.keepalive_interval, tcp.keepalive_count = ka
