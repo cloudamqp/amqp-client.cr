@@ -368,6 +368,7 @@ class AMQP::Client
             raise ex
           end
         end
+        raise ClosedException.new(@closing_frame) if @closing_frame
       else
         done.close
       end
