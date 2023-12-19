@@ -34,17 +34,24 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
       ch.basic_ack(msg.delivery_tag)
     end
 
-    # publish directly to a queue without confirm
+    # publish directly to a queue without confirm (fire and forget)
     q.publish "msg"
 
-    # publish directly to a queue, blocking while waiting for confirm
+    # publish directly to a queue and blocking while waiting for confirm
     q.publish_confirm "msg"
 
-    # publish to any exchange/routing-key
+    # publish to any exchange/routing-key (fire and forget)
     ch.basic_publish "msg", exchange: "amq.topic", routing_key: "a"
 
-    # publish to any exchange/routing-key and wait for confirm
+    # publish to any exchange/routing-key and block while waiting for confirm
     ch.basic_publish_confirm "msg", exchange: "amq.topic", routing_key: "a"
+
+    # When the Channel is in confirm mode a block can be given to the basic_publish
+    # method and it will be executed when the message is confirmed by the server
+    ch.confirm_select
+    ch.basic_publish("msg", "amq.topic", "my.topic") do
+      puts "Message is confirmed by the server"
+    end
 
     # This statement will block until a message has arrived
     # The only way to "escape" the block is to unsubscribe
