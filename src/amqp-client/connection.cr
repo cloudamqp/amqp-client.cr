@@ -234,12 +234,12 @@ class AMQP::Client
       platform_version = connection_information.try(&.platform) ? (connection_information.try(&.platform_version) || nil) : Crystal::VERSION
 
       props = Arguments.new({
-        connection_name: name,
-        product:         connection_information.try(&.product) || "amqp-client.cr",
-        platform:        connection_information.try(&.platform) || "Crystal",
-        product_version:         product_version,
-        platform_version:        platform_version,
-        capabilities:    Arguments.new({
+        connection_name:  name,
+        product:          connection_information.try(&.product) || "amqp-client.cr",
+        platform:         connection_information.try(&.platform) || "Crystal",
+        product_version:  product_version,
+        platform_version: platform_version,
+        capabilities:     Arguments.new({
           "publisher_confirms":           true,
           "exchange_exchange_bindings":   true,
           "basic.nack":                   true,
