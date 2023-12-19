@@ -32,6 +32,16 @@ class AMQP::Client
       @channel.basic_publish_confirm(message, @name, routing_key, mandatory, immediate, properties)
     end
 
+    # Publish a message to the exchange, block is called when message is confirmed
+    def publish(message, routing_key : String, mandatory = false, immediate = false, props properties = Properties.new, &blk)
+      @channel.basic_publish(message, @name, routing_key, mandatory, immediate, properties, blk)
+    end
+
+    # Publish and confirm a message to the exchange, block is called when message is confirmed
+    def publish_confirm(message, routing_key : String, mandatory = false, immediate = false, props properties = Properties.new, &blk)
+      @channel.basic_publish_confirm(message, @name, routing_key, mandatory, immediate, properties, blk)
+    end
+
     # Delete the exchange
     def delete(if_unused = false)
       @channel.exchange_delete(@name, if_unused)

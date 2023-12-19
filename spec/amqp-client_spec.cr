@@ -167,17 +167,15 @@ describe AMQP::Client do
     end
   end
 
-  it "should call on_confirm block" do
+  it "should call confirm block" do
     with_channel do |ch|
       ch.confirm_select
+      confirmed = Channel(Bool).new
       q = ch.queue
-      msgid = q.publish("hej")
-      confirmed = false
-      ch.on_confirm(msgid) do
-        confirmed = true
+      q.publish("hej") do
+        confirmed.send true
       end
-      ch.wait_for_confirm(msgid)
-      confirmed.should be_true
+      confirmed.receive.should eq true
     end
   end
 
