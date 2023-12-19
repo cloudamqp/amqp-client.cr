@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.13] - 2023-12-19
+
+### Fixed
+
+- Raise an exception if a blocked subscriber is closed by the server
+
+### Added
+
+- no_wait support for queue_declare/delete/purge
+
 ## [1.1.0] - 2023-11-16
 
 ### Changed
