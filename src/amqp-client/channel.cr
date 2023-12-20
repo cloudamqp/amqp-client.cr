@@ -291,22 +291,22 @@ class AMQP::Client
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
       confirm_select
-      done = ::Channel(Nil).new
+      waiting_fiber = Fiber.current
       basic_publish(msg, exchange, routing_key, mandatory, immediate, properties) do
-        done.send nil
+        waiting_fiber.enqueue
       end
-      done.receive
+      sleep
       raise ClosedException.new(@closing_frame) if @closing_frame
       true
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
       confirm_select
-      done = ::Channel(Nil).new
+      waiting_fiber = Fiber.current
       basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties) do
-        done.send nil
+        waiting_fiber.enqueue
       end
-      done.receive
+      sleep
       raise ClosedException.new(@closing_frame) if @closing_frame
       true
     end
