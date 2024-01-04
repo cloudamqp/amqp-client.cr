@@ -262,6 +262,10 @@ class AMQP::Client
       raise ClosedException.new(@closing_frame) if @closing_frame
 
       @connection.with_lock(flush: !@tx) do |c|
+        if blk && !@confirm_mode
+          c.unsafe_write Frame::Confirm::Select.new(@id, true)
+          @confirm_mode = true
+        end
         c.unsafe_write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
         c.unsafe_write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, properties)
         pos = 0_u32
@@ -284,13 +288,11 @@ class AMQP::Client
           msgid
         end
       else
-        raise ArgumentError.new("On confirm block received but channel is not in confirm mode") if blk
         0_u64
       end
     end
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      confirm_select
       waiting_fiber = Fiber.current
       basic_publish(msg, exchange, routing_key, mandatory, immediate, properties) do
         waiting_fiber.enqueue
@@ -301,7 +303,6 @@ class AMQP::Client
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      confirm_select
       waiting_fiber = Fiber.current
       basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties) do
         waiting_fiber.enqueue
