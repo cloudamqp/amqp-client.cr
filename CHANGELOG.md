@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2024-01-05
+
+### Changed
+
+- `Channel#basic_publish` (as well as `Queue#publish`) callback now receivies a boolean if the message was Acked or Nacked by the server
+
+### Fixed
+
+- On channel close all outstanding publish confirm callbacks are rejected
+
 ## [1.2.0] - 2024-01-05
 
 ### Changed
