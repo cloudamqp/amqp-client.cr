@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2024-01-04
+
+### Changed
+
+- `Channel#basic_publish` (as well as `Queue#publish`) now takes a block, which will be executed when the message is confirmed
+- `Channel#on_confirm(msgid)` is removed
+- `Channel#wait_for_confirm(msgid)` is dropped
+
 ## [1.1.0] - 2023-11-16
 
 ### Changed
