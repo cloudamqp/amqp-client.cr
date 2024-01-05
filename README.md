@@ -49,8 +49,12 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
     # When the Channel is in confirm mode a block can be given to the basic_publish
     # method and it will be executed when the message is confirmed by the server
     ch.confirm_select
-    ch.basic_publish("msg", "amq.topic", "my.topic") do
-      puts "Message is confirmed by the server"
+    ch.basic_publish("msg", "amq.topic", "my.topic") do |ok|
+      if ok
+        puts "Message is confirmed by the server"
+      else
+        puts "Message was NOT confirmed by the server"
+      end
     end
 
     # This statement will block until a message has arrived
