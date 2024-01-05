@@ -85,7 +85,7 @@ class AMQP::Client
       @unconfirmed_empty.close
       @confirm_lock.synchronize do
         @unconfirmed_publishes.reject! do |_, cb|
-          cb.try &.call
+          cb.try &.call(false)
           true
         end
       end
@@ -225,7 +225,7 @@ class AMQP::Client
       basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, properties)
     end
 
-    def basic_publish(bytes : Bytes, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, &blk)
+    def basic_publish(bytes : Bytes, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, &blk : Bool -> Nil)
       basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, properties, blk)
     end
 
@@ -234,7 +234,7 @@ class AMQP::Client
       basic_publish(string.to_slice, exchange, routing_key, mandatory, immediate, properties)
     end
 
-    def basic_publish(string : String, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, &blk)
+    def basic_publish(string : String, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, &blk : Bool -> Nil)
       basic_publish(string.to_slice, string.bytesize, exchange, routing_key, mandatory, immediate, properties, blk)
     end
 
@@ -249,7 +249,7 @@ class AMQP::Client
       end
     end
 
-    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, &blk)
+    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, &blk : Bool -> Nil)
       pos = io.pos
       begin
         basic_publish(io, io.bytesize - pos, exchange, routing_key, mandatory, immediate, properties, blk)
@@ -260,14 +260,14 @@ class AMQP::Client
 
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props properties = Properties.new,
-                      &blk) : UInt64
+                      &blk : Bool -> Nil) : UInt64
       basic_publish(body, bytesize, exchange, routing_key, mandatory, immediate, properties, blk)
     end
 
     # Publish a message with a set *bytesize*, to an *exchange* with *routing_key*
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props properties = Properties.new,
-                      blk : Proc(Nil)? = nil) : UInt64
+                      blk : Proc(Bool, Nil)? = nil) : UInt64
       raise ClosedException.new(@closing_frame) if @closing_frame
 
       @connection.with_lock(flush: !@tx) do |c|
@@ -302,23 +302,27 @@ class AMQP::Client
     end
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
+      confirmed = false
       waiting_fiber = Fiber.current
-      basic_publish(msg, exchange, routing_key, mandatory, immediate, properties) do
+      basic_publish(msg, exchange, routing_key, mandatory, immediate, properties) do |ok|
+        confirmed = ok
         waiting_fiber.enqueue
       end
       sleep
       raise ClosedException.new(@closing_frame) if @closing_frame
-      true
+      confirmed
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
+      confirmed = false
       waiting_fiber = Fiber.current
-      basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties) do
+      basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties) do |ok|
+        confirmed = ok
         waiting_fiber.enqueue
       end
       sleep
       raise ClosedException.new(@closing_frame) if @closing_frame
-      true
+      confirmed
     end
 
     # Returns when there are no unconfirmed publishes on the channel
@@ -338,7 +342,7 @@ class AMQP::Client
       ok
     end
 
-    @unconfirmed_publishes = Deque(Tuple(UInt64, Proc(Nil)?)).new
+    @unconfirmed_publishes = Deque(Tuple(UInt64, Proc(Bool, Nil)?)).new
     @unconfirmed_empty = ::Channel(Bool).new
     @confirm_lock = Mutex.new
 
@@ -346,16 +350,16 @@ class AMQP::Client
       @confirm_lock.synchronize do
         if @unconfirmed_publishes.first? == delivery_tag
           _, blk = @unconfirmed_publishes.shift
-          blk.try &.call
+          blk.try &.call(acked)
         elsif multiple
           @unconfirmed_publishes.reject! do |confirm_id, cb|
             break if confirm_id > delivery_tag
-            cb.try &.call
+            cb.try &.call(acked)
             true
           end
         elsif idx = @unconfirmed_publishes.bsearch_index { |(confirm_id, _)| confirm_id >= delivery_tag }
           _, blk = @unconfirmed_publishes.delete_at(idx)
-          blk.try &.call
+          blk.try &.call(acked)
         end
         if @unconfirmed_publishes.empty?
           loop do

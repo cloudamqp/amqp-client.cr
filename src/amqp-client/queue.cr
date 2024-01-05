@@ -54,12 +54,12 @@ class AMQP::Client
     end
 
     # Publish a message directly to the queue, block is called when message is confirmed
-    def publish(message, mandatory = false, immediate = false, props properties = Properties.new, &blk)
+    def publish(message, mandatory = false, immediate = false, props properties = Properties.new, &blk : Bool -> Nil)
       @channel.basic_publish(message, "", @name, mandatory, immediate, properties, &blk)
     end
 
     # Publish a message directly to the queue, block is called when message is confirmed
-    def publish(io : IO, bytesize : Int, mandatory = false, immediate = false, props properties = Properties.new, &blk)
+    def publish(io : IO, bytesize : Int, mandatory = false, immediate = false, props properties = Properties.new, &blk : Bool -> Nil)
       @channel.basic_publish(io, bytesize, "", @name, mandatory, immediate, properties, blk)
     end
 
