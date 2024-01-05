@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Channel#on_confirm(msgid)` is removed
 - `Channel#wait_for_confirm(msgid)` is dropped
 
+### Fixed
+
+- Raise an exception if a blocked subscriber is closed by the server
+
 ## [1.1.0] - 2023-11-16
 
 ### Changed
