@@ -56,11 +56,14 @@ class AMQP::Client
       end
       @closed = true
       @closing_frame = frame
-      Log.info { "Channel closed by server: #{frame.inspect}" } unless @on_close
-      begin
-        @on_close.try &.call(frame.reply_code, frame.reply_text)
-      rescue ex
-        Log.error(exception: ex) { "Uncaught exception in on_close block" }
+      if on_close = @on_close
+        begin
+          on_close.call(frame.reply_code, frame.reply_text)
+        rescue ex
+          Log.error(exception: ex) { "Uncaught exception in on_close block" }
+        end
+      else
+        Log.info { "Channel closed by server: #{frame.inspect}" } unless @on_close
       end
       cleanup
     end
@@ -80,6 +83,12 @@ class AMQP::Client
     def cleanup
       @closed = true
       @unconfirmed_empty.close
+      @confirm_lock.synchronize do
+        @unconfirmed_publishes.reject! do |_, cb|
+          cb.try &.call
+          true
+        end
+      end
       @reply_frames.close
       @basic_get.close
       @consumers.each_value &.close
