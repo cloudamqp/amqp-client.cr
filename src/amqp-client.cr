@@ -103,7 +103,7 @@ class AMQP::Client
     property nodelay, keepalive_idle, keepalive_interval, keepalive_count, send_buffer_size, recv_buffer_size
   end
 
-  record ConnectionInformation, product : String? = nil, product_version : String? = nil, platform : String? = nil, platform_version : String? = nil do
+  record ConnectionInformation, product = "amqp-client.cr", product_version = AMQP::Client::VERSION, platform = "Crystal", platform_version = Crystal::VERSION do
     property product, product_version, platform, platform_version
   end
 

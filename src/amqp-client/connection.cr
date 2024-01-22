@@ -230,15 +230,12 @@ class AMQP::Client
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise Error::UnexpectedFrame.new(f) }
-      product_version = connection_information.try(&.product) ? (connection_information.try(&.product_version) || nil) : AMQP::Client::VERSION
-      platform_version = connection_information.try(&.platform) ? (connection_information.try(&.platform_version) || nil) : Crystal::VERSION
-
       props = Arguments.new({
         connection_name:  name,
-        product:          connection_information.try(&.product) || "amqp-client.cr",
-        platform:         connection_information.try(&.platform) || "Crystal",
-        product_version:  product_version,
-        platform_version: platform_version,
+        product:          connection_information.product,
+        platform:         connection_information.platform,
+        product_version:  connection_information.product_version,
+        platform_version: connection_information.platform_version,
         capabilities:     Arguments.new({
           "publisher_confirms":           true,
           "exchange_exchange_bindings":   true,
