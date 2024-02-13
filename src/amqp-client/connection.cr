@@ -231,7 +231,7 @@ class AMQP::Client
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise Error::UnexpectedFrame.new(f) }
       props = Arguments.new({
-        connection_name:  name,
+        connection_name:  name || connection_information.name,
         product:          connection_information.product,
         platform:         connection_information.platform,
         product_version:  connection_information.product_version,
