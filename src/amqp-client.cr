@@ -103,13 +103,14 @@ class AMQP::Client
     property nodelay, keepalive_idle, keepalive_interval, keepalive_count, send_buffer_size, recv_buffer_size
   end
 
-  record ConnectionInformation, product = "amqp-client.cr", product_version = AMQP::Client::VERSION, platform = "Crystal", platform_version = Crystal::VERSION do
+  record ConnectionInformation, product : String? = "amqp-client.cr", product_version : String? = nil, platform : String? = "Crystal", platform_version : String? = nil do
     property product, product_version, platform, platform_version
   end
 
   def initialize(@host = AMQP_HOST, @port = AMQP_PORT, @vhost = AMQP_VHOST, @user = AMQP_USER, @password = AMQP_PASS,
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
-                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME), @connection_information = ConnectionInformation.new,
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
+                 @connection_information = ConnectionInformation.new("amqp-client.cr", AMQP::Client::VERSION, "Crystal", Crystal::VERSION),
                  @tcp = TCPConfig.new, @buffer_size = 16_384)
     if tls.is_a? OpenSSL::SSL::Context::Client
       @tls = tls
