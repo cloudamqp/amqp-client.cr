@@ -50,14 +50,24 @@ class AMQP::Client
       ch.try &.close
     end
 
+    def update_secret(secret : String, reason : String) : Nil
+      write Frame::Connection::UpdateSecret.new(secret, reason)
+      @update_secret_ok.receive
+    rescue ::Channel::ClosedError
+      if f = @closing_frame
+        raise ClosedException.new(f)
+      end
+    end
+
     @on_close : Proc(UInt16, String, Nil)?
+    @update_secret_ok = ::Channel(Nil).new
 
     # Callback that's called if the `Connection` is closed by the server
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
     end
 
-    private def read_loop
+    private def read_loop # ameba:disable Metrics/CyclomaticComplexity
       io = @io
       loop do
         Frame.from_io(io) do |f|
@@ -79,6 +89,8 @@ class AMQP::Client
           when Frame::Connection::Unblocked
             Log.info { "Unblocked by server" }
             @write_lock.unlock
+          when Frame::Connection::UpdateSecretOk
+            @update_secret_ok.send nil
           when Frame::Heartbeat
             write f
           else
@@ -96,6 +108,7 @@ class AMQP::Client
       @closed = true
       @io.close rescue nil
       @reply_frames.close
+      @update_secret_ok.close
       @channels_lock.synchronize do
         @channels.each_value &.cleanup
         @channels.clear
