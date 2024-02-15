@@ -405,4 +405,10 @@ describe AMQP::Client do
       end
     end
   end
+
+  it "can update secret" do
+    AMQP::Client.start do |c|
+      c.update_secret("foobar", "no reason")
+    end
+  end
 end

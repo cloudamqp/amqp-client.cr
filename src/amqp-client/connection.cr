@@ -53,6 +53,10 @@ class AMQP::Client
     def update_secret(secret : String, reason : String) : Nil
       write Frame::Connection::UpdateSecret.new(secret, reason)
       @update_secret_ok.receive
+    rescue ::Channel::ClosedError
+      if f = @closing_frame
+        raise ClosedException.new(f)
+      end
     end
 
     @on_close : Proc(UInt16, String, Nil)?
@@ -104,6 +108,7 @@ class AMQP::Client
       @closed = true
       @io.close rescue nil
       @reply_frames.close
+      @update_secret_ok.close
       @channels_lock.synchronize do
         @channels.each_value &.cleanup
         @channels.clear
