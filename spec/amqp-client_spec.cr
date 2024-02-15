@@ -407,6 +407,7 @@ describe AMQP::Client do
   end
 
   it "can update secret" do
+    pending! "Not supported in LavinMQ yet"
     AMQP::Client.start do |c|
       c.update_secret("foobar", "no reason")
     end
