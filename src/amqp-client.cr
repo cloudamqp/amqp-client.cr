@@ -39,8 +39,8 @@ class AMQP::Client
   def self.start(host = AMQP_HOST, port = AMQP_PORT, vhost = AMQP_VHOST,
                  user = AMQP_USER, password = AMQP_PASS, tls : TLSContext = AMQP_TLS, websocket = AMQP_WS,
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
-                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, & : AMQP::Client::Connection -> _)
-    conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name).connect
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, connection_information = ConnectionInformation.new, & : AMQP::Client::Connection -> _)
+    conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, connection_information).connect
     yield conn
   ensure
     conn.try &.close
@@ -67,6 +67,7 @@ class AMQP::Client
     name = File.basename(PROGRAM_NAME)
     buffer_size = 16_384
     tcp = TCPConfig.new
+    connection_information = ConnectionInformation.new
     uri.query_params.each do |key, value|
       case key
       when "name"             then name = URI.decode_www_form(value)
@@ -77,6 +78,10 @@ class AMQP::Client
       when "tcp_nodelay"      then tcp.nodelay = true
       when "recv_buffer_size" then tcp.recv_buffer_size = value.to_i
       when "send_buffer_size" then tcp.send_buffer_size = value.to_i
+      when "product"          then connection_information.product = value
+      when "platform"         then connection_information.platform = value
+      when "product_version"  then connection_information.product_version = value
+      when "platform_version" then connection_information.platform_version = value
       when "tcp_keepalive"
         ka = value.split(':', 3).map &.to_i
         tcp.keepalive_idle, tcp.keepalive_interval, tcp.keepalive_count = ka
@@ -87,7 +92,7 @@ class AMQP::Client
     end
     self.new(host, port, vhost, user, password, tls, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
-      tcp, buffer_size)
+      connection_information, tcp, buffer_size)
   end
 
   property host, port, vhost, user, websocket, tcp, buffer_size
@@ -98,9 +103,14 @@ class AMQP::Client
     property nodelay, keepalive_idle, keepalive_interval, keepalive_count, send_buffer_size, recv_buffer_size
   end
 
+  record ConnectionInformation, product : String? = "amqp-client.cr", product_version : String? = nil, platform : String? = "Crystal", platform_version : String? = nil, name : String? = nil do
+    property product, product_version, platform, platform_version, name
+  end
+
   def initialize(@host = AMQP_HOST, @port = AMQP_PORT, @vhost = AMQP_VHOST, @user = AMQP_USER, @password = AMQP_PASS,
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
+                 @connection_information = ConnectionInformation.new("amqp-client.cr", AMQP::Client::VERSION, "Crystal", Crystal::VERSION, File.basename(PROGRAM_NAME)),
                  @tcp = TCPConfig.new, @buffer_size = 16_384)
     if tls.is_a? OpenSSL::SSL::Context::Client
       @tls = tls
@@ -113,17 +123,17 @@ class AMQP::Client
   def connect : Connection
     if @host.starts_with? '/'
       socket = connect_unix
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
     elsif @websocket
       websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls)
       io = WebSocketIO.new(websocket)
-      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
+      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
     elsif ctx = @tls.as? OpenSSL::SSL::Context::Client
       socket = connect_tls(connect_tcp, ctx)
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
     else
       socket = connect_tcp
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
     end
   rescue ex
     case ex
