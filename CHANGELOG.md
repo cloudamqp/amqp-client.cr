@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2024-03-09
+
+### Added
+
+- Connection#on_blocked/unblocked callbacks when when server is out of resources
+- ConnectionInformation struct to the constructor for product name/version passing to the server
+- Connection#update_secret for updating oauth secrets
+
+### Changed
+
+- The connection is not blocked when the server is out of resources, so that queues can still be purged/deleted or messages consumed to help the server. Make sure to use the new callbacks to limit your publishes though.
+
 ## [1.2.1] - 2024-01-05
 
 ### Changed
