@@ -13,6 +13,7 @@ class AMQP::Client
     getter closing_frame : Frame::Connection::Close?
     getter channel_max, frame_max
     getter? closed = false
+    getter? blocked = false
 
     protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                              @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
@@ -50,6 +51,8 @@ class AMQP::Client
       ch.try &.close
     end
 
+    @update_secret_ok = ::Channel(Nil).new
+
     def update_secret(secret : String, reason : String) : Nil
       write Frame::Connection::UpdateSecret.new(secret, reason)
       @update_secret_ok.receive
@@ -60,11 +63,23 @@ class AMQP::Client
     end
 
     @on_close : Proc(UInt16, String, Nil)?
-    @update_secret_ok = ::Channel(Nil).new
 
     # Callback that's called if the `Connection` is closed by the server
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
+    end
+
+    @on_blocked : Proc(String, Nil)?
+    @on_unblocked : Proc(Nil)?
+
+    # Callback called when server is blocked, first argument is the reason from the server
+    def on_blocked(&blk : String ->)
+      @on_blocked = blk
+    end
+
+    # Callback for when the server is unblocked again
+    def on_unblocked(&blk : ->)
+      @on_unblocked = blk
     end
 
     private def read_loop # ameba:disable Metrics/CyclomaticComplexity
@@ -85,10 +100,12 @@ class AMQP::Client
             return
           when Frame::Connection::Blocked
             Log.info { "Blocked by server, reason: #{f.reason}" }
-            @write_lock.lock
+            @blocked = true
+            @on_blocked.try &.call(f.reason)
           when Frame::Connection::Unblocked
             Log.info { "Unblocked by server" }
-            @write_lock.unlock
+            @blocked = false
+            @on_unblocked.try &.call
           when Frame::Connection::UpdateSecretOk
             @update_secret_ok.send nil
           when Frame::Heartbeat
