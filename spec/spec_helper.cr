@@ -4,7 +4,11 @@ require "json"
 require "../src/amqp-client"
 
 Log.setup_from_env
-Spec.override_default_formatter(Spec::VerboseFormatter.new) unless ENV["CI"]?
+{% if Spec::CLI.resolve? %}
+  Spec.cli.override_default_formatter(Spec::VerboseFormatter.new) unless ENV["CI"]?
+{% else %}
+  Spec.override_default_formatter(Spec::VerboseFormatter.new) unless ENV["CI"]?
+{% end %}
 
 module TestHelpers
   def with_connection(**args, &)
