@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.4] - 2024-05-31
+
+### Fixed
+
+- When a socket was closed when consuming the consume block didn't return
+- Messages larger than frame_max was split into too large frames, 8 bytes, didn't account for the frame wrapper
+
 ## [1.2.3] - 2024-04-15
 
 ### Fixed
