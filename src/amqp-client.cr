@@ -17,7 +17,7 @@ class AMQP::Client
   # :nodoc:
   AMQP_WS = WS_SCHEMES.includes?(AMQP_URL.try(&.scheme)) || false
   # :nodoc:
-  AMQP_HOST = AMQP_URL.try(&.host) || "localhost"
+  AMQP_HOST = AMQP_URL.try(&.hostname) || "localhost"
   # :nodoc:
   AMQP_PORT = AMQP_URL.try(&.port) || AMQP_WS ? (AMQP_TLS ? 443 : 80) : (AMQP_TLS ? 5671 : 5672)
   # :nodoc:
@@ -54,7 +54,7 @@ class AMQP::Client
   def self.new(uri : URI) # ameba:disable Metrics/CyclomaticComplexity
     tls = TLS_SCHEMES.includes? uri.scheme
     websocket = WS_SCHEMES.includes? uri.scheme
-    host = uri.host.to_s.empty? ? "localhost" : uri.host.to_s
+    host = uri.hostname.to_s.empty? ? "localhost" : uri.hostname.to_s
     port = uri.port || SCHEME_PORT[uri.scheme || "amqp"]
     vhost = uri.path.bytesize > 1 ? URI.decode_www_form(uri.path[1..-1]) : "/"
     user = uri.user || "guest"
