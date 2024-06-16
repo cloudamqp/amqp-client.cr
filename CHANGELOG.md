@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.5] - 2024-06-17
+
+### Fixed
+
+- Support brackets around IPv6 addresses in URLs, eg: amqp://[::1]:5672
+-
 ## [1.2.4] - 2024-05-31
 
 ### Fixed
