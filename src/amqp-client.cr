@@ -68,6 +68,7 @@ class AMQP::Client
     buffer_size = 16_384
     tcp = TCPConfig.new
     connection_information = ConnectionInformation.new
+    tls_ctx = OpenSSL::SSL::Context::Client.new if tls
     uri.query_params.each do |key, value|
       case key
       when "name"             then name = URI.decode_www_form(value)
@@ -85,12 +86,14 @@ class AMQP::Client
       when "tcp_keepalive"
         ka = value.split(':', 3).map &.to_i
         tcp.keepalive_idle, tcp.keepalive_interval, tcp.keepalive_count = ka
-      when "verify"
-        verify_mode = OpenSSL::SSL::VerifyMode::NONE if value =~ /^none$/i
-      else raise ArgumentError.new("Invalid parameter: #{key}")
+      when "verify"     then tls_ctx.try &.verify_mode = OpenSSL::SSL::VerifyMode::NONE if value =~ /^none$/i
+      when "cacertfile" then tls_ctx.try &.ca_certificates_path = value
+      when "certfile"   then tls_ctx.try &.certificate_chain = value
+      when "keyfile"    then tls_ctx.try &.private_key = value
+      else                   raise ArgumentError.new("Unrecognised parameter: #{key}")
       end
     end
-    self.new(host, port, vhost, user, password, tls, websocket,
+    self.new(host, port, vhost, user, password, tls_ctx, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
       connection_information, tcp, buffer_size)
   end
