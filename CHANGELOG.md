@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Specify cacert/cafile/keyfile via URI parameters
+
 ## [1.2.5] - 2024-06-17
 
 ### Fixed
