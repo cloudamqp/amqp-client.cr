@@ -412,4 +412,42 @@ describe AMQP::Client do
       c.update_secret("foobar", "no reason")
     end
   end
+
+  describe "Channel" do
+    it "#basic_consume block=true will raise Connection::ClosedException if broker closed connection" do
+      with_channel do |ch|
+        ch.queue_declare("foobar")
+        ch.basic_publish "", "", "foobar"
+        expect_raises(AMQP::Client::Connection::ClosedException) do
+          ch.basic_consume "foobar", block: true do
+            with_http_api do |api|
+              api.close_all_connections
+            end
+          end
+        end
+      end
+    end
+
+    it "#basic_publish will raise Connection::ClosedException if broker closed connection" do
+      with_channel do |ch|
+        with_http_api do |api|
+          api.close_all_connections
+        end
+        expect_raises(AMQP::Client::Connection::ClosedException) do
+          ch.basic_publish "", "", "foobar"
+        end
+      end
+    end
+
+    it "#basic_publish_confirm will raise Connection::ClosedException if broker closed connection" do
+      with_channel do |ch|
+        with_http_api do |api|
+          api.close_all_connections
+        end
+        expect_raises(AMQP::Client::Connection::ClosedException) do
+          ch.basic_publish "", "", "foobar"
+        end
+      end
+    end
+  end
 end
