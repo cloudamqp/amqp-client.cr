@@ -432,6 +432,7 @@ describe AMQP::Client do
         with_http_api do |api|
           api.close_connections(1)
         end
+        sleep 1 # Wait for connection to be closed
         expect_raises(AMQP::Client::Connection::ClosedException) do
           ch.basic_publish "", "", "foobar"
         end
@@ -443,6 +444,7 @@ describe AMQP::Client do
         with_http_api do |api|
           api.close_connections(1)
         end
+        sleep 1 # Wait for connection to be closed
         expect_raises(AMQP::Client::Connection::ClosedException) do
           ch.basic_publish_confirm "", "", "foobar"
         end
