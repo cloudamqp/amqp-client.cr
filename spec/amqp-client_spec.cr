@@ -419,9 +419,7 @@ describe AMQP::Client do
         q.publish "foobar"
         expect_raises(AMQP::Client::Connection::ClosedException) do
           ch.basic_consume q.name, block: true do
-            with_http_api do |api|
-              api.close_connections(1)
-            end
+            with_http_api &.close_connections(1)
           end
         end
       end
@@ -429,9 +427,7 @@ describe AMQP::Client do
 
     it "#basic_publish" do
       with_channel do |ch|
-        with_http_api do |api|
-          api.close_connections(1)
-        end
+        with_http_api &.close_connections(1)
         sleep 1 # Wait for connection to be closed
         expect_raises(AMQP::Client::Connection::ClosedException) do
           ch.basic_publish "", "", "foobar"
@@ -441,9 +437,7 @@ describe AMQP::Client do
 
     it "#basic_publish_confirm" do
       with_channel do |ch|
-        with_http_api do |api|
-          api.close_connections(1)
-        end
+        with_http_api &.close_connections(1)
         sleep 1 # Wait for connection to be closed
         expect_raises(AMQP::Client::Connection::ClosedException) do
           ch.basic_publish_confirm "", "", "foobar"
