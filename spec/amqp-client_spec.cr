@@ -278,16 +278,15 @@ describe AMQP::Client do
     end
   end
 
-  it "should set connection name" do
+  it "should set connection name", tags: "slow" do
     AMQP::Client.start(name: "My Name") do |_|
       names = Array(String).new
-      5.times do
-        HTTP::Client.get("http://guest:guest@#{AMQP::Client::AMQP_HOST}:15672/api/connections") do |resp|
-          conns = JSON.parse resp.body_io
-          names = conns.as_a.map &.dig("client_properties", "connection_name")
+      with_http_api do |api|
+        5.times do
+          names = api.connections.map &.dig("client_properties", "connection_name")
           break if names.includes? "My name"
+          sleep 1
         end
-        sleep 1
       end
       names.should contain "My Name"
     end
@@ -413,25 +412,25 @@ describe AMQP::Client do
     end
   end
 
-  describe "Channel" do
-    it "#basic_consume block=true will raise Connection::ClosedException if broker closed connection" do
+  describe "Channel raises Connection::ClosedException", tags: "slow" do
+    it "#basic_consume block=true" do
       with_channel do |ch|
-        ch.queue_declare("foobar")
-        ch.basic_publish "", "", "foobar"
+        q = ch.queue
+        q.publish "foobar"
         expect_raises(AMQP::Client::Connection::ClosedException) do
-          ch.basic_consume "foobar", block: true do
+          ch.basic_consume q.name, block: true do
             with_http_api do |api|
-              api.close_all_connections
+              api.close_connections(1)
             end
           end
         end
       end
     end
 
-    it "#basic_publish will raise Connection::ClosedException if broker closed connection" do
+    it "#basic_publish" do
       with_channel do |ch|
         with_http_api do |api|
-          api.close_all_connections
+          api.close_connections(1)
         end
         expect_raises(AMQP::Client::Connection::ClosedException) do
           ch.basic_publish "", "", "foobar"
@@ -439,13 +438,13 @@ describe AMQP::Client do
       end
     end
 
-    it "#basic_publish_confirm will raise Connection::ClosedException if broker closed connection" do
+    it "#basic_publish_confirm" do
       with_channel do |ch|
         with_http_api do |api|
-          api.close_all_connections
+          api.close_connections(1)
         end
         expect_raises(AMQP::Client::Connection::ClosedException) do
-          ch.basic_publish "", "", "foobar"
+          ch.basic_publish_confirm "", "", "foobar"
         end
       end
     end
