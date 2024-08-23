@@ -278,16 +278,15 @@ describe AMQP::Client do
     end
   end
 
-  it "should set connection name" do
+  it "should set connection name", tags: "slow" do
     AMQP::Client.start(name: "My Name") do |_|
       names = Array(String).new
-      5.times do
-        HTTP::Client.get("http://guest:guest@#{AMQP::Client::AMQP_HOST}:15672/api/connections") do |resp|
-          conns = JSON.parse resp.body_io
-          names = conns.as_a.map &.dig("client_properties", "connection_name")
+      with_http_api do |api|
+        5.times do
+          names = api.connections.map &.dig("client_properties", "connection_name")
           break if names.includes? "My name"
+          sleep 1
         end
-        sleep 1
       end
       names.should contain "My Name"
     end
@@ -410,6 +409,40 @@ describe AMQP::Client do
     pending! "Not supported in LavinMQ yet"
     AMQP::Client.start do |c|
       c.update_secret("foobar", "no reason")
+    end
+  end
+
+  describe "Channel raises Connection::ClosedException", tags: "slow" do
+    it "#basic_consume block=true" do
+      with_channel do |ch|
+        q = ch.queue
+        q.publish "foobar"
+        expect_raises(AMQP::Client::Connection::ClosedException) do
+          ch.basic_consume q.name, block: true do
+            with_http_api &.close_connections(1)
+          end
+        end
+      end
+    end
+
+    it "#basic_publish" do
+      with_channel do |ch|
+        with_http_api &.close_connections(1)
+        sleep 1 # Wait for connection to be closed
+        expect_raises(AMQP::Client::Connection::ClosedException) do
+          ch.basic_publish "", "", "foobar"
+        end
+      end
+    end
+
+    it "#basic_publish_confirm" do
+      with_channel do |ch|
+        with_http_api &.close_connections(1)
+        sleep 1 # Wait for connection to be closed
+        expect_raises(AMQP::Client::Connection::ClosedException) do
+          ch.basic_publish_confirm "", "", "foobar"
+        end
+      end
     end
   end
 end

@@ -34,6 +34,41 @@ module TestHelpers
       yield c.channel
     end
   end
+
+  struct ManagementApi
+    def initialize(uri : URI)
+      @http = HTTP::Client.new uri
+      username = uri.user || "guest"
+      password = uri.password || "guest"
+      @http.basic_auth username, password
+    end
+
+    def connections
+      get("/api/connections/") do |resp|
+        JSON.parse(resp.body_io).as_a
+      end
+    end
+
+    def close_connections(amount : Int)
+      loop do
+        conns = connections
+        conns.each do |conn|
+          name = conn["name"].as_s
+          delete("/api/connections/#{URI.encode_path_segment name}")
+          amount -= 1
+        end
+        break if amount <= 0
+        sleep 1
+      end
+    end
+
+    forward_missing_to @http
+  end
+
+  def with_http_api(&)
+    uri = URI.parse ENV.fetch("MGMT_URL", "http://guest:guest@#{AMQP::Client::AMQP_HOST}:15672")
+    yield ManagementApi.new(uri)
+  end
 end
 
 extend TestHelpers

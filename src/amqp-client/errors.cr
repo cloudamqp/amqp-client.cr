@@ -17,8 +17,8 @@ class AMQP::Client
         super(message, cause)
       end
 
-      def initialize(frame : Frame::Connection::Close)
-        super("#{frame.reply_text} (#{frame.reply_code})")
+      def initialize(frame : Frame::Connection::Close, cause : Exception? = nil)
+        super("#{frame.reply_text} (#{frame.reply_code})", cause)
       end
 
       def initialize(message, host, user, vhost)

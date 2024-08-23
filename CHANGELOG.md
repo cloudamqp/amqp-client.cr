@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Specify cacert/cafile/keyfile via URI parameters
 
+### Fixed
+
+- `Channel` methods didn't raise `Connection::ClosedException` if connection had been closed by server.
+
 ## [1.2.5] - 2024-06-17
 
 ### Fixed
