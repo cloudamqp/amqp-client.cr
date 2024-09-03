@@ -435,7 +435,7 @@ class AMQP::Client
         begin
           blk.call(msg)
         rescue ex
-          Log.error(exception: ex) { "Uncaught exception in consumer, closing channel" }
+          Log.debug(exception: ex) { "Uncaught exception in consumer, closing channel" }
           close("Uncaught exception in consumer #{consumer_tag}", 500) rescue nil
           done.send(ex) rescue nil
           return
