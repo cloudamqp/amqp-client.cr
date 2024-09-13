@@ -411,7 +411,7 @@ class AMQP::Client
       deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
       @consumers[ok.consumer_tag] = deliveries
       work_pool.times do |i|
-        spawn consume(ok.consumer_tag, deliveries, done, i, blk),
+        spawn consume(ok.consumer_tag, deliveries, done, i, !block, blk),
           same_thread: i.zero?, # only force put the first fiber on same thread
           name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
       end
@@ -429,13 +429,15 @@ class AMQP::Client
       ok.consumer_tag
     end
 
-    private def consume(consumer_tag, deliveries, done, i, blk)
+    private def consume(consumer_tag, deliveries, done, i, log_errors, blk)
       Log.context.set channel_id: @id.to_i, consumer: consumer_tag, worker: i
       while msg = deliveries.receive?
         begin
           blk.call(msg)
         rescue ex
-          Log.error(exception: ex) { "Uncaught exception in consumer, closing channel" }
+          if log_errors
+            Log.error(exception: ex) { "Uncaught exception in consumer, closing channel" }
+          end
           close("Uncaught exception in consumer #{consumer_tag}", 500) rescue nil
           done.send(ex) rescue nil
           return
