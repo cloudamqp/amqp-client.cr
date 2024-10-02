@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.7] - 2024-09-30
+
 ### Changed
 
-- Blocking consume won't log errors anymore. [#47](https://github.com/cloudamqp/amqp-client.cr/pull/47)
+- Blocking consume won't log errors anymore. It's up to the caller. [#47](https://github.com/cloudamqp/amqp-client.cr/pull/47)
 
 ## [1.2.6] - 2024-08-23
 
