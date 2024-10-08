@@ -619,7 +619,7 @@ class AMQP::Client
     # Unbind an exchange from another exchange
     def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, args arguments = Arguments.new) : Nil
       write Frame::Exchange::Unbind.new(@id, 0_u16, source, destination, routing_key, no_wait, arguments)
-      expect Frame::Queue::UnbindOk unless no_wait
+      expect Frame::Exchange::UnbindOk unless no_wait
     end
 
     # Sets the channel in publish confirm mode, each published message will be acked or nacked
