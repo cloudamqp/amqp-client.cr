@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.8] - 2024-10-08
+
+### Fixed
+
+- Exchange unbind expects Exchange::UnbindOk. [#48](https://github.com/cloudamqp/amqp-client.cr/pull/48)
+
 ## [1.2.7] - 2024-10-02
 
 ### Changed
