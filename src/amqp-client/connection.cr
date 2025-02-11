@@ -28,14 +28,19 @@ class AMQP::Client
       ch = nil
       @channels_lock.synchronize do
         if id
-          raise "channel_max reached" if id > @channel_max
+          raise "channel_max reached" if @channel_max.positive? && id > @channel_max
           if ch = @channels.fetch(id, nil)
             return ch
           else
             ch = @channels[id] = Channel.new(self, id)
           end
         end
-        1_u16.upto(@channel_max) do |i|
+        range = if @channel_max.zero?
+                  (1_u16..UInt16::MAX)
+                else
+                  (1_u16..@channel_max)
+                end
+        range.each do |i|
           next if @channels.has_key? i
           ch = @channels[i] = Channel.new(self, i)
           break

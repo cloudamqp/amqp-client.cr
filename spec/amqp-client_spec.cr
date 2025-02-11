@@ -269,12 +269,20 @@ describe AMQP::Client do
     end
   end
 
-  it "should open all queues" do
+  it "should open all channels" do
     AMQP::Client.start do |c|
       (1_u16..c.channel_max).each do |id|
         ch = c.channel
         ch.id.should eq id
       end
+    end
+  end
+
+  it "should treat channel_max 0 as unlimited" do
+    # well, at least not zero :)
+    with_connection(channel_max: 0_u16) do |c|
+      ch = c.channel
+      ch.id.should eq 1_u16
     end
   end
 
