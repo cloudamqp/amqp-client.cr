@@ -220,7 +220,7 @@ describe AMQP::Client do
   it "raises exception on write when the server has closed the connection" do
     with_channel do |ch|
       ch.exchange_declare("foo", "bar", no_wait: true)
-      sleep 0.1
+      sleep 0.1.seconds
       # by now we should've gotten the connection closed by the server
       expect_raises(AMQP::Client::Channel::ClosedException | AMQP::Client::Connection::ClosedException) do
         ch.queue
@@ -285,7 +285,7 @@ describe AMQP::Client do
         5.times do
           names = api.connections.map &.dig("client_properties", "connection_name")
           break if names.includes? "My name"
-          sleep 1
+          sleep 1.seconds
         end
       end
       names.should contain "My Name"
@@ -308,7 +308,7 @@ describe AMQP::Client do
         messages_handled += 1
         ch.basic_cancel(tag)
       end
-      sleep 0.5
+      sleep 0.5.seconds
       (q.message_count + messages_handled).should eq 5
     end
   end
@@ -338,7 +338,7 @@ describe AMQP::Client do
       q.subscribe(no_ack: false, block: false, work_pool: 2) do |_msg|
         raise "myerror"
       end
-      sleep 0.1
+      sleep 0.1.seconds
       ch.closed?.should be_true
       with_channel do |ch2|
         q = ch2.queue_delete("unexpected")
@@ -428,7 +428,7 @@ describe AMQP::Client do
     it "#basic_publish" do
       with_channel do |ch|
         with_http_api &.close_connections(1)
-        sleep 1 # Wait for connection to be closed
+        sleep 1.seconds # Wait for connection to be closed
         expect_raises(AMQP::Client::Connection::ClosedException) do
           ch.basic_publish "", "", "foobar"
         end
@@ -438,7 +438,7 @@ describe AMQP::Client do
     it "#basic_publish_confirm" do
       with_channel do |ch|
         with_http_api &.close_connections(1)
-        sleep 1 # Wait for connection to be closed
+        sleep 1.seconds # Wait for connection to be closed
         expect_raises(AMQP::Client::Connection::ClosedException) do
           ch.basic_publish_confirm "", "", "foobar"
         end

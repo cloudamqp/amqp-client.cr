@@ -170,7 +170,7 @@ describe "Websocket client" do
   it "raises exception on write when the server has closed the connection" do
     with_ws_channel do |ch|
       ch.exchange_declare("foo", "bar", no_wait: true)
-      sleep 0.1
+      sleep 0.1.seconds
       # by now we should've gotten the connection closed by the server
       expect_raises(AMQP::Client::Channel::ClosedException) do
         ch.queue
@@ -237,7 +237,7 @@ describe "Websocket client" do
           names = conns.as_a.map &.dig("client_properties", "connection_name")
           break if names.includes? "My name"
         end
-        sleep 1
+        sleep 1.seconds
       end
       names.should contain "My Name"
     end
@@ -259,7 +259,7 @@ describe "Websocket client" do
         messages_handled += 1
         ch.basic_cancel(tag) if ch.has_subscriber?(tag)
       end
-      sleep 0.5
+      sleep 0.5.seconds
       (q.message_count + messages_handled).should eq 5
       q.delete
     end

@@ -8,7 +8,7 @@ AMQP::Client.start("amqps://user:password@hostname/vhost") do |c|
     q.subscribe(no_ack: false, block: true) do |msg|
       puts "Received: #{msg.body_io}"
       msg.ack
-      sleep msg.body_io.to_s.count('.')
+      sleep msg.body_io.to_s.count('.').seconds
       puts "Done"
     end
   end

@@ -58,7 +58,7 @@ module TestHelpers
           amount -= 1
         end
         break if amount <= 0
-        sleep 1
+        sleep 1.seconds
       end
     end
 
