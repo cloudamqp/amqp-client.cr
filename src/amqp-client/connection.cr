@@ -25,6 +25,7 @@ class AMQP::Client
 
     # Opens a channel
     def channel(id : Int? = nil)
+      ch = nil
       @channels_lock.synchronize do
         if id
           raise "channel_max reached" if id > @channel_max
@@ -32,16 +33,17 @@ class AMQP::Client
             return ch
           else
             ch = @channels[id] = Channel.new(self, id)
-            return ch.open
           end
         end
         1_u16.upto(@channel_max) do |i|
           next if @channels.has_key? i
           ch = @channels[i] = Channel.new(self, i)
-          return ch.open
+          break
         end
-        raise "channel_max reached"
       end
+      raise "channel_max reached" if ch.nil?
+      # We must open the channel outside of the lock to avoid deadlocks
+      ch.open
     end
 
     def channel(& : Channel -> _)
