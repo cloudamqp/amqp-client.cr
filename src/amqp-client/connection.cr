@@ -242,7 +242,7 @@ class AMQP::Client
       start(io, user, password, connection_information)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
-      Connection.new(io, channel_max, frame_max, heartbeat)
+      self.new(io, channel_max, frame_max, heartbeat)
     rescue ex
       case ex
       when IO::EOFError
