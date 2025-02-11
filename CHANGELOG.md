@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.9] - 2025-01-11
+
+### Fixed
+
+- Allow `Connection` to be subclassed
+- Update CI to use latest Ameba
+- Fix `sleep` deprecations
+
 ## [1.2.8] - 2024-10-08
 
 ### Fixed
@@ -35,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support brackets around IPv6 addresses in URLs, eg: amqp://[::1]:5672
 -
+
 ## [1.2.4] - 2024-05-31
 
 ### Fixed
