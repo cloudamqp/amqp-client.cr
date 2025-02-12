@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2025-01-12
+
+### Fixed
+
+- Avoid possible deadlock when opening channels
+
+### Changed
+
+- channel_max = 0 == "unlimited" as per the AMQP spec
+
 ## [1.2.9] - 2025-01-11
 
 ### Fixed
