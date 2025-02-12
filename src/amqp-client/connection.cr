@@ -35,11 +35,7 @@ class AMQP::Client
             ch = @channels[id] = Channel.new(self, id)
           end
         end
-        range = if @channel_max.zero?
-                  (1_u16..UInt16::MAX)
-                else
-                  (1_u16..@channel_max)
-                end
+        range = @channel_max.zero? ? (1_u16..UInt16::MAX) : (1_u16..@channel_max)
         range.each do |i|
           next if @channels.has_key? i
           ch = @channels[i] = Channel.new(self, i)
