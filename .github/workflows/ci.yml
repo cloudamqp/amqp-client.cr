@@ -6,7 +6,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     continue-on-error: true
-    container: 84codes/crystal:latest-ubuntu-20.04
+    container: 84codes/crystal:latest-ubuntu-noble
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,7 +20,7 @@ jobs:
   spec:
     name: Spec
     runs-on: ubuntu-latest
-    container: 84codes/crystal:latest-ubuntu-20.04
+    container: 84codes/crystal:latest-ubuntu-noble
     services:
       lavinmq:
         image: cloudamqp/lavinmq
@@ -40,7 +40,7 @@ jobs:
   format:
     name: Formatting
     runs-on: ubuntu-latest
-    container: 84codes/crystal:latest-ubuntu-20.04
+    container: 84codes/crystal:latest-ubuntu-noble
     steps:
       - name: Checkout
         uses: actions/checkout@v4
