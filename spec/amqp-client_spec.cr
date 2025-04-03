@@ -279,10 +279,10 @@ describe AMQP::Client do
   end
 
   it "should treat channel_max 0 as unlimited" do
-    # well, at least not zero :)
-    with_connection(channel_max: 0_u16) do |c|
-      ch = c.channel
-      ch.id.should eq 1_u16
+    # LavinMQ defaults to 2048, so "unlimited" should result in error
+    expect_raises(AMQP::Client::Connection::ClosedException, "negotiated channel_max = 0 is higher than the maximum allowed value") do
+      with_connection(channel_max: 0_u16) do |_c|
+      end
     end
   end
 
