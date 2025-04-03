@@ -399,6 +399,7 @@ class AMQP::Client
     # * To let multiple fibers process messages increase *work_pool*
     # Make sure to handle all exceptions in the consume block,
     # as unhandeled exceptions will cause the channel to be closed (to prevent dangling unacked messages and exception floods).
+    {% begin %}
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
                       block = false, args arguments = Arguments.new, work_pool = 1,
                       &blk : DeliverMessage -> Nil)
@@ -411,9 +412,14 @@ class AMQP::Client
       deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
       @consumers[ok.consumer_tag] = deliveries
       work_pool.times do |i|
-        spawn consume(ok.consumer_tag, deliveries, done, i, !block, blk),
-          same_thread: i.zero?, # only force put the first fiber on same thread
-          name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
+        {% if flag?(:execution_context) %}
+          spawn consume(ok.consumer_tag, deliveries, done, i, !block, blk),
+            name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
+        {% else %}
+          spawn consume(ok.consumer_tag, deliveries, done, i, !block, blk),
+            same_thread: i.zero?, # only force put the first fiber on same thread
+            name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
+        {% end %}
       end
       if block
         work_pool.times do
@@ -428,6 +434,7 @@ class AMQP::Client
       end
       ok.consumer_tag
     end
+    {% end %}
 
     private def consume(consumer_tag, deliveries, done, i, log_errors, blk)
       Log.context.set channel_id: @id.to_i, consumer: consumer_tag, worker: i

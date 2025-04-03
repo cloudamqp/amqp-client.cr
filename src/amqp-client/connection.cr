@@ -17,7 +17,11 @@ class AMQP::Client
 
     protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                              @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
-      spawn read_loop, name: "AMQP::Client#read_loop", same_thread: true
+      {% if flag?(:execution_context) %}
+        spawn read_loop, name: "AMQP::Client#read_loop"
+      {% else %}
+        spawn read_loop, name: "AMQP::Client#read_loop", same_thread: true
+      {% end %}
     end
 
     @channels = Hash(UInt16, Channel).new
