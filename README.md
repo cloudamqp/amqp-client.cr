@@ -79,8 +79,7 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
 
     name, message_count, consumer_count =
       ch.queue_declare(name: "myqueue", passive: false, durable: true,
-                       exclusive: false, auto_delete: false,
-                       arguments: AMQP::Client::Arguments.new)
+                       exclusive: false, auto_delete: false)
     q = ch.queue # temporary queue that is deleted when the channel is closed
     ch.queue_purge("myqueue")
     ch.queue_bind("myqueue", "amq.topic", "routing-key")

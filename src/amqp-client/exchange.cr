@@ -16,10 +16,18 @@ class AMQP::Client
       self
     end
 
+    def bind(exchange : String, routing_key : String, no_wait = false, arguments = NamedTuple.new)
+      bind(exchange, routing_key, no_wait, Arguments.new(arguments))
+    end
+
     # Unbind the exchange from another exchange
     def unbind(exchange : String, routing_key : String, no_wait = false, args arguments = Arguments.new)
       @channel.exchange_unbind(@name, exchange, routing_key, no_wait, arguments)
       self
+    end
+
+    def unbind(exchange : String, routing_key : String, no_wait = false, arguments = NamedTuple.new)
+      unbind(exchange, routing_key, no_wait, Arguments.new(arguments))
     end
 
     # Publish a message to the exchange
