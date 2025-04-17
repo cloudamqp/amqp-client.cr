@@ -412,7 +412,6 @@ class AMQP::Client
       @consumers[ok.consumer_tag] = deliveries
       work_pool.times do |i|
         spawn consume(ok.consumer_tag, deliveries, done, i, !block, blk),
-          same_thread: i.zero?, # only force put the first fiber on same thread
           name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
       end
       if block
