@@ -7,8 +7,9 @@ authors:
 
 dependencies:
   amq-protocol:
-    github: cloudamqp/amq-protocol.cr
-    version: ~>1
+    #github: cloudamqp/amq-protocol.cr
+    #version: ~>1
+    path: ../amq-protocol.cr
 development_dependencies:
   ameba:
     github: crystal-ameba/ameba
