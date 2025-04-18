@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2025-04-18
+
+### Changed
+
+- ExecutionContext (Crystal 1.6) support, by dropping `same_thread: true` for Fibers [#57](https://github.com/cloudamqp/amqp-client.cr/pull/57)
+
 ## [1.3.0] - 2025-01-12
 
 ### Fixed
