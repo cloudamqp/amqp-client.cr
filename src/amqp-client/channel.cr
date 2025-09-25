@@ -611,13 +611,13 @@ class AMQP::Client
 
     # Bind an exchange to another exchange
     def exchange_bind(source : String, destination : String, routing_key : String, no_wait = false, args arguments = Arguments.new) : Nil
-      write Frame::Exchange::Bind.new(@id, 0_u16, source, destination, routing_key, no_wait, arguments)
+      write Frame::Exchange::Bind.new(@id, 0_u16, destination, source, routing_key, no_wait, arguments)
       expect Frame::Exchange::BindOk unless no_wait
     end
 
     # Unbind an exchange from another exchange
     def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, args arguments = Arguments.new) : Nil
-      write Frame::Exchange::Unbind.new(@id, 0_u16, source, destination, routing_key, no_wait, arguments)
+      write Frame::Exchange::Unbind.new(@id, 0_u16, destination, source, routing_key, no_wait, arguments)
       expect Frame::Exchange::UnbindOk unless no_wait
     end
 
