@@ -452,4 +452,31 @@ describe AMQP::Client do
       end
     end
   end
+
+  describe "Bindings" do
+    it "should deliver to bound queues" do
+      with_channel do |ch|
+        ex = ch.exchange("my-ex", "fanout")
+        q1 = ch.queue
+        q2 = ch.queue
+        q1.bind(ex.name, "")
+        q2.bind(ex.name, "")
+        ex.publish "hej", ""
+        q1.get(no_ack: true).should_not be_nil
+        q2.get(no_ack: true).should_not be_nil
+      end
+    end
+
+    it "should deliver to bound exchanges" do
+      with_channel do |ch|
+        ex1 = ch.exchange("my-ex1", "fanout")
+        ex2 = ch.exchange("my-ex2", "fanout")
+        q = ch.queue
+        ch.exchange_bind(ex1.name, ex2.name, "")
+        q.bind(ex2.name, "")
+        ex1.publish "hej", ""
+        q.get(no_ack: true).should_not be_nil
+      end
+    end
+  end
 end
