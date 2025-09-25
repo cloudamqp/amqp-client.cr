@@ -5,9 +5,9 @@ require "../src/amqp-client"
 
 Log.setup_from_env
 {% if Spec::CLI.resolve? %}
-  Spec.cli.override_default_formatter(Spec::VerboseFormatter.new) unless ENV["CI"]?
+  Spec.cli.configure_formatter("verbose") unless ENV["CI"]?
 {% else %}
-  Spec.override_default_formatter(Spec::VerboseFormatter.new) unless ENV["CI"]?
+  Spec.configure_formatter("verbose") unless ENV["CI"]?
 {% end %}
 
 module TestHelpers
