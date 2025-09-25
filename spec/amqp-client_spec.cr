@@ -290,10 +290,9 @@ describe AMQP::Client do
     AMQP::Client.start(name: "My Name") do |_|
       names = Array(String).new
       with_http_api do |api|
-        5.times do
+        10.times do
           names = api.connections.map &.dig("client_properties", "connection_name")
-          break if names.includes? "My name"
-          sleep 1.seconds
+          break if names.includes? "My Name"
         end
       end
       names.should contain "My Name"

@@ -1,6 +1,17 @@
 require "./spec_helper"
 
 describe "Websocket client" do
+  before_all do
+    # Skip websocket tests for RabbitMQ
+    HTTP::Client.get("http://guest:guest@#{AMQP::Client::AMQP_HOST}:15672/api/overview") do |resp|
+      overview = JSON.parse resp.body_io
+      # Check for RabbitMQ (has product_name) vs LavinMQ (has lavinmq_version)
+      if overview["product_name"]? && overview["product_name"].as_s == "RabbitMQ"
+        pending! "Skipping websocket tests for RabbitMQ"
+      end
+    end
+  end
+
   it "should connect over websocket" do
     c = AMQP::Client.new(websocket: true, port: 15_672)
     conn = c.connect
@@ -219,8 +230,9 @@ describe "Websocket client" do
     end
   end
 
-  it "should open all queues" do
-    with_ws_connection do |c|
+  it "should open all channels" do
+    # Use a smaller channel_max for WebSocket tests to avoid slowness
+    AMQP::Client.start(websocket: true, port: 15_672, channel_max: 20_u16) do |c|
       (1_u16..c.channel_max).each do |id|
         ch = c.channel
         ch.id.should eq id
@@ -228,16 +240,14 @@ describe "Websocket client" do
     end
   end
 
-  it "should set connection name" do
+  it "should set connection name", tags: "slow" do
     AMQP::Client.start(websocket: true, port: 15_672, name: "My Name") do |_|
       names = Array(String).new
-      5.times do
-        HTTP::Client.get("http://guest:guest@#{AMQP::Client::AMQP_HOST}:15672/api/connections") do |resp|
-          conns = JSON.parse resp.body_io
-          names = conns.as_a.map &.dig("client_properties", "connection_name")
-          break if names.includes? "My name"
+      with_http_api do |api|
+        10.times do
+          names = api.connections.map &.dig("client_properties", "connection_name")
+          break if names.includes? "My Name"
         end
-        sleep 1.seconds
       end
       names.should contain "My Name"
     end
@@ -259,7 +269,7 @@ describe "Websocket client" do
         messages_handled += 1
         ch.basic_cancel(tag) if ch.has_subscriber?(tag)
       end
-      sleep 0.5.seconds
+      sleep 0.1.seconds
       (q.message_count + messages_handled).should eq 5
       q.delete
     end
