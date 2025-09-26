@@ -296,13 +296,22 @@ class AMQP::Client
         else                               raise Error::UnexpectedFrame.new(f)
         end
       end
-      channel_max = tune.channel_max.zero? ? channel_max : Math.min(tune.channel_max, channel_max)
+
+      negotiated_channel_max = tune.channel_max
+      if channel_max > 0
+        if negotiated_channel_max == 0
+          negotiated_channel_max = channel_max
+        else
+          negotiated_channel_max = Math.min(channel_max, negotiated_channel_max)
+        end
+      end
+
       frame_max = tune.frame_max.zero? ? frame_max : Math.min(tune.frame_max, frame_max)
-      io.write_bytes Frame::Connection::TuneOk.new(channel_max: channel_max,
+      io.write_bytes Frame::Connection::TuneOk.new(channel_max: negotiated_channel_max,
         frame_max: frame_max,
         heartbeat: heartbeat),
         IO::ByteFormat::NetworkEndian
-      {channel_max, frame_max, heartbeat}
+      {negotiated_channel_max, frame_max, heartbeat}
     end
 
     private def self.open(io, vhost)

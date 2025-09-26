@@ -278,14 +278,6 @@ describe AMQP::Client do
     end
   end
 
-  it "should treat channel_max 0 as unlimited" do
-    # LavinMQ defaults to 2048, so "unlimited" should result in error
-    expect_raises(AMQP::Client::Connection::ClosedException, "negotiated channel_max = 0 is higher than the maximum allowed value") do
-      with_connection(channel_max: 0_u16) do |_c|
-      end
-    end
-  end
-
   it "should set connection name", tags: "slow" do
     AMQP::Client.start(name: "My Name") do |_|
       names = Array(String).new
