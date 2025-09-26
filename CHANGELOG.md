@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - Fixed bug in Channel#exchange_bind [#58](https://github.com/cloudamqp/amqp-client.cr/issues/58) where arguments where swapped
+- Fixed channel_max negotiation logic where client would use unlimited even if the server restricted it
 
 ## [1.3.1] - 2025-04-18
 

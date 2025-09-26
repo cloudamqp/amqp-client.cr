@@ -11,8 +11,8 @@ Log.setup_from_env
 {% end %}
 
 module TestHelpers
-  def with_connection(**args, &)
-    AMQP::Client.start(**args) do |c|
+  def with_connection(channel_max = 1024_u16, **args, &)
+    AMQP::Client.start(**args, channel_max: channel_max) do |c|
       yield c
     end
   end
