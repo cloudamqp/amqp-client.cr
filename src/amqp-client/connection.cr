@@ -14,6 +14,7 @@ class AMQP::Client
     getter channel_max, frame_max
     getter? closed = false
     getter? blocked = false
+    @connection_id : String
 
     protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                              @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
