@@ -33,8 +33,11 @@ class AMQP::Client
         else
           object_id.to_s
         end
+      when UNIXSocket
+        # For UNIX sockets, we could use the path, but object_id is simpler and unique
+        object_id.to_s
       else
-        # For UNIXSocket and WebSocketIO, use object_id
+        # For WebSocketIO and other types, use object_id
         object_id.to_s
       end
     end
