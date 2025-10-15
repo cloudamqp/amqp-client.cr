@@ -159,7 +159,6 @@ class AMQP::Client
     end
 
     private def process_close(f)
-      Log.context.set connection_id: @connection_id
       if on_close = @on_close
         begin
           on_close.call(f.reply_code, f.reply_text)
@@ -178,7 +177,6 @@ class AMQP::Client
     end
 
     private def process_channel_frame(f)
-      Log.context.set connection_id: @connection_id
       ch = case f
            when Frame::Channel::Close, Frame::Channel::CloseOk
              @channels_lock.synchronize do
