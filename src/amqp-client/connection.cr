@@ -17,7 +17,25 @@ class AMQP::Client
 
     protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                              @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
+      @connection_id = connection_identifier(@io)
       spawn read_loop, name: "AMQP::Client#read_loop"
+    end
+
+    private def connection_identifier(io) : String
+      case io
+      when TCPSocket
+        io.local_address.port.to_s
+      when OpenSSL::SSL::Socket::Client
+        # SSL sockets wrap a TCP socket, get the port from the underlying socket
+        if io.io.is_a?(TCPSocket)
+          io.io.as(TCPSocket).local_address.port.to_s
+        else
+          object_id.to_s
+        end
+      else
+        # For UNIXSocket and WebSocketIO, use object_id
+        object_id.to_s
+      end
     end
 
     @channels = Hash(UInt16, Channel).new
@@ -86,6 +104,7 @@ class AMQP::Client
     end
 
     private def read_loop # ameba:disable Metrics/CyclomaticComplexity
+      Log.context.set connection_id: @connection_id
       io = @io
       loop do
         Frame.from_io(io) do |f|
@@ -136,6 +155,7 @@ class AMQP::Client
     end
 
     private def process_close(f)
+      Log.context.set connection_id: @connection_id
       if on_close = @on_close
         begin
           on_close.call(f.reply_code, f.reply_text)
@@ -154,6 +174,7 @@ class AMQP::Client
     end
 
     private def process_channel_frame(f)
+      Log.context.set connection_id: @connection_id
       ch = case f
            when Frame::Channel::Close, Frame::Channel::CloseOk
              @channels_lock.synchronize do
@@ -188,6 +209,7 @@ class AMQP::Client
 
     # :nodoc:
     def unsafe_write(frame : Frame)
+      Log.context.set connection_id: @connection_id
       if @closed
         if f = @closing_frame
           raise ClosedException.new(f)
@@ -215,6 +237,7 @@ class AMQP::Client
     #
     # The *reason* might be logged by the server
     def close(reason = "", no_wait = false)
+      Log.context.set connection_id: @connection_id
       return if @closed
       Log.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
