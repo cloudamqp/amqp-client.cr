@@ -141,10 +141,15 @@ class AMQP::Client
   rescue ex
     case ex
     when Connection::ClosedException
-      # agument the exception with connection details
+      # augment the exception with connection details
       raise Connection::ClosedException.new(ex.message, @host, @user, @vhost)
-    when Error then raise ex
-    else            raise Error.new(ex.message, cause: ex)
+    when Error
+      raise ex
+    when Socket::Error, IO::Error, OpenSSL::Error
+      # Wrap network/IO/SSL errors with connection context
+      raise Error::NetworkError.new(ex.message || "Network error", @host, @port, ex)
+    else
+      raise Error.new(ex.message || "Unknown error", cause: ex)
     end
   end
 

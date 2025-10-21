@@ -9,6 +9,15 @@ class AMQP::Client
         super(frame.inspect)
       end
     end
+
+    class NetworkError < Error
+      getter host : String
+      getter port : Int32
+
+      def initialize(message : String, @host, @port, cause : Exception)
+        super("#{message} (#{@host}:#{@port})", cause)
+      end
+    end
   end
 
   class Connection
