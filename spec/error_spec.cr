@@ -22,7 +22,7 @@ describe "Error Handling" do
 
     it "preserves original exception via cause" do
       begin
-        AMQP::Client.new(port: 1).connect
+        AMQP::Client.new(host: "localhost", port: 1).connect
       rescue ex : AMQP::Client::Error::NetworkError
         ex.cause.should be_a(Socket::Error)
         ex.host.should eq("localhost")
