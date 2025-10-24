@@ -252,7 +252,6 @@ class AMQP::Client
         raise ClosedException.new("Connection closed by server", ex)
       when ClosedException
         io.write_bytes(Frame::Connection::CloseOk.new, IO::ByteFormat::NetworkEndian) rescue nil
-      else nil
       end
       io.close rescue nil
       raise ex
