@@ -428,6 +428,12 @@ class AMQP::Client
       ok.consumer_tag
     end
 
+    def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
+                      block = false, args arguments : NamedTuple = NamedTuple.new, work_pool = 1,
+                      &blk : DeliverMessage -> Nil)
+      basic_consume(queue, tag, no_ack, exclusive, block, Arguments.new(arguments), work_pool, &blk)
+    end
+
     private def consume(consumer_tag, deliveries, done, i, log_errors, blk)
       Log.context.set channel_id: @id.to_i, consumer: consumer_tag, worker: i
       while msg = deliveries.receive?
@@ -502,6 +508,10 @@ class AMQP::Client
       Queue.new(self, q[:queue_name])
     end
 
+    def queue(name : String, passive = false, durable = true, exclusive = false, auto_delete = false, args arguments : NamedTuple = NamedTuple.new)
+      queue(name, passive, durable, exclusive, auto_delete, Arguments.new(arguments))
+    end
+
     # Declare a queue with *name*
     # *passive* will raise if the queue doesn't already exists, other arguments are ignored
     # *durable* will make the queue durable on the server (note that messages have have the persistent flag set to make the messages persistent)
@@ -529,6 +539,15 @@ class AMQP::Client
           consumer_count: f.consumer_count,
         }
       end
+    end
+
+    def queue_declare(name : String, passive = false,
+                      durable = name.empty? ? false : true,
+                      exclusive = name.empty? ? true : false,
+                      auto_delete = name.empty? ? true : false,
+                      no_wait = false,
+                      args arguments : NamedTuple = NamedTuple.new)
+      queue_declare(name, passive, durable, exclusive, auto_delete, no_wait, Arguments.new(arguments))
     end
 
     # Delete a queue
@@ -559,10 +578,18 @@ class AMQP::Client
       expect Frame::Queue::BindOk unless no_wait
     end
 
+    def queue_bind(queue : String, exchange : String, routing_key : String, no_wait = false, args arguments : NamedTuple = NamedTuple.new) : Nil
+      queue_bind(queue, exchange, routing_key, no_wait, Arguments.new(arguments))
+    end
+
     # Unbind a *queue* from an *exchange*, with a *routing_key* and optionally some *arguments*
     def queue_unbind(queue : String, exchange : String, routing_key : String, args arguments = Arguments.new) : Nil
       write Frame::Queue::Unbind.new(@id, 0_u16, queue, exchange, routing_key, arguments)
       expect Frame::Queue::UnbindOk
+    end
+
+    def queue_unbind(queue : String, exchange : String, routing_key : String, args arguments : NamedTuple = NamedTuple.new) : Nil
+      queue_unbind(queue, exchange, routing_key, Arguments.new(arguments))
     end
 
     def topic_exchange(name = "amq.topic", passive = true)
@@ -592,6 +619,11 @@ class AMQP::Client
       Exchange.new(self, name)
     end
 
+    def exchange(name, type, passive = false, durable = true,
+                 internal = false, auto_delete = false, args arguments : NamedTuple = NamedTuple.new)
+      exchange(name, type, passive, durable, internal, auto_delete, Arguments.new(arguments))
+    end
+
     # Declares an exchange
     def exchange_declare(name : String, type : String, passive = false,
                          durable = true, internal = false, auto_delete = false,
@@ -601,6 +633,12 @@ class AMQP::Client
         durable, auto_delete, internal,
         no_wait, arguments)
       expect Frame::Exchange::DeclareOk unless no_wait
+    end
+
+    def exchange_declare(name : String, type : String, passive = false,
+                         durable = true, internal = false, auto_delete = false,
+                         no_wait = false, args arguments : NamedTuple = NamedTuple.new) : Nil
+      exchange_declare(name, type, passive, durable, internal, auto_delete, no_wait, Arguments.new(arguments))
     end
 
     # Deletes an exchange
@@ -615,10 +653,18 @@ class AMQP::Client
       expect Frame::Exchange::BindOk unless no_wait
     end
 
+    def exchange_bind(source : String, destination : String, routing_key : String, no_wait = false, args arguments : NamedTuple = NamedTuple.new) : Nil
+      exchange_bind(source, destination, routing_key, no_wait, Arguments.new(arguments))
+    end
+
     # Unbind an exchange from another exchange
     def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, args arguments = Arguments.new) : Nil
       write Frame::Exchange::Unbind.new(@id, 0_u16, destination, source, routing_key, no_wait, arguments)
       expect Frame::Exchange::UnbindOk unless no_wait
+    end
+
+    def exchange_unbind(source : String, destination : String, routing_key : String, no_wait = false, args arguments : NamedTuple = NamedTuple.new) : Nil
+      exchange_unbind(source, destination, routing_key, no_wait, Arguments.new(arguments))
     end
 
     # Sets the channel in publish confirm mode, each published message will be acked or nacked
