@@ -27,10 +27,18 @@ class AMQP::Client
       self
     end
 
+    def bind(exchange : String, routing_key : String, no_wait = false, args arguments : NamedTuple = NamedTuple.new)
+      bind(exchange, routing_key, no_wait, Arguments.new(arguments))
+    end
+
     # Unbind the queue from an exchange
     def unbind(exchange : String, routing_key : String, args arguments = Arguments.new)
       @channel.queue_unbind(@name, exchange, routing_key, arguments)
       self
+    end
+
+    def unbind(exchange : String, routing_key : String, args arguments : NamedTuple = NamedTuple.new)
+      unbind(exchange, routing_key, Arguments.new(arguments))
     end
 
     # Publish a message directly to the queue
@@ -76,6 +84,11 @@ class AMQP::Client
     def subscribe(tag = "", no_ack = true, exclusive = false, block = false,
                   args arguments = Arguments.new, work_pool = 1, &blk : DeliverMessage -> Nil)
       @channel.basic_consume(@name, tag, no_ack, exclusive, block, arguments, work_pool, &blk)
+    end
+
+    def subscribe(tag = "", no_ack = true, exclusive = false, block = false,
+                  args arguments : NamedTuple = NamedTuple.new, work_pool = 1, &blk : DeliverMessage -> Nil)
+      subscribe(tag, no_ack, exclusive, block, Arguments.new(arguments), work_pool, &blk)
     end
 
     # Unsubscribe from the queue
