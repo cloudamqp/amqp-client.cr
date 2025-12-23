@@ -471,4 +471,16 @@ describe AMQP::Client do
       end
     end
   end
+
+  it "connection identifier is set" do
+    with_connection do |c|
+      # Access the private @connection_id field to verify it's set
+      conn_id = c.@connection_id
+      conn_id.should_not be_nil
+      conn_id.should_not be_empty
+      # For TCP connections, it should be a port number (all digits)
+      # For other connection types, it might be object_id
+      conn_id.should match(/^\d+$/)
+    end
+  end
 end
