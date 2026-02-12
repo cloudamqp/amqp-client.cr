@@ -128,7 +128,9 @@ class AMQP::Client
       socket = connect_unix
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
     elsif @websocket
-      websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls)
+      headers = ::HTTP::Headers.new
+      headers["Sec-WebSocket-Protocol"] = "amqp"
+      websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls, headers: headers)
       io = WebSocketIO.new(websocket)
       Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
     elsif ctx = @tls.as? OpenSSL::SSL::Context::Client
