@@ -8,11 +8,10 @@ authors:
 dependencies:
   amq-protocol:
     github: cloudamqp/amq-protocol.cr
-    version: ~>1
 development_dependencies:
   ameba:
     github: crystal-ameba/ameba
 
-crystal: ">=0.35.1"
+crystal: ">= 1.0.0"
 
 license: MIT
