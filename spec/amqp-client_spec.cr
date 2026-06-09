@@ -381,6 +381,33 @@ describe AMQP::Client do
     conn2.@io.class.should eq OpenSSL::SSL::Socket::Client
   end
 
+  describe "verify URI parameter" do
+    it "sets verify_mode to NONE for verify=none" do
+      client = AMQP::Client.new("amqps://localhost?verify=none")
+      client.tls.try(&.verify_mode).should eq OpenSSL::SSL::VerifyMode::NONE
+    end
+
+    it "parses the value case-insensitively" do
+      client = AMQP::Client.new("amqps://localhost?verify=None")
+      client.tls.try(&.verify_mode).should eq OpenSSL::SSL::VerifyMode::NONE
+    end
+
+    it "supports other verify modes, e.g. peer" do
+      client = AMQP::Client.new("amqps://localhost?verify=peer")
+      client.tls.try(&.verify_mode).should eq OpenSSL::SSL::VerifyMode::PEER
+    end
+
+    it "ignores an unrecognised value and keeps the PEER default" do
+      client = AMQP::Client.new("amqps://localhost?verify=garbage")
+      client.tls.try(&.verify_mode).should eq OpenSSL::SSL::VerifyMode::PEER
+    end
+
+    it "defaults to PEER when no verify param is given" do
+      client = AMQP::Client.new("amqps://localhost")
+      client.tls.try(&.verify_mode).should eq OpenSSL::SSL::VerifyMode::PEER
+    end
+  end
+
   it "version matches shard version" do
     AMQP::Client::VERSION == {{ `shards version`.stringify }}
   end
