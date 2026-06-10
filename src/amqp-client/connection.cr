@@ -153,7 +153,7 @@ class AMQP::Client
           Log.error(exception: e) { "Uncaught exception in on_disconnect block" }
         end
       else
-        Log.debug(exception: ex) { "connection closed by peer: #{ex.class}: #{ex.message}" }
+        Log.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
       end
     end
 

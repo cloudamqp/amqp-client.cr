@@ -74,7 +74,7 @@ describe AMQP::Client::Connection do
       end
     end
 
-    it "logs at debug (not warn) when no on_disconnect callback is registered" do
+    it "logs at error when no on_disconnect callback is registered" do
       done = ::Channel(Nil).new
       port = fake_amqp_server_that_closes(done)
 
@@ -90,10 +90,9 @@ describe AMQP::Client::Connection do
       end
       conn.closed?.should be_true
 
-      backend.entries.any?(&.severity.>=(::Log::Severity::Warn)).should be_false
-      entry = backend.entries.find(&.message.includes?("closed by peer"))
+      entry = backend.entries.find(&.message.includes?("connection closed unexpectedly"))
       entry.should_not be_nil
-      entry.try(&.severity).should eq ::Log::Severity::Debug
+      entry.try(&.severity).should eq ::Log::Severity::Error
     end
   end
 end
