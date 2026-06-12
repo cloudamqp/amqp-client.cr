@@ -86,7 +86,7 @@ class AMQP::Client
       when "tcp_keepalive"
         ka = value.split(':', 3).map &.to_i
         tcp.keepalive_idle, tcp.keepalive_interval, tcp.keepalive_count = ka
-      when "verify"     then tls_ctx.try &.verify_mode = OpenSSL::SSL::VerifyMode::NONE if value =~ /^none$/i
+      when "verify"     then OpenSSL::SSL::VerifyMode.parse?(value).try { |mode| tls_ctx.try &.verify_mode = mode }
       when "cacertfile" then tls_ctx.try &.ca_certificates_path = value
       when "certfile"   then tls_ctx.try &.certificate_chain = value
       when "keyfile"    then tls_ctx.try &.private_key = value
