@@ -12,6 +12,9 @@ class AMQP::Client
     @reply_frames = ::Channel(Frame).new
     getter closing_frame : Frame::Connection::Close?
     getter channel_max, frame_max
+    # Returns `true` once the connection is closed, whether closed cleanly, by
+    # the server, or by an unexpected transport failure. Poll this to detect
+    # disconnects that don't trigger `#on_close` (see `#on_close`).
     getter? closed = false
     getter? blocked = false
 
@@ -67,7 +70,14 @@ class AMQP::Client
 
     @on_close : Proc(UInt16, String, Nil)?
 
-    # Callback that's called if the `Connection` is closed by the server
+    # Callback that's called if the `Connection` is closed by the server.
+    #
+    # NOTE: This is only called when the broker sends an AMQP connection close
+    # frame. It is *not* called on unexpected transport failures (TCP/TLS/
+    # WebSocket read errors, timeouts, network partitions). In those cases the
+    # background read loop logs the error, marks the connection closed and exits
+    # without invoking this callback. To detect such disconnects, poll
+    # `#closed?`.
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
     end

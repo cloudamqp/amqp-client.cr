@@ -11,6 +11,15 @@ dependencies:
 ```
 2. Run `shards install`
 
+## Connection close and network failures
+
+The `on_close` callback is only called for broker-initiated AMQP close frames.
+If the TCP/TLS/WebSocket socket read fails without an AMQP close frame, the
+client read loop logs the error and marks the connection closed, but it does
+not call `on_close` or wake an application-owned shutdown channel. Long-running
+consumers should also watch `Connection#closed?` when deciding when to
+reconnect or exit.
+
 ## “Hello World!”
 
 In this example we will write two small programs in Crystal; a publisher that sends a message, and a consumer that receives messages and prints them out.
