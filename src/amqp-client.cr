@@ -26,6 +26,8 @@ class AMQP::Client
   AMQP_PASS = AMQP_URL.try(&.password) || "guest"
   # :nodoc:
   AMQP_VHOST = AMQP_URL.try { |u| URI.decode_www_form(u.path[1..-1]) if u.path.bytesize > 1 } || "/"
+  # :nodoc:
+  AMQP_AUTH_MECHANISM = AMQP_URL.try(&.query_params["auth_mechanism"]?) || "PLAIN"
 
   alias TLSContext = OpenSSL::SSL::Context::Client | Bool | Nil
 
@@ -39,8 +41,9 @@ class AMQP::Client
   def self.start(host = AMQP_HOST, port = AMQP_PORT, vhost = AMQP_VHOST,
                  user = AMQP_USER, password = AMQP_PASS, tls : TLSContext = AMQP_TLS, websocket = AMQP_WS,
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
-                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, connection_information = ConnectionInformation.new, & : AMQP::Client::Connection -> _)
-    conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, connection_information).connect
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, connection_information = ConnectionInformation.new,
+                 auth_mechanism = AMQP_AUTH_MECHANISM, & : AMQP::Client::Connection -> _)
+    conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, connection_information, auth_mechanism: auth_mechanism).connect
     yield conn
   ensure
     conn.try &.close
@@ -65,6 +68,7 @@ class AMQP::Client
     channel_max = 1024_u16
     verify_mode = OpenSSL::SSL::VerifyMode::PEER
     name = File.basename(PROGRAM_NAME)
+    auth_mechanism = "PLAIN"
     buffer_size = 16_384
     tcp = TCPConfig.new
     connection_information = ConnectionInformation.new
@@ -72,6 +76,7 @@ class AMQP::Client
     uri.query_params.each do |key, value|
       case key
       when "name"             then name = URI.decode_www_form(value)
+      when "auth_mechanism"   then auth_mechanism = value
       when "heartbeat"        then heartbeat = value.to_u16
       when "frame_max"        then frame_max = value.to_u32
       when "channel_max"      then channel_max = value.to_u16
@@ -95,11 +100,18 @@ class AMQP::Client
     end
     self.new(host, port, vhost, user, password, tls_ctx, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
-      connection_information, tcp, buffer_size)
+      connection_information, tcp, buffer_size, auth_mechanism)
   end
 
   property host, port, vhost, user, websocket, tcp, buffer_size
   property tls : OpenSSL::SSL::Context::Client?
+
+  getter auth_mechanism : String
+
+  # Normalize the authentication mechanism to its canonical uppercase form
+  def auth_mechanism=(auth_mechanism : String)
+    @auth_mechanism = auth_mechanism.upcase
+  end
 
   # record Tune, channel_max = 1024u16, frame_max = 131_072u32, heartbeat = 0u16
   record TCPConfig, nodelay = false, keepalive_idle = 60, keepalive_interval = 10, keepalive_count = 3, send_buffer_size : Int32? = nil, recv_buffer_size : Int32? = nil do
@@ -114,7 +126,8 @@ class AMQP::Client
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
                  @connection_information = ConnectionInformation.new("amqp-client.cr", AMQP::Client::VERSION, "Crystal", Crystal::VERSION, File.basename(PROGRAM_NAME)),
-                 @tcp = TCPConfig.new, @buffer_size = 16_384)
+                 @tcp = TCPConfig.new, @buffer_size = 16_384, auth_mechanism = AMQP_AUTH_MECHANISM)
+    @auth_mechanism = auth_mechanism.upcase
     if tls.is_a? OpenSSL::SSL::Context::Client
       @tls = tls
     elsif tls == true
@@ -122,23 +135,29 @@ class AMQP::Client
     end
   end
 
+  # Supported SASL authentication mechanisms
+  SUPPORTED_AUTH_MECHANISMS = {"PLAIN", "EXTERNAL"}
+
   # Establish a connection
   def connect : Connection
+    unless SUPPORTED_AUTH_MECHANISMS.includes? @auth_mechanism
+      raise Error.new("Unsupported authentication mechanism: #{@auth_mechanism.inspect}")
+    end
     if @host.starts_with? '/'
       socket = connect_unix
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
     elsif @websocket
       headers = ::HTTP::Headers.new
       headers["Sec-WebSocket-Protocol"] = "amqp"
       websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls, headers: headers)
       io = WebSocketIO.new(websocket)
-      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
     elsif ctx = @tls.as? OpenSSL::SSL::Context::Client
       socket = connect_tls(connect_tcp, ctx)
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
     else
       socket = connect_tcp
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
     end
   rescue ex
     case ex

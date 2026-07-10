@@ -261,10 +261,10 @@ class AMQP::Client
     # Connection negotiation
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                    user, password, vhost, channel_max, frame_max, heartbeat, connection_information,
-                   name = File.basename(PROGRAM_NAME))
+                   name = File.basename(PROGRAM_NAME), auth_mechanism = "PLAIN")
       io.read_timeout = 60.seconds
       connection_information.name ||= name
-      start(io, user, password, connection_information)
+      start(io, user, password, connection_information, auth_mechanism)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
       self.new(io, channel_max, frame_max, heartbeat)
@@ -281,7 +281,8 @@ class AMQP::Client
       io.read_timeout = nil
     end
 
-    private def self.start(io, user, password, connection_information)
+    private def self.start(io, user, password, connection_information, auth_mechanism = "PLAIN")
+      auth_mechanism = auth_mechanism.upcase
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise Error::UnexpectedFrame.new(f) }
@@ -303,8 +304,14 @@ class AMQP::Client
       })
       user = URI.decode_www_form(user)
       password = URI.decode_www_form(password)
-      response = "\u0000#{user}\u0000#{password}"
-      io.write_bytes(Frame::Connection::StartOk.new(props, "PLAIN", response, ""),
+      plain_response = "\u0000#{user}\u0000#{password}"
+      response =
+        case auth_mechanism
+        when "EXTERNAL" then ""
+        when "PLAIN"    then plain_response
+        else                 raise Error.new("Unsupported authentication mechanism: #{auth_mechanism.inspect}")
+        end
+      io.write_bytes(Frame::Connection::StartOk.new(props, auth_mechanism, response, ""),
         IO::ByteFormat::NetworkEndian)
       io.flush
     end
