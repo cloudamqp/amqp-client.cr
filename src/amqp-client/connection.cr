@@ -303,12 +303,12 @@ class AMQP::Client
       })
       user = URI.decode_www_form(user)
       password = URI.decode_www_form(password)
-      response = "\u0000#{user}\u0000#{password}"
+      plain_response = "\u0000#{user}\u0000#{password}"
       response =
         case auth_mechanism
         when "EXTERNAL" then ""
-        when "PLAIN"    then response
-        else                 raise ArgumentError.new("Unsupported authentication mechanism: #{auth_mechanism.inspect}")
+        when "PLAIN"    then plain_response
+        else                 raise Error.new("Unsupported authentication mechanism: #{auth_mechanism.inspect}")
         end
       io.write_bytes(Frame::Connection::StartOk.new(props, auth_mechanism, response, ""),
         IO::ByteFormat::NetworkEndian)

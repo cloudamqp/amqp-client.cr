@@ -127,8 +127,14 @@ class AMQP::Client
     end
   end
 
+  # Supported SASL authentication mechanisms
+  SUPPORTED_AUTH_MECHANISMS = {"PLAIN", "EXTERNAL"}
+
   # Establish a connection
   def connect : Connection
+    unless SUPPORTED_AUTH_MECHANISMS.includes? @auth_mechanism
+      raise Error.new("Unsupported authentication mechanism: #{@auth_mechanism.inspect}")
+    end
     if @host.starts_with? '/'
       socket = connect_unix
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
