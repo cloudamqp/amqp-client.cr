@@ -282,6 +282,7 @@ class AMQP::Client
     end
 
     private def self.start(io, user, password, connection_information, auth_mechanism = "PLAIN")
+      auth_mechanism = auth_mechanism.upcase
       io.write AMQ::Protocol::PROTOCOL_START_0_9_1.to_slice
       io.flush
       Frame.from_io(io) { |f| f.as?(Frame::Connection::Start) || raise Error::UnexpectedFrame.new(f) }

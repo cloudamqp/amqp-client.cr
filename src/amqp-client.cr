@@ -103,8 +103,15 @@ class AMQP::Client
       connection_information, tcp, buffer_size, auth_mechanism)
   end
 
-  property host, port, vhost, user, websocket, tcp, buffer_size, auth_mechanism
+  property host, port, vhost, user, websocket, tcp, buffer_size
   property tls : OpenSSL::SSL::Context::Client?
+
+  getter auth_mechanism : String
+
+  # Normalize the authentication mechanism to its canonical uppercase form
+  def auth_mechanism=(auth_mechanism : String)
+    @auth_mechanism = auth_mechanism.upcase
+  end
 
   # record Tune, channel_max = 1024u16, frame_max = 131_072u32, heartbeat = 0u16
   record TCPConfig, nodelay = false, keepalive_idle = 60, keepalive_interval = 10, keepalive_count = 3, send_buffer_size : Int32? = nil, recv_buffer_size : Int32? = nil do
@@ -119,7 +126,8 @@ class AMQP::Client
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
                  @connection_information = ConnectionInformation.new("amqp-client.cr", AMQP::Client::VERSION, "Crystal", Crystal::VERSION, File.basename(PROGRAM_NAME)),
-                 @tcp = TCPConfig.new, @buffer_size = 16_384, @auth_mechanism = AMQP_AUTH_MECHANISM)
+                 @tcp = TCPConfig.new, @buffer_size = 16_384, auth_mechanism = AMQP_AUTH_MECHANISM)
+    @auth_mechanism = auth_mechanism.upcase
     if tls.is_a? OpenSSL::SSL::Context::Client
       @tls = tls
     elsif tls == true
