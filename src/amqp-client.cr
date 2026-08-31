@@ -27,10 +27,10 @@ class AMQP::Client
   # :nodoc:
   AMQP_VHOST = AMQP_URL.try { |u| URI.decode_www_form(u.path[1..-1]) if u.path.bytesize > 1 } || "/"
 
-  alias TLSContext = OpenSSL::SSL::Context::Client | Bool | Nil
+  alias TLSContext = (OpenSSL::SSL::Context::Client | Bool)?
 
   def self.start(url : String | URI, & : AMQP::Client::Connection -> _)
-    conn = self.new(url).connect
+    conn = new(url).connect
     yield conn
   ensure
     conn.try &.close
@@ -40,7 +40,7 @@ class AMQP::Client
                  user = AMQP_USER, password = AMQP_PASS, tls : TLSContext = AMQP_TLS, websocket = AMQP_WS,
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, connection_information = ConnectionInformation.new, & : AMQP::Client::Connection -> _)
-    conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, connection_information).connect
+    conn = new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, connection_information).connect
     yield conn
   ensure
     conn.try &.close
@@ -48,7 +48,7 @@ class AMQP::Client
 
   def self.new(url : String)
     uri = URI.parse(url)
-    self.new(uri)
+    new(uri)
   end
 
   def self.new(uri : URI) # ameba:disable Metrics/CyclomaticComplexity
@@ -93,7 +93,7 @@ class AMQP::Client
       else                   raise ArgumentError.new("Unrecognised parameter: #{key}")
       end
     end
-    self.new(host, port, vhost, user, password, tls_ctx, websocket,
+    new(host, port, vhost, user, password, tls_ctx, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
       connection_information, tcp, buffer_size)
   end

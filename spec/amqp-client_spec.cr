@@ -124,7 +124,7 @@ describe AMQP::Client do
       expect_raises(AMQP::Client::Channel::ClosedException) do
         ch.queue_declare("foobar", passive: true)
       end
-      c.closed?.should eq false
+      c.closed?.should be_false
     end
   end
 
@@ -161,7 +161,7 @@ describe AMQP::Client do
   it "should publish with confirm" do
     with_channel do |ch|
       q = ch.queue
-      q.publish_confirm("hej").should eq true
+      q.publish_confirm("hej").should be_true
       ok = q.delete
       ok[:message_count].should eq 1
     end
@@ -175,13 +175,13 @@ describe AMQP::Client do
       q.publish("hej") do
         confirmed.send true
       end
-      confirmed.receive.should eq true
+      confirmed.receive.should be_true
     end
   end
 
   it "should use blocks" do
     with_channel do |ch|
-      ch.basic_publish_confirm("hej", "", "my-queue").should eq true
+      ch.basic_publish_confirm("hej", "", "my-queue").should be_true
     end
   end
 
@@ -262,7 +262,7 @@ describe AMQP::Client do
     sized = IO::Sized.new(io, read_size: 3)
     with_channel do |ch|
       q = ch.queue
-      q.publish_confirm(sized, 3).should eq true
+      q.publish_confirm(sized, 3).should be_true
       msg = q.get
       msg.should_not be_nil
       msg.not_nil!.body_io.to_s.should eq "abc"

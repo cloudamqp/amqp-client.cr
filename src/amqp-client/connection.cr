@@ -102,7 +102,7 @@ class AMQP::Client
       @on_unblocked = blk
     end
 
-    private def read_loop # ameba:disable Metrics/CyclomaticComplexity
+    private def read_loop
       io = @io
       loop do
         Frame.from_io(io) do |f|
@@ -255,7 +255,7 @@ class AMQP::Client
         end
       end
       Log.debug { "Server didn't confirm close" }
-    rescue ex : IO::Error
+    rescue IO::Error
       Log.info { "Socket already closed, can't send close frame" }
     ensure
       @closed = true
@@ -274,7 +274,7 @@ class AMQP::Client
       start(io, user, password, connection_information)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
-      self.new(io, channel_max, frame_max, heartbeat)
+      new(io, channel_max, frame_max, heartbeat)
     rescue ex
       case ex
       when IO::EOFError

@@ -134,7 +134,7 @@ describe "Websocket client" do
   it "should publish with confirm" do
     with_ws_channel do |ch|
       q = ch.queue
-      q.publish_confirm("hej").should eq true
+      q.publish_confirm("hej").should be_true
       ok = q.delete
       ok[:message_count].should eq 1
     end
@@ -142,7 +142,7 @@ describe "Websocket client" do
 
   it "should use blocks" do
     with_ws_channel do |ch|
-      ch.basic_publish_confirm("hej", "", "my-queue").should eq true
+      ch.basic_publish_confirm("hej", "", "my-queue").should be_true
     end
   end
 
@@ -223,7 +223,7 @@ describe "Websocket client" do
     sized = IO::Sized.new(io, read_size: 3)
     with_ws_channel do |ch|
       q = ch.queue
-      q.publish_confirm(sized, 3).should eq true
+      q.publish_confirm(sized, 3).should be_true
       msg = q.get
       msg.should_not be_nil
       msg.not_nil!.body_io.to_s.should eq "abc"
