@@ -5,15 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [1.3.4] - 2026-06-29
+
+### Added
+
+- `on_disconnect` callback for handling network-level disconnects [#71](https://github.com/cloudamqp/amqp-client.cr/pull/71)
+- Any valid verify mode can now be set via the `verify` URI parameter, not just `verify=none`. [#72](https://github.com/cloudamqp/amqp-client.cr/pull/72)
+
+### Changed
+
+- The `Log.error` on unexpected disconnect is deprecated. It is kept for backwards compatibility only when no `on_disconnect` handler is set, and will be removed in the next release. Use `on_disconnect` to handle disconnects instead. [#71](https://github.com/cloudamqp/amqp-client.cr/pull/71)
 
 ## [1.3.3] - 2026-05-27
 
 ### Added
+
 - Set Sec-WebSocket-Protocol header to 'amqp' for WebSocket connections [#68](https://github.com/cloudamqp/amqp-client.cr/pull/68)
 - Allow passing NamedTuple where `Arguments` was required before [#56](https://github.com/cloudamqp/amqp-client.cr/pull/56)
 
 ### Changed
+
 - No version restriction of amq-protocol.cr, so that users of the library can override amq-protocol with for example a branch version
 - Wrap network exceptions in AMQP::Error::NetworkError [#64](https://github.com/cloudamqp/amqp-client.cr/pull/64)
 

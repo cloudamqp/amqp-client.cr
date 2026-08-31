@@ -95,16 +95,20 @@ end
 
 ## Connection close and network failures
 
-`Connection#on_close` is only called when the broker sends an AMQP
-connection close frame. If the TCP/TLS/WebSocket socket read fails without an
-AMQP close frame, the background read loop logs the IO/OpenSSL error, marks the
-connection closed, closes channels and consumers, and exits. It does not call
-`on_close`, and the original transport exception is not delivered to
-application code.
+The client reports a lost connection through two different callbacks:
+
+- `Connection#on_close` is called only when the broker sends an AMQP
+  connection close frame.
+- `Connection#on_disconnect` is called when the TCP/TLS/WebSocket socket read
+  fails without an AMQP close frame (for example a timeout, a network
+  partition, or a TLS error). The callback receives the transport exception.
+
+If a transport failure occurs, the background read loop marks the connection
+closed, closes channels and consumers, calls `on_disconnect`, and exits. It
+does not call `on_close`.
 
 For long-running consumers that wait on an application-owned shutdown channel,
-also watch `Connection#closed?` so a detected disconnect can unblock the
-application:
+use `on_disconnect` so a detected disconnect can unblock the application:
 
 ```crystal
 require "amqp-client"
@@ -113,10 +117,8 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
   shutdown = ::Channel(Nil).new
   Signal::INT.trap { shutdown.close rescue nil }
 
-  spawn do
-    until c.closed?
-      sleep 1.second
-    end
+  c.on_disconnect do |ex|
+    puts "Connection lost: #{ex.message}"
     shutdown.close rescue nil
   end
 
@@ -130,6 +132,9 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
   shutdown.receive?
 end
 ```
+
+`Connection#closed?` returns `true` after the connection is closed for any
+reason. You can poll it as an alternative to the callbacks.
 
 You can consume [stream queues](https://www.rabbitmq.com/streams.html) too: 
 

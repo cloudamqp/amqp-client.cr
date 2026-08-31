@@ -13,8 +13,8 @@ class AMQP::Client
     getter closing_frame : Frame::Connection::Close?
     getter channel_max, frame_max
     # Returns `true` once the connection is closed, whether closed cleanly, by
-    # the server, or by an unexpected transport failure. Poll this to detect
-    # disconnects that don't trigger `#on_close` (see `#on_close`).
+    # the server, or by an unexpected transport failure. See `#on_close` and
+    # `#on_disconnect` for callbacks that fire when the connection is lost.
     getter? closed = false
     getter? blocked = false
 
@@ -70,16 +70,23 @@ class AMQP::Client
 
     @on_close : Proc(UInt16, String, Nil)?
 
-    # Callback that's called if the `Connection` is closed by the server.
+    # Callback called when the server closes the `Connection`
+    # gracefully via an AMQP `Connection.Close` method frame.
     #
-    # NOTE: This is only called when the broker sends an AMQP connection close
-    # frame. It is *not* called on unexpected transport failures (TCP/TLS/
-    # WebSocket read errors, timeouts, network partitions). In those cases the
-    # background read loop logs the error, marks the connection closed and exits
-    # without invoking this callback. To detect such disconnects, poll
-    # `#closed?`.
+    # NOTE: This is *not* called on unexpected transport failures (TCP/TLS/
+    # WebSocket read errors, timeouts, network partitions). Use
+    # `#on_disconnect` to handle those.
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
+    end
+
+    @on_disconnect : Proc(Exception, Nil)?
+
+    # Callback called when the `Connection` is lost at the network
+    # layer — i.e. the read loop encountered `IO::Error` or `OpenSSL::Error`
+    # without a preceding AMQP `Connection.Close` frame.
+    def on_disconnect(&blk : Exception ->)
+      @on_disconnect = blk
     end
 
     @on_blocked : Proc(String, Nil)?
@@ -128,7 +135,7 @@ class AMQP::Client
           end
         end
       rescue ex : IO::Error | OpenSSL::Error
-        Log.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
+        notify_disconnected(ex)
         break
       rescue ex
         Log.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
@@ -142,6 +149,18 @@ class AMQP::Client
       @channels_lock.synchronize do
         @channels.each_value &.cleanup
         @channels.clear
+      end
+    end
+
+    private def notify_disconnected(ex : Exception)
+      if on_disconnect = @on_disconnect
+        begin
+          on_disconnect.call(ex)
+        rescue e
+          Log.error(exception: e) { "Uncaught exception in on_disconnect block" }
+        end
+      else
+        Log.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
       end
     end
 
