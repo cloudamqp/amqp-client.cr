@@ -16,7 +16,7 @@ jobs:
 
       # ameba 1.7.0 removed its postinstall build, so build the binary here
       - name: Build ameba
-        run: crystal build lib/ameba/src/cli.cr -o bin/ameba
+        run: mkdir -p bin && crystal build lib/ameba/src/cli.cr -o bin/ameba
 
       - name: Run ameba
         run: bin/ameba src spec
