@@ -27,7 +27,7 @@ class AMQP::Client
   # :nodoc:
   AMQP_VHOST = AMQP_URL.try { |u| URI.decode_www_form(u.path[1..-1]) if u.path.bytesize > 1 } || "/"
 
-  alias TLSContext = OpenSSL::SSL::Context::Client | Bool?
+  alias TLSContext = (OpenSSL::SSL::Context::Client | Bool)?
 
   def self.start(url : String | URI, & : AMQP::Client::Connection -> _)
     conn = new(url).connect
