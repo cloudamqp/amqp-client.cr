@@ -95,20 +95,21 @@ end
 
 ## Connection close and network failures
 
-The client reports a lost connection through two different callbacks:
+The client reports a lost connection through two callbacks:
 
-- `Connection#on_close` is called only when the broker sends an AMQP
+- The client calls `Connection#on_close` only when the broker sends an AMQP
   connection close frame.
-- `Connection#on_disconnect` is called when the TCP/TLS/WebSocket socket read
-  fails without an AMQP close frame (for example a timeout, a network
-  partition, or a TLS error). The callback receives the transport exception.
+- The client calls `Connection#on_disconnect` when the TCP, TLS, or WebSocket
+  read fails without an AMQP close frame. Examples of such failures are a
+  timeout, a network partition, and a TLS error. The callback receives the
+  transport exception.
 
 If a transport failure occurs, the background read loop marks the connection
-closed, closes channels and consumers, calls `on_disconnect`, and exits. It
-does not call `on_close`.
+closed, closes the channels and the consumers, calls `on_disconnect`, and
+exits. The read loop does not call `on_close`.
 
-For long-running consumers that wait on an application-owned shutdown channel,
-use `on_disconnect` so a detected disconnect can unblock the application:
+Use `on_disconnect` to unblock a consumer that waits on an application-owned
+shutdown channel:
 
 ```crystal
 require "amqp-client"
@@ -133,8 +134,8 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
 end
 ```
 
-`Connection#closed?` returns `true` after the connection is closed for any
-reason. You can poll it as an alternative to the callbacks.
+`Connection#closed?` returns `true` after the connection closes for any
+reason. If you do not use the callbacks, you can poll `closed?`.
 
 You can consume [stream queues](https://www.rabbitmq.com/streams.html) too: 
 
