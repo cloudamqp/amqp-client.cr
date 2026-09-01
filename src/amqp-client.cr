@@ -39,8 +39,10 @@ class AMQP::Client
   def self.start(host = AMQP_HOST, port = AMQP_PORT, vhost = AMQP_VHOST,
                  user = AMQP_USER, password = AMQP_PASS, tls : TLSContext = AMQP_TLS, websocket = AMQP_WS,
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
-                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, connection_information = ConnectionInformation.new, & : AMQP::Client::Connection -> _)
-    conn = new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, connection_information).connect
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, connection_information = ConnectionInformation.new,
+                 log_id : String? = nil, & : AMQP::Client::Connection -> _)
+    conn = new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name,
+      connection_information, log_id: log_id).connect
     yield conn
   ensure
     conn.try &.close
@@ -68,10 +70,12 @@ class AMQP::Client
     buffer_size = 16_384
     tcp = TCPConfig.new
     connection_information = ConnectionInformation.new
+    log_id = nil
     tls_ctx = OpenSSL::SSL::Context::Client.new if tls
     uri.query_params.each do |key, value|
       case key
       when "name"             then name = URI.decode_www_form(value)
+      when "log_id"           then log_id = URI.decode_www_form(value)
       when "heartbeat"        then heartbeat = value.to_u16
       when "frame_max"        then frame_max = value.to_u32
       when "channel_max"      then channel_max = value.to_u16
@@ -95,10 +99,10 @@ class AMQP::Client
     end
     new(host, port, vhost, user, password, tls_ctx, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
-      connection_information, tcp, buffer_size)
+      connection_information, tcp, buffer_size, log_id)
   end
 
-  property host, port, vhost, user, websocket, tcp, buffer_size
+  property host, port, vhost, user, websocket, tcp, buffer_size, log_id
   property tls : OpenSSL::SSL::Context::Client?
 
   # record Tune, channel_max = 1024u16, frame_max = 131_072u32, heartbeat = 0u16
@@ -114,7 +118,7 @@ class AMQP::Client
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
                  @connection_information = ConnectionInformation.new("amqp-client.cr", AMQP::Client::VERSION, "Crystal", Crystal::VERSION, File.basename(PROGRAM_NAME)),
-                 @tcp = TCPConfig.new, @buffer_size = 16_384)
+                 @tcp = TCPConfig.new, @buffer_size = 16_384, @log_id : String? = nil)
     if tls.is_a? OpenSSL::SSL::Context::Client
       @tls = tls
     elsif tls == true
@@ -126,19 +130,19 @@ class AMQP::Client
   def connect : Connection
     if @host.starts_with? '/'
       socket = connect_unix
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @log_id)
     elsif @websocket
       headers = ::HTTP::Headers.new
       headers["Sec-WebSocket-Protocol"] = "amqp"
       websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls, headers: headers)
       io = WebSocketIO.new(websocket)
-      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @log_id)
     elsif ctx = @tls.as? OpenSSL::SSL::Context::Client
       socket = connect_tls(connect_tcp, ctx)
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @log_id)
     else
       socket = connect_tcp
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @log_id)
     end
   rescue ex
     case ex

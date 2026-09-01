@@ -95,4 +95,59 @@ describe AMQP::Client::Connection do
       entry.try(&.severity).should eq ::Log::Severity::Error
     end
   end
+
+  describe "#log_id" do
+    it "defaults to the local and remote address" do
+      with_connection do |c|
+        c.log_id.should match(/\A\S+:\d+ -> \S+:\d+\z/)
+      end
+    end
+
+    it "differs between two connections to the same server" do
+      with_connection do |c1|
+        with_connection do |c2|
+          c1.log_id.should_not eq c2.log_id
+        end
+      end
+    end
+
+    it "falls back to a sequence number when the transport has no address pair" do
+      with_ws_connection do |c|
+        c.log_id.should match(/\A\#\d+\z/)
+      end
+    end
+
+    it "can be overridden" do
+      with_connection(log_id: "my-connection") do |c|
+        c.log_id.should eq "my-connection"
+      end
+    end
+
+    it "can be set with the log_id URI parameter" do
+      uri = "amqp://#{AMQP::Client::AMQP_HOST}?log_id=from-uri"
+      AMQP::Client.start(uri) do |c|
+        c.log_id.should eq "from-uri"
+      end
+    end
+
+    it "is included in the log lines of received and sent frames" do
+      io = IO::Memory.new
+      backend = ::Log::IOBackend.new(io, dispatcher: ::Log::DispatchMode::Sync)
+      Log.builder.bind "amqp.client.connection", :debug, backend
+      begin
+        with_connection(log_id: "logged-connection") do |c|
+          c.channel
+        end
+      ensure
+        Log.builder.unbind "amqp.client.connection", :debug, backend
+      end
+
+      lines = io.to_s.lines
+      %w[sent recv].each do |direction|
+        line = lines.find(&.includes?(" #{direction} "))
+        fail "no #{direction} line logged, got: #{lines}" if line.nil?
+        line.should contain %(connection: "logged-connection")
+      end
+    end
+  end
 end

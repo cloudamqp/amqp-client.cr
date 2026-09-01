@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Connection log lines carry a `connection` metadata key, defaulting to the socket's local and remote address, so log lines from several connections in the same application can be told apart. Override it with the `log_id` argument or URI parameter, and read it back with `Connection#log_id`. [#63](https://github.com/cloudamqp/amqp-client.cr/pull/63)
+
 ## [1.3.4] - 2026-06-29
 
 ### Added

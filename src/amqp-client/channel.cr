@@ -435,7 +435,7 @@ class AMQP::Client
     end
 
     private def consume(consumer_tag, deliveries, done, i, log_errors, blk)
-      Log.context.set channel_id: @id.to_i, consumer: consumer_tag, worker: i
+      Log.context.set connection: @connection.log_id, channel_id: @id.to_i, consumer: consumer_tag, worker: i
       while msg = deliveries.receive?
         begin
           blk.call(msg)
