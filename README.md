@@ -158,6 +158,37 @@ AMQP::Client.start do |c|
 end
 ```
 
+## Logging
+
+The client logs to the `amqp.client`, `amqp.client.connection` and
+`amqp.client.channel` sources. Connection log lines carry a `connection`
+metadata key so lines from several connections in the same application can be
+told apart:
+
+```crystal
+Log.setup_from_env(default_level: :debug)
+AMQP::Client.start("amqp://guest:guest@localhost") do |c|
+  c.channel
+end
+```
+
+```
+amqp.client.connection: sent AMQ::Protocol::Frame::Channel::Open(...) -- connection: "127.0.0.1:47182 -> 127.0.0.1:5672"
+amqp.client.connection: recv AMQ::Protocol::Frame::Channel::OpenOk(...) -- connection: "127.0.0.1:47182 -> 127.0.0.1:5672"
+```
+
+The default is the socket's local and remote address, which identifies the TCP
+connection uniquely and can be matched against broker logs and packet captures.
+UNIX sockets and WebSockets have no such address pair, so those get a sequence
+number instead. Pass `log_id` (or the `log_id` URI parameter) to use your own
+identifier, and read it back with `Connection#log_id`:
+
+```crystal
+AMQP::Client.start("amqp://localhost?log_id=order-publisher") do |c|
+  c.log_id # => "order-publisher"
+end
+```
+
 ## Performance
 
 1-byte messages, without properties/headers:

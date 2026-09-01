@@ -18,9 +18,38 @@ class AMQP::Client
     getter? closed = false
     getter? blocked = false
 
+    # Identifies this connection in the `connection` log metadata, so log lines
+    # from several connections in the same application can be told apart.
+    # Defaults to `"local_address -> remote_address"`, or a sequence number for
+    # transports without an address pair. Override with the *log_id* argument
+    # to `AMQP::Client`.
+    getter log_id : String
+
+    @@log_id_seq = Atomic(UInt64).new(0)
+
     protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
-                             @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
+                             @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16,
+                             log_id : String? = nil)
+      @log_id = log_id || default_log_id
       spawn read_loop, name: "AMQP::Client#read_loop"
+    end
+
+    # The address pair is unique per TCP connection and can be matched against
+    # broker logs and packet captures. UNIX sockets and WebSockets have no pair.
+    private def default_log_id : String
+      case io = @io
+      when TCPSocket, OpenSSL::SSL::Socket::Client
+        local, remote = io.local_address, io.remote_address
+        local && remote ? "#{local} -> #{remote}" : next_log_id
+      else
+        next_log_id
+      end
+    rescue Socket::Error # the peer can have reset the connection since the handshake
+      next_log_id
+    end
+
+    private def next_log_id : String
+      "##{@@log_id_seq.add(1) + 1}"
     end
 
     @channels = Hash(UInt16, Channel).new
@@ -103,6 +132,7 @@ class AMQP::Client
     end
 
     private def read_loop
+      Log.context.set connection: @log_id # the fiber is ours for its whole life, so this can't leak
       io = @io
       loop do
         Frame.from_io(io) do |f|
@@ -209,9 +239,11 @@ class AMQP::Client
 
     # :nodoc:
     def write(frame : Frame)
-      @write_lock.synchronize do
-        unsafe_write(frame)
-        @io.flush
+      Log.with_context(connection: @log_id) do
+        @write_lock.synchronize do
+          unsafe_write(frame)
+          @io.flush
+        end
       end
     end
 
@@ -234,9 +266,11 @@ class AMQP::Client
 
     # :nodoc:
     def with_lock(flush = true, & : self -> _)
-      @write_lock.synchronize do
-        yield self
-        @io.flush if flush
+      Log.with_context(connection: @log_id) do
+        @write_lock.synchronize do
+          yield self
+          @io.flush if flush
+        end
       end
     end
 
@@ -245,6 +279,16 @@ class AMQP::Client
     # The *reason* might be logged by the server
     def close(reason = "", no_wait = false)
       return if @closed
+      Log.with_context(connection: @log_id) { send_close(reason, no_wait) }
+    ensure
+      @closed = true
+      @reply_frames.close
+      @io.close rescue nil
+      @channels.each_value &.cleanup
+      @channels.clear
+    end
+
+    private def send_close(reason, no_wait) : Nil
       Log.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
       return if no_wait
@@ -257,24 +301,18 @@ class AMQP::Client
       Log.debug { "Server didn't confirm close" }
     rescue IO::Error
       Log.info { "Socket already closed, can't send close frame" }
-    ensure
-      @closed = true
-      @reply_frames.close
-      @io.close rescue nil
-      @channels.each_value &.cleanup
-      @channels.clear
     end
 
     # Connection negotiation
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                    user, password, vhost, channel_max, frame_max, heartbeat, connection_information,
-                   name = File.basename(PROGRAM_NAME))
+                   name = File.basename(PROGRAM_NAME), log_id : String? = nil)
       io.read_timeout = 60.seconds
       connection_information.name ||= name
       start(io, user, password, connection_information)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
-      new(io, channel_max, frame_max, heartbeat)
+      new(io, channel_max, frame_max, heartbeat, log_id)
     rescue ex
       case ex
       when IO::EOFError
