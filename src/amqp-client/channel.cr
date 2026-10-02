@@ -265,9 +265,14 @@ class AMQP::Client
     end
 
     # Publish a message with a set *bytesize*, to an *exchange* with *routing_key*
+    #
+    # Waits while the server has blocked the connection (`connection.blocked`),
+    # see `Connection#wait_while_blocked`.
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props properties = Properties.new,
                       blk : Proc(Bool, Nil)? = nil) : UInt64
+      raise_if_closed
+      @connection.wait_while_blocked
       raise_if_closed
 
       @connection.with_lock(flush: !@tx) do |c|
