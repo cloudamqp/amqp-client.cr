@@ -17,6 +17,22 @@ class AMQP::Client
     # and `#on_disconnect` for the related callbacks.
     getter? closed = false
     getter? blocked = false
+    # Closed when the server unblocks the connection, or it closes
+    @unblocked : ::Channel(Nil)?
+
+    # Waits while the server has blocked the connection with
+    # `connection.blocked`, until it's unblocked or the connection closes.
+    # `Channel#basic_publish` calls this before publishing.
+    def wait_while_blocked : Nil
+      @unblocked.try &.receive?
+    end
+
+    private def unblock : Nil
+      if unblocked = @unblocked
+        @unblocked = nil
+        unblocked.close
+      end
+    end
 
     protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                              @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
@@ -119,13 +135,9 @@ class AMQP::Client
             end
             return
           when Frame::Connection::Blocked
-            Log.info { "Blocked by server, reason: #{f.reason}" }
-            @blocked = true
-            @on_blocked.try &.call(f.reason)
+            process_blocked(f)
           when Frame::Connection::Unblocked
-            Log.info { "Unblocked by server" }
-            @blocked = false
-            @on_unblocked.try &.call
+            process_unblocked
           when Frame::Connection::UpdateSecretOk
             @update_secret_ok.send nil
           when Frame::Heartbeat
@@ -150,6 +162,8 @@ class AMQP::Client
         @channels.each_value &.cleanup
         @channels.clear
       end
+      # after the channels are closed, so woken publishers raise
+      unblock
     end
 
     private def notify_disconnected(ex : Exception)
@@ -162,6 +176,20 @@ class AMQP::Client
       else
         Log.error(exception: ex) { "connection closed unexpectedly: #{ex.message}" }
       end
+    end
+
+    private def process_blocked(f : Frame::Connection::Blocked)
+      Log.info { "Blocked by server, reason: #{f.reason}" }
+      @unblocked ||= ::Channel(Nil).new
+      @blocked = true
+      @on_blocked.try &.call(f.reason)
+    end
+
+    private def process_unblocked
+      Log.info { "Unblocked by server" }
+      @blocked = false
+      unblock
+      @on_unblocked.try &.call
     end
 
     private def process_close(f)
@@ -263,6 +291,7 @@ class AMQP::Client
       @io.close rescue nil
       @channels.each_value &.cleanup
       @channels.clear
+      unblock
     end
 
     # Connection negotiation
