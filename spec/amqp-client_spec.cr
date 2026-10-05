@@ -381,6 +381,21 @@ describe AMQP::Client do
     conn2.@io.class.should eq OpenSSL::SSL::Socket::Client
   end
 
+  describe "tcp_nodelay URI parameter" do
+    it "defaults to true" do
+      AMQP::Client.new("amqp://localhost").tcp.nodelay.should be_true
+    end
+
+    it "is true when given without a value" do
+      AMQP::Client.new("amqp://localhost?tcp_nodelay").tcp.nodelay.should be_true
+    end
+
+    it "can be disabled" do
+      AMQP::Client.new("amqp://localhost?tcp_nodelay=false").tcp.nodelay.should be_false
+      AMQP::Client.new("amqp://localhost?tcp_nodelay=0").tcp.nodelay.should be_false
+    end
+  end
+
   describe "verify URI parameter" do
     it "sets verify_mode to NONE for verify=none" do
       client = AMQP::Client.new("amqps://localhost?verify=none")

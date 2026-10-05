@@ -76,7 +76,7 @@ class AMQP::Client
       when "frame_max"        then frame_max = value.to_u32
       when "channel_max"      then channel_max = value.to_u16
       when "buffer_size"      then buffer_size = value.to_i
-      when "tcp_nodelay"      then tcp.nodelay = true
+      when "tcp_nodelay"      then tcp.nodelay = !value.matches?(/^(false|0|no|off)$/i)
       when "recv_buffer_size" then tcp.recv_buffer_size = value.to_i
       when "send_buffer_size" then tcp.send_buffer_size = value.to_i
       when "product"          then connection_information.product = value
@@ -102,7 +102,7 @@ class AMQP::Client
   property tls : OpenSSL::SSL::Context::Client?
 
   # record Tune, channel_max = 1024u16, frame_max = 131_072u32, heartbeat = 0u16
-  record TCPConfig, nodelay = false, keepalive_idle = 60, keepalive_interval = 10, keepalive_count = 3, send_buffer_size : Int32? = nil, recv_buffer_size : Int32? = nil do
+  record TCPConfig, nodelay = true, keepalive_idle = 60, keepalive_interval = 10, keepalive_count = 3, send_buffer_size : Int32? = nil, recv_buffer_size : Int32? = nil do
     property nodelay, keepalive_idle, keepalive_interval, keepalive_count, send_buffer_size, recv_buffer_size
   end
 
@@ -161,7 +161,7 @@ class AMQP::Client
     socket.tcp_keepalive_idle = @tcp.keepalive_idle if @tcp.keepalive_idle.positive?
     socket.tcp_keepalive_count = @tcp.keepalive_count if @tcp.keepalive_count.positive?
     socket.tcp_keepalive_interval = @tcp.keepalive_interval if @tcp.keepalive_interval.positive?
-    socket.tcp_nodelay = true if @tcp.nodelay
+    socket.tcp_nodelay = @tcp.nodelay
     @tcp.recv_buffer_size.try { |v| socket.recv_buffer_size = v }
     @tcp.send_buffer_size.try { |v| socket.send_buffer_size = v }
     set_socket_buffers(socket)
