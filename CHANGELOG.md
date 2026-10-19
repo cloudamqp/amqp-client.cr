@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A consumer is registered before `basic.consume` is sent, so deliveries that arrive right after `ConsumeOk` are no longer dropped (and left unacked) when the read loop runs on another thread. When no tag is given, the tag is now chosen by the client, in the same `amq.ctag-` format servers use
+- A consumer is registered before `basic.consume` is sent, so deliveries that arrive right after `ConsumeOk` are no longer dropped (and left unacked) when the read loop runs on another thread. When no tag is given, the tag is now chosen by the client, in the same `amq.ctag-` format servers use [#82](https://github.com/cloudamqp/amqp-client.cr/pull/82)
 
 ### Changed
 
