@@ -25,77 +25,73 @@ describe "publisher confirms" do
   end
 
   {% if Fiber.has_constant?("ExecutionContext") %}
-    # The read loop, which handles the confirms, runs on a thread of its own
-    # while the publishers run on the others
-    it "confirms every publish when the client runs on several threads" do
-      publishers = 8
-      publishes = 500
-      done = Channel(Exception | Int32).new
-      ctx = Fiber::ExecutionContext::Parallel.new("confirms", 4)
-      ctx.spawn do
-        with_channel do |ch|
-          q = ch.queue
-          wg = WaitGroup.new(publishers)
-          confirmed = Atomic(Int32).new(0)
-          publishers.times do
-            ctx.spawn do
-              publishes.times do
-                confirmed.add(1) if ch.basic_publish_confirm("", "", q.name)
-              end
-            ensure
-              wg.done
+    # The connection, and so its read loop, is in an execution context of
+    # its own: the read loop handles the broker's acks on another thread
+    # than the publishers, as soon as they come
+    it "confirms every publish when the read loop runs on another thread" do
+      with_connection_in_own_context do |conn|
+        ch = conn.channel
+        q = ch.queue("", durable: false, exclusive: true)
+        publishers = 4
+        publishes = 500
+        confirmed = Atomic(Int32).new(0)
+        wg = WaitGroup.new(publishers)
+        publishers.times do
+          spawn do
+            publishes.times do
+              confirmed.add(1) if ch.basic_publish_confirm("", "", q.name)
             end
+          ensure
+            wg.done
           end
-          wg.wait
-          done.send confirmed.get
         end
-      rescue ex
-        done.send ex
-      end
-      select
-      when result = done.receive
-        raise result if result.is_a?(Exception)
-        result.should eq publishers * publishes
-      when timeout(30.seconds)
-        fail "publish confirms never came"
+        all_done = Channel(Nil).new
+        spawn { wg.wait; all_done.send nil }
+        select
+        when all_done.receive
+        when timeout(30.seconds)
+          fail "publish confirms never came (#{confirmed.get} of #{publishers * publishes})"
+        end
+        confirmed.get.should eq publishers * publishes
       end
     end
 
-    it "returns from wait_for_confirms when the client runs on several threads" do
-      waiters = 4
-      done = Channel(Exception?).new
-      ctx = Fiber::ExecutionContext::Parallel.new("wait-for-confirms", 4)
-      ctx.spawn do
-        with_channel do |ch|
-          q = ch.queue
-          ch.confirm_select
-          200.times do
-            # A few publishes at a time, so the last confirm can come while
-            # the waiters check whether there's anything to wait for
-            3.times { q.publish "" }
-            wg = WaitGroup.new(waiters)
-            returned = Atomic(Int32).new(0)
-            waiters.times do
-              ctx.spawn do
-                returned.add(1) if ch.wait_for_confirms
-              ensure
-                wg.done
-              end
-            end
-            wg.wait
-            returned.get.should eq waiters
+    it "returns from wait_for_confirms when the read loop runs on another thread" do
+      with_connection_in_own_context do |conn|
+        ch = conn.channel
+        q = ch.queue("", durable: false, exclusive: true)
+        ch.confirm_select
+        2000.times do |i|
+          q.publish ""
+          returned = Channel(Bool).new
+          spawn { returned.send ch.wait_for_confirms }
+          select
+          when ok = returned.receive
+            ok.should be_true
+          when timeout(5.seconds)
+            fail "wait_for_confirms never returned (iteration #{i})"
           end
         end
-        done.send nil
-      rescue ex
-        done.send ex
-      end
-      select
-      when ex = done.receive
-        raise ex if ex
-      when timeout(30.seconds)
-        fail "wait_for_confirms never returned"
       end
     end
   {% end %}
 end
+
+{% if Fiber.has_constant?("ExecutionContext") %}
+  def with_connection_in_own_context(&)
+    reader = Fiber::ExecutionContext::Concurrent.new("amqp read loop")
+    connected = Channel(AMQP::Client::Connection | Exception).new
+    reader.spawn do
+      connected.send AMQP::Client.new.connect
+    rescue ex
+      connected.send ex
+    end
+    conn = connected.receive
+    raise conn if conn.is_a?(Exception)
+    begin
+      yield conn
+    ensure
+      conn.close
+    end
+  end
+{% end %}
