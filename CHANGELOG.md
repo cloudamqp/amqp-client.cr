@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Publisher confirms with the client on several threads: a confirm that arrived before its publish had been numbered was dropped, so the publish's callback never ran and `basic_publish_confirm` could hang; `basic_publish_confirm` could enqueue its fiber before it was waiting; `wait_for_confirms` could miss the last confirm and wait forever. Confirm callbacks now also run outside the confirm lock, so one can publish on the same channel
+- Publisher confirms with the client on several threads: a confirm that arrived before its publish had been numbered was dropped, so the publish's callback never ran and `basic_publish_confirm` could hang; `basic_publish_confirm` could enqueue its fiber before it was waiting; `wait_for_confirms` could miss the last confirm and wait forever. Confirm callbacks now also run outside the confirm lock, so one can publish on the same channel [#83](https://github.com/cloudamqp/amqp-client.cr/pull/83)
 
 ### Changed
 
