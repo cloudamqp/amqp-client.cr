@@ -124,22 +124,45 @@ class AMQP::Client
 
   # Establish a connection
   def connect : Connection
-    if @host.starts_with? '/'
-      socket = connect_unix
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
-    elsif @websocket
-      headers = ::HTTP::Headers.new
-      headers["Sec-WebSocket-Protocol"] = "amqp"
-      websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls, headers: headers)
-      io = WebSocketIO.new(websocket)
-      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
-    elsif ctx = @tls.as? OpenSSL::SSL::Context::Client
-      socket = connect_tls(connect_tcp, ctx)
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
-    else
-      socket = connect_tcp
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+    wrap_errors(@host, @port) do
+      if @host.starts_with? '/'
+        socket = connect_unix
+        Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      elsif @websocket
+        headers = ::HTTP::Headers.new
+        headers["Sec-WebSocket-Protocol"] = "amqp"
+        websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls, headers: headers)
+        io = WebSocketIO.new(websocket)
+        Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      elsif ctx = @tls.as? OpenSSL::SSL::Context::Client
+        socket = connect_tls(connect_tcp, ctx)
+        Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      else
+        socket = connect_tcp
+        Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      end
     end
+  end
+
+  # Establish a connection to *address* (IP and port) without resolving `host`.
+  # With TLS, `host` is still used for SNI and certificate verification.
+  # Raises `ArgumentError` for websocket and UNIX socket clients.
+  def connect(address : Socket::IPAddress) : Connection
+    raise ArgumentError.new("Can't connect to an address with a websocket client") if @websocket
+    raise ArgumentError.new("Can't connect to an address with a UNIX socket client") if @host.starts_with? '/'
+    wrap_errors(address.address, address.port) do
+      if ctx = @tls
+        socket = connect_tls(connect_tcp(address), ctx)
+        Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      else
+        socket = connect_tcp(address)
+        Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name)
+      end
+    end
+  end
+
+  private def wrap_errors(host, port, &)
+    yield
   rescue ex
     case ex
     when Connection::ClosedException
@@ -149,14 +172,28 @@ class AMQP::Client
       raise ex
     when Socket::Error, IO::Error, OpenSSL::Error
       # Wrap network/IO/SSL errors with connection context
-      raise Error::NetworkError.new(ex.message || "Network error", @host, @port, ex)
+      raise Error::NetworkError.new(ex.message || "Network error", host, port, ex)
     else
       raise Error.new(ex.message || "Unknown error", cause: ex)
     end
   end
 
+  private def connect_tcp(address : Socket::IPAddress)
+    socket = TCPSocket.new(address.family)
+    begin
+      socket.connect(address, timeout: 60)
+    rescue ex
+      socket.close
+      raise ex
+    end
+    set_tcp_options(socket)
+  end
+
   private def connect_tcp
-    socket = TCPSocket.new(@host, @port, connect_timeout: 60)
+    set_tcp_options(TCPSocket.new(@host, @port, connect_timeout: 60))
+  end
+
+  private def set_tcp_options(socket)
     socket.keepalive = true if @tcp.keepalive_idle.positive?
     socket.tcp_keepalive_idle = @tcp.keepalive_idle if @tcp.keepalive_idle.positive?
     socket.tcp_keepalive_count = @tcp.keepalive_count if @tcp.keepalive_count.positive?
