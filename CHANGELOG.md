@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The TCP socket is now closed when the TLS handshake fails, instead of staying open until the GC finalizes it [#86](https://github.com/cloudamqp/amqp-client.cr/issues/86)
+- The TCP socket is now closed when the TLS handshake fails, instead of staying open until the GC finalizes it [#87](https://github.com/cloudamqp/amqp-client.cr/pull/87)
 
 ## [1.3.4] - 2026-06-29
 
