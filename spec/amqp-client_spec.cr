@@ -365,6 +365,39 @@ describe AMQP::Client do
     end
   end
 
+  it "closes the TCP socket when the TLS handshake fails" do
+    server = TCPServer.new("127.0.0.1", 0)
+    eof = Channel(Bool).new(1)
+    spawn do
+      if socket = server.accept?
+        socket.read_timeout = 2.seconds
+        buf = Bytes.new(4096)
+        begin
+          socket.write "not a TLS server\n".to_slice
+          socket.flush
+          while socket.read(buf) > 0
+          end
+          eof.send true
+        rescue IO::Error
+          eof.send false
+        ensure
+          socket.close
+        end
+      end
+    end
+    expect_raises(AMQP::Client::Error::NetworkError) do
+      AMQP::Client.new(host: "127.0.0.1", port: server.local_address.port, tls: true).connect
+    end
+    select
+    when closed = eof.receive
+      closed.should be_true
+    when timeout(5.seconds)
+      fail "The server did not see the result of the handshake"
+    end
+  ensure
+    server.try &.close
+  end
+
   it "can connect over TLS" do
     pending! "CI doesn't support TLS"
     c = AMQP::Client.new(port: 5671, tls: true, verify_mode: OpenSSL::SSL::VerifyMode::NONE).connect
