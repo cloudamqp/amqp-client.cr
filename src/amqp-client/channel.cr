@@ -82,13 +82,14 @@ class AMQP::Client
     # :nodoc:
     def cleanup
       @closed = true
-      @unconfirmed_empty.close
+      callbacks = [] of Proc(Bool, Nil)
       @confirm_lock.synchronize do
-        @unconfirmed_publishes.reject! do |_, cb|
-          cb.try &.call(false)
-          true
-        end
+        @unconfirmed_publishes.each { |_, cb| cb.try { |c| callbacks << c } }
+        @unconfirmed_publishes.clear
+        @confirms_waiters.each &.close
+        @confirms_waiters.clear
       end
+      callbacks.each &.call(false)
       @reply_frames.close
       @basic_get.close
       @consumers.each_value &.close
@@ -270,10 +271,20 @@ class AMQP::Client
                       blk : Proc(Bool, Nil)? = nil) : UInt64
       raise_if_closed
 
+      msgid = 0_u64
       @connection.with_lock(flush: !@tx) do |c|
         if blk && !@confirm_mode
           c.unsafe_write Frame::Confirm::Select.new(@id, true)
           @confirm_mode = true
+        end
+        # Number the publish before writing it: once it's written the read
+        # loop, possibly on another thread, can get its ack or nack. Under the
+        # connection lock, so the numbers follow the order on the wire.
+        if @confirm_mode
+          @confirm_lock.synchronize do
+            msgid = @confirm_id &+= 1_u64
+            @unconfirmed_publishes.push({msgid, blk})
+          end
         end
         c.unsafe_write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
         c.unsafe_write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, properties)
@@ -290,39 +301,29 @@ class AMQP::Client
           pos += length
         end
       end
-      if @confirm_mode
-        @confirm_lock.synchronize do
-          msgid = @confirm_id &+= 1_u64
-          @unconfirmed_publishes.push({msgid, blk})
-          msgid
-        end
-      else
-        0_u64
-      end
+      msgid
     end
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      confirmed = false
-      waiting_fiber = Fiber.current
+      # The confirm can come on another thread before this fiber waits
+      confirmed = ::Channel(Bool).new(1)
       basic_publish(msg, exchange, routing_key, mandatory, immediate, properties) do |ok|
-        confirmed = ok
-        waiting_fiber.enqueue
+        confirmed.send ok
       end
-      sleep
+      ok = confirmed.receive
       raise_if_closed
-      confirmed
+      ok
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      confirmed = false
-      waiting_fiber = Fiber.current
+      # The confirm can come on another thread before this fiber waits
+      confirmed = ::Channel(Bool).new(1)
       basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties) do |ok|
-        confirmed = ok
-        waiting_fiber.enqueue
+        confirmed.send ok
       end
-      sleep
+      ok = confirmed.receive
       raise_if_closed
-      confirmed
+      ok
     end
 
     # Returns when there are no unconfirmed publishes on the channel
@@ -330,8 +331,14 @@ class AMQP::Client
     def wait_for_confirms : Bool
       ensure_confirm_mode
 
-      return true if @unconfirmed_publishes.empty?
-      ok = @unconfirmed_empty.receive
+      # Wait under the lock, so the last confirm can't come in between the
+      # check and the wait
+      waiter = ::Channel(Bool).new(1)
+      @confirm_lock.synchronize do
+        return true if @unconfirmed_publishes.empty?
+        @confirms_waiters << waiter
+      end
+      ok = waiter.receive
       unless ok
         raise_if_closed
         raise Error.new("BUG: got nack without closing frame")
@@ -340,34 +347,34 @@ class AMQP::Client
     end
 
     @unconfirmed_publishes = Deque(Tuple(UInt64, Proc(Bool, Nil)?)).new
-    @unconfirmed_empty = ::Channel(Bool).new
+    @confirms_waiters = Array(::Channel(Bool)).new
     @confirm_lock = Mutex.new
 
+    # The callbacks run after the confirm lock is released: a publish takes
+    # it, so a callback that publishes on the channel must not hold it.
     private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
+      callback = nil
+      callbacks = nil
       @confirm_lock.synchronize do
-        if @unconfirmed_publishes.first? == delivery_tag
-          _, blk = @unconfirmed_publishes.shift
-          blk.try &.call(acked)
+        if @unconfirmed_publishes.first?.try(&.[0]) == delivery_tag
+          _, callback = @unconfirmed_publishes.shift
         elsif multiple
+          cbs = callbacks = Array(Proc(Bool, Nil)).new
           @unconfirmed_publishes.reject! do |confirm_id, cb|
             break if confirm_id > delivery_tag
-            cb.try &.call(acked)
+            cb.try { |c| cbs << c }
             true
           end
         elsif idx = @unconfirmed_publishes.bsearch_index { |(confirm_id, _)| confirm_id >= delivery_tag }
-          _, blk = @unconfirmed_publishes.delete_at(idx)
-          blk.try &.call(acked)
+          _, callback = @unconfirmed_publishes.delete_at(idx)
         end
         if @unconfirmed_publishes.empty?
-          loop do
-            select
-            when @unconfirmed_empty.send acked
-            else
-              break
-            end
-          end
+          @confirms_waiters.each &.send(acked)
+          @confirms_waiters.clear
         end
       end
+      callback.try &.call(acked)
+      callbacks.try &.each &.call(acked)
     end
 
     private def ensure_confirm_mode
