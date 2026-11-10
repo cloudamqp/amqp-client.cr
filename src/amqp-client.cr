@@ -172,6 +172,10 @@ class AMQP::Client
     OpenSSL::SSL::Socket::Client.new(socket, context, sync_close: true, hostname: @host).tap do |tls_socket|
       set_socket_buffers(tls_socket)
     end
+  rescue ex
+    # OpenSSL::SSL::Socket::Client.new does not close the socket if the handshake fails
+    socket.close rescue nil
+    raise ex
   end
 
   private def connect_unix

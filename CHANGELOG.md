@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `TCP_NODELAY` is enabled by default, removing up to ~40 ms of Nagle/delayed-ACK latency. Disable with `?tcp_nodelay=false` [#77](https://github.com/cloudamqp/amqp-client.cr/pull/77)
 
+### Fixed
+
+- The TCP socket is now closed when the TLS handshake fails, instead of staying open until the GC finalizes it [#87](https://github.com/cloudamqp/amqp-client.cr/pull/87)
+
 ## [1.3.4] - 2026-06-29
 
 ### Added
