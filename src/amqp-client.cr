@@ -29,10 +29,10 @@ class AMQP::Client
   # :nodoc:
   AMQP_AUTH_MECHANISM = AMQP_URL.try(&.query_params["auth_mechanism"]?) || "PLAIN"
 
-  alias TLSContext = OpenSSL::SSL::Context::Client | Bool | Nil
+  alias TLSContext = (OpenSSL::SSL::Context::Client | Bool)?
 
   def self.start(url : String | URI, & : AMQP::Client::Connection -> _)
-    conn = self.new(url).connect
+    conn = new(url).connect
     yield conn
   ensure
     conn.try &.close
@@ -43,7 +43,7 @@ class AMQP::Client
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, connection_information = ConnectionInformation.new,
                  auth_mechanism = AMQP_AUTH_MECHANISM, & : AMQP::Client::Connection -> _)
-    conn = self.new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, connection_information, auth_mechanism: auth_mechanism).connect
+    conn = new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, connection_information, auth_mechanism: auth_mechanism).connect
     yield conn
   ensure
     conn.try &.close
@@ -51,7 +51,7 @@ class AMQP::Client
 
   def self.new(url : String)
     uri = URI.parse(url)
-    self.new(uri)
+    new(uri)
   end
 
   def self.new(uri : URI) # ameba:disable Metrics/CyclomaticComplexity
@@ -81,7 +81,7 @@ class AMQP::Client
       when "frame_max"        then frame_max = value.to_u32
       when "channel_max"      then channel_max = value.to_u16
       when "buffer_size"      then buffer_size = value.to_i
-      when "tcp_nodelay"      then tcp.nodelay = true
+      when "tcp_nodelay"      then tcp.nodelay = !value.matches?(/^(false|0|no|off)$/i)
       when "recv_buffer_size" then tcp.recv_buffer_size = value.to_i
       when "send_buffer_size" then tcp.send_buffer_size = value.to_i
       when "product"          then connection_information.product = value
@@ -98,7 +98,7 @@ class AMQP::Client
       else                   raise ArgumentError.new("Unrecognised parameter: #{key}")
       end
     end
-    self.new(host, port, vhost, user, password, tls_ctx, websocket,
+    new(host, port, vhost, user, password, tls_ctx, websocket,
       channel_max, frame_max, heartbeat, verify_mode, name,
       connection_information, tcp, buffer_size, auth_mechanism)
   end
@@ -114,7 +114,7 @@ class AMQP::Client
   end
 
   # record Tune, channel_max = 1024u16, frame_max = 131_072u32, heartbeat = 0u16
-  record TCPConfig, nodelay = false, keepalive_idle = 60, keepalive_interval = 10, keepalive_count = 3, send_buffer_size : Int32? = nil, recv_buffer_size : Int32? = nil do
+  record TCPConfig, nodelay = true, keepalive_idle = 60, keepalive_interval = 10, keepalive_count = 3, send_buffer_size : Int32? = nil, recv_buffer_size : Int32? = nil do
     property nodelay, keepalive_idle, keepalive_interval, keepalive_count, send_buffer_size, recv_buffer_size
   end
 
@@ -180,7 +180,7 @@ class AMQP::Client
     socket.tcp_keepalive_idle = @tcp.keepalive_idle if @tcp.keepalive_idle.positive?
     socket.tcp_keepalive_count = @tcp.keepalive_count if @tcp.keepalive_count.positive?
     socket.tcp_keepalive_interval = @tcp.keepalive_interval if @tcp.keepalive_interval.positive?
-    socket.tcp_nodelay = true if @tcp.nodelay
+    socket.tcp_nodelay = @tcp.nodelay
     @tcp.recv_buffer_size.try { |v| socket.recv_buffer_size = v }
     @tcp.send_buffer_size.try { |v| socket.send_buffer_size = v }
     set_socket_buffers(socket)
@@ -191,6 +191,10 @@ class AMQP::Client
     OpenSSL::SSL::Socket::Client.new(socket, context, sync_close: true, hostname: @host).tap do |tls_socket|
       set_socket_buffers(tls_socket)
     end
+  rescue ex
+    # OpenSSL::SSL::Socket::Client.new does not close the socket if the handshake fails
+    socket.close rescue nil
+    raise ex
   end
 
   private def connect_unix

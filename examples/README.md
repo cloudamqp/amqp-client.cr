@@ -11,6 +11,16 @@ dependencies:
 ```
 2. Run `shards install`
 
+## Connection close and network failures
+
+The client calls the `on_close` callback only when the broker sends an AMQP
+close frame. If the TCP, TLS, or WebSocket read fails without an AMQP close
+frame, the client marks the connection closed. The client then calls the
+`on_disconnect` callback with the transport exception. A consumer can use
+`on_disconnect` to decide when to reconnect or when to exit.
+`Connection#closed?` returns `true` after the connection closes for any
+reason.
+
 ## “Hello World!”
 
 In this example we will write two small programs in Crystal; a publisher that sends a message, and a consumer that receives messages and prints them out.

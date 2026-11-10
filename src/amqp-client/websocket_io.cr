@@ -13,7 +13,7 @@ class AMQP::Client
         @w.write(bytes)
       end
       @ws.on_close do |_code, _message|
-        self.close
+        close
       end
       self.buffer_size = 4096
       spawn @ws.run, name: "websocket run"

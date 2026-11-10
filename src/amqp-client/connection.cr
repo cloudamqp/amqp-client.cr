@@ -12,6 +12,9 @@ class AMQP::Client
     @reply_frames = ::Channel(Frame).new
     getter closing_frame : Frame::Connection::Close?
     getter channel_max, frame_max
+    # Returns `true` after the connection closes for any reason: a clean
+    # close, a close from the server, or a transport failure. See `#on_close`
+    # and `#on_disconnect` for the related callbacks.
     getter? closed = false
     getter? blocked = false
 
@@ -68,16 +71,20 @@ class AMQP::Client
     @on_close : Proc(UInt16, String, Nil)?
 
     # Callback called when the server closes the `Connection`
-    # gracefully via an AMQP `Connection.Close` method frame.
+    # with an AMQP `Connection.Close` method frame.
+    #
+    # NOTE: The client does not call this callback after a transport failure,
+    # for example a timeout or a network partition. Use `#on_disconnect` for
+    # those failures.
     def on_close(&blk : UInt16, String ->)
       @on_close = blk
     end
 
     @on_disconnect : Proc(Exception, Nil)?
 
-    # Callback called when the `Connection` is lost at the network
-    # layer — i.e. the read loop encountered `IO::Error` or `OpenSSL::Error`
-    # without a preceding AMQP `Connection.Close` frame.
+    # Callback called when the `Connection` is lost at the network layer.
+    # This occurs when the read loop gets an `IO::Error` or an `OpenSSL::Error`
+    # without an AMQP `Connection.Close` frame before the error.
     def on_disconnect(&blk : Exception ->)
       @on_disconnect = blk
     end
@@ -95,7 +102,7 @@ class AMQP::Client
       @on_unblocked = blk
     end
 
-    private def read_loop # ameba:disable Metrics/CyclomaticComplexity
+    private def read_loop
       io = @io
       loop do
         Frame.from_io(io) do |f|
@@ -248,7 +255,7 @@ class AMQP::Client
         end
       end
       Log.debug { "Server didn't confirm close" }
-    rescue ex : IO::Error
+    rescue IO::Error
       Log.info { "Socket already closed, can't send close frame" }
     ensure
       @closed = true
@@ -267,7 +274,7 @@ class AMQP::Client
       start(io, user, password, connection_information, auth_mechanism)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
-      self.new(io, channel_max, frame_max, heartbeat)
+      new(io, channel_max, frame_max, heartbeat)
     rescue ex
       case ex
       when IO::EOFError

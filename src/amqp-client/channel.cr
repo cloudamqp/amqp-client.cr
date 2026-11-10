@@ -95,7 +95,7 @@ class AMQP::Client
       @consumers.clear
     end
 
-    @next_msg_deliver : Frame::Basic::Deliver | Frame::Basic::Return | Frame::Basic::GetOk | Nil
+    @next_msg_deliver : (Frame::Basic::Deliver | Frame::Basic::Return | Frame::Basic::GetOk)?
     @next_msg_props : AMQ::Protocol::Properties?
     @next_body_io : IO::Memory?
     @next_body_size = 0_u32

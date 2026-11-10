@@ -9,7 +9,7 @@ class AMQP::Client
 
     macro method_missing(call)
       @mutex.synchronize do
-        @obj.{{call}}
+        @obj.{{ call }}
       end
     end
   end

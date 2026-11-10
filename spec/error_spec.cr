@@ -21,35 +21,29 @@ describe "Error Handling" do
     end
 
     it "preserves original exception via cause" do
-      begin
-        AMQP::Client.new(host: "localhost", port: 1).connect
-      rescue ex : AMQP::Client::Error::NetworkError
-        ex.cause.should be_a(Socket::Error)
-        ex.host.should eq("localhost")
-        ex.port.should eq(1)
-      end
+      AMQP::Client.new(host: "localhost", port: 1).connect
+    rescue ex : AMQP::Client::Error::NetworkError
+      ex.cause.should be_a(Socket::Error)
+      ex.host.should eq("localhost")
+      ex.port.should eq(1)
     end
 
     it "includes host and port in error message" do
-      begin
-        AMQP::Client.new(host: "127.0.0.1", port: 1).connect
-      rescue ex : AMQP::Client::Error::NetworkError
-        if msg = ex.message
-          msg.should contain("127.0.0.1:1")
-        else
-          fail "Expected error message to be present"
-        end
+      AMQP::Client.new(host: "127.0.0.1", port: 1).connect
+    rescue ex : AMQP::Client::Error::NetworkError
+      if msg = ex.message
+        msg.should contain("127.0.0.1:1")
+      else
+        fail "Expected error message to be present"
       end
     end
   end
 
   describe "Exception hierarchy" do
     it "NetworkError is an AMQP::Client::Error" do
-      begin
-        AMQP::Client.new(port: 1).connect
-      rescue ex : AMQP::Client::Error
-        ex.should be_a(AMQP::Client::Error::NetworkError)
-      end
+      AMQP::Client.new(port: 1).connect
+    rescue ex : AMQP::Client::Error
+      ex.should be_a(AMQP::Client::Error::NetworkError)
     end
 
     it "can catch all AMQP errors generically" do
