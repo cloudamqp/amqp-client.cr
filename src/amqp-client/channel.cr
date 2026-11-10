@@ -133,9 +133,6 @@ class AMQP::Client
         process_flow frame.active
       when Frame::Channel::Close
         close frame
-      when Frame::Basic::ConsumeOk
-        @reply_frames.send frame
-        Fiber.yield # yield so that the consumer can be added to the hash before msgs are read
       else
         @reply_frames.send frame
       end
@@ -405,14 +402,24 @@ class AMQP::Client
       raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
       raise ArgumentError.new("At least one worker required") if work_pool < 1
 
-      write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
-      ok = expect Frame::Basic::ConsumeOk
-      done = ::Channel(Exception?).new
+      # The consumer is registered before basic.consume is sent, as the first
+      # delivery can be read before this fiber resumes from waiting on
+      # ConsumeOk (with several threads it always can). So the tag is chosen
+      # here, in the format servers use for the tags they generate.
+      tag = "amq.ctag-#{Random::Secure.urlsafe_base64(24)}" if tag.empty?
       deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
-      @consumers[ok.consumer_tag] = deliveries
+      @consumers[tag] = deliveries
+      begin
+        write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
+        expect Frame::Basic::ConsumeOk
+      rescue ex
+        @consumers.delete(tag)
+        raise ex
+      end
+      done = ::Channel(Exception?).new
       work_pool.times do |i|
-        spawn consume(ok.consumer_tag, deliveries, done, i, !block, blk),
-          name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
+        spawn consume(tag, deliveries, done, i, !block, blk),
+          name: "AMQPconsumer##{tag} ##{i}"
       end
       if block
         work_pool.times do
@@ -425,7 +432,7 @@ class AMQP::Client
       else
         done.close
       end
-      ok.consumer_tag
+      tag
     end
 
     def basic_consume(queue, tag = "", no_ack = true, exclusive = false,
