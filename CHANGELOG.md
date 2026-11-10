@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-10
+
 ### Added
 
 - `auth_mechanism` option (and `?auth_mechanism=` URI parameter) to select the SASL mechanism, supporting `PLAIN` (default) and `EXTERNAL`, e.g. for TLS client-certificate authentication [#74](https://github.com/cloudamqp/amqp-client.cr/pull/74)
