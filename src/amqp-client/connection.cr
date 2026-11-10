@@ -18,9 +18,33 @@ class AMQP::Client
     getter? closed = false
     getter? blocked = false
 
+    # The *name* given to `AMQP::Client`, or `nil`.
+    getter name : String?
+
+    # :nodoc:
+    # The `connection` log metadata key: the name, else the address pair, else a random id
+    getter log_tag : String
+
     protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
-                             @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
+                             @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16,
+                             name : String? = nil)
+      @name = name.presence
+      @log_tag = @name || address_pair || Random::Secure.hex(4)
       spawn read_loop, name: "AMQP::Client#read_loop"
+    end
+
+    # Same "client -> server" format that RabbitMQ and LavinMQ use to name the connection
+    private def address_pair : String?
+      if (io = @io).is_a?(TCPSocket | OpenSSL::SSL::Socket::Client)
+        local, remote = io.local_address, io.remote_address
+        "#{local} -> #{remote}" if local && remote
+      end
+    rescue Socket::Error # the peer can have reset the connection since the handshake
+    end
+
+    # :nodoc:
+    def with_log_context(&)
+      Log.with_context(connection: @log_tag) { yield }
     end
 
     @channels = Hash(UInt16, Channel).new
@@ -103,6 +127,7 @@ class AMQP::Client
     end
 
     private def read_loop
+      Log.context.set connection: @log_tag # the fiber is ours for its whole life, so this can't leak
       io = @io
       loop do
         Frame.from_io(io) do |f|
@@ -229,7 +254,10 @@ class AMQP::Client
       rescue ex
         raise Error.new(cause: ex)
       end
-      Log.debug { "sent #{frame.inspect}" }
+      # Checked first because Log.with_context allocates, even when debug is off
+      if Log.level <= ::Log::Severity::Debug
+        with_log_context { Log.debug { "sent #{frame.inspect}" } }
+      end
     end
 
     # :nodoc:
@@ -245,6 +273,16 @@ class AMQP::Client
     # The *reason* might be logged by the server
     def close(reason = "", no_wait = false)
       return if @closed
+      with_log_context { send_close(reason, no_wait) }
+    ensure
+      @closed = true
+      @reply_frames.close
+      @io.close rescue nil
+      @channels.each_value &.cleanup
+      @channels.clear
+    end
+
+    private def send_close(reason, no_wait) : Nil
       Log.debug { "Closing connection" }
       write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
       return if no_wait
@@ -257,24 +295,18 @@ class AMQP::Client
       Log.debug { "Server didn't confirm close" }
     rescue IO::Error
       Log.info { "Socket already closed, can't send close frame" }
-    ensure
-      @closed = true
-      @reply_frames.close
-      @io.close rescue nil
-      @channels.each_value &.cleanup
-      @channels.clear
     end
 
     # Connection negotiation
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                    user, password, vhost, channel_max, frame_max, heartbeat, connection_information,
-                   name = File.basename(PROGRAM_NAME), auth_mechanism = "PLAIN")
+                   name : String? = nil, auth_mechanism = "PLAIN")
       io.read_timeout = 60.seconds
-      connection_information.name ||= name
+      connection_information.name ||= name.presence || File.basename(PROGRAM_NAME)
       start(io, user, password, connection_information, auth_mechanism)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
-      new(io, channel_max, frame_max, heartbeat)
+      new(io, channel_max, frame_max, heartbeat, name)
     rescue ex
       case ex
       when IO::EOFError

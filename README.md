@@ -158,6 +158,34 @@ AMQP::Client.start do |c|
 end
 ```
 
+## Logging
+
+The client logs to the `amqp.client`, `amqp.client.connection` and
+`amqp.client.channel` sources. Log lines of a connection carry a `connection`
+metadata key, so lines from several connections in the same application can be
+told apart:
+
+```
+amqp.client.connection: sent AMQ::Protocol::Frame::Channel::Open(...) -- connection: "10.0.0.5:47182 -> 10.0.0.9:5672"
+amqp.client.connection: recv AMQ::Protocol::Frame::Channel::OpenOk(...) -- connection: "10.0.0.5:47182 -> 10.0.0.9:5672"
+```
+
+By default the value is the local and remote address of the socket. RabbitMQ
+and LavinMQ name the connection with the same string, unless NAT or a proxy is
+in between. UNIX sockets and WebSockets have no address pair, so those
+connections get a random 8-character hex id. If the connection has a `name`
+(the `name` argument or the `name` URI parameter), the value is the name. The
+broker also shows that name for the connection, unless `connection_information`
+has a name of its own.
+
+```crystal
+Log.setup_from_env(default_level: :debug)
+AMQP::Client.start("amqp://guest:guest@localhost?name=order-publisher") do |c|
+  c.name # => "order-publisher"
+  c.channel
+end
+```
+
 ## Performance
 
 1-byte messages, without properties/headers:
