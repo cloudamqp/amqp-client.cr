@@ -435,7 +435,7 @@ class AMQP::Client
     end
 
     private def consume(consumer_tag, deliveries, done, i, log_errors, blk)
-      Log.context.set channel_id: @id.to_i, consumer: consumer_tag, worker: i
+      Log.context.set connection: @connection.log_tag, channel_id: @id.to_i, consumer: consumer_tag, worker: i
       while msg = deliveries.receive?
         begin
           blk.call(msg)
@@ -462,7 +462,7 @@ class AMQP::Client
           end
         end
       else
-        Log.info { "Consumer tag '#{consumer_tag}' already cancelled" }
+        @connection.with_log_context { Log.info { "Consumer tag '#{consumer_tag}' already cancelled" } }
       end
     end
 
