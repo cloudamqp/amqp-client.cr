@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Connection log lines carry a `connection` metadata key, so log lines from several connections in the same application can be told apart. The value is the connection `name` (argument or URI parameter) if one is set. Else it is the socket's local and remote address, the same string RabbitMQ and LavinMQ use for the connection, or a random id for UNIX sockets and WebSockets. `Connection#name` returns the name, or `nil`. [#63](https://github.com/cloudamqp/amqp-client.cr/pull/63)
+
+### Changed
+
+- `AMQP::Client.start` without a `name`, called with keyword arguments or with no arguments, now sends the program name as the connection name, as the other ways to connect already did. Before, it sent no name. [#63](https://github.com/cloudamqp/amqp-client.cr/pull/63)
+- An empty `name`, for example `?name=`, now sends the program name as the connection name. Before, the URI and `AMQP::Client.start` paths sent an empty name. [#63](https://github.com/cloudamqp/amqp-client.cr/pull/63)
+
+### Fixed
+
+- The `name` argument to `AMQP::Client.new` is now the connection name that the broker shows, unless `connection_information` has a name of its own. Before, the broker showed the program name. [#63](https://github.com/cloudamqp/amqp-client.cr/pull/63)
+
 ## [1.4.0] - 2026-11-10
 
 ### Added
