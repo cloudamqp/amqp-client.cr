@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- WebSocket connections now use the same TCP settings as `amqp://` connections: keepalive, `TCP_NODELAY`, buffer sizes and the 60 s connect timeout [#89](https://github.com/cloudamqp/amqp-client.cr/pull/89)
+
+### Fixed
+
+- With `heartbeat` set, the client now sends heartbeats when idle and closes the connection when the server sends nothing for 2 × `heartbeat` seconds. Before, a half-open connection could block a publish for ~15 minutes. [#89](https://github.com/cloudamqp/amqp-client.cr/pull/89)
+
 ## [1.4.0] - 2026-11-10
 
 ### Added

@@ -147,14 +147,14 @@ class AMQP::Client
       socket = connect_unix
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
     elsif @websocket
-      headers = ::HTTP::Headers.new
-      headers["Sec-WebSocket-Protocol"] = "amqp"
-      websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls, headers: headers)
-      io = WebSocketIO.new(websocket)
-      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
+      tcp = connect_tcp
+      socket = (ctx = @tls) ? connect_tls(tcp, ctx) : tcp
+      io = WebSocketIO.new(websocket_upgrade(socket))
+      Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism, tcp)
     elsif ctx = @tls.as? OpenSSL::SSL::Context::Client
-      socket = connect_tls(connect_tcp, ctx)
-      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
+      tcp = connect_tcp
+      socket = connect_tls(tcp, ctx)
+      Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism, tcp)
     else
       socket = connect_tcp
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
@@ -193,6 +193,33 @@ class AMQP::Client
     end
   rescue ex
     # OpenSSL::SSL::Socket::Client.new does not close the socket if the handshake fails
+    socket.close rescue nil
+    raise ex
+  end
+
+  # Does the WebSocket handshake on our own socket, so that Connection can shut down the TCP socket
+  private def websocket_upgrade(socket : IO) : ::HTTP::WebSocket
+    key = Base64.strict_encode(Random::Secure.random_bytes(16))
+    headers = ::HTTP::Headers{
+      "Host"                   => "#{@host}:#{@port}",
+      "Connection"             => "Upgrade",
+      "Upgrade"                => "websocket",
+      "Sec-WebSocket-Version"  => ::HTTP::WebSocket::Protocol::VERSION,
+      "Sec-WebSocket-Key"      => key,
+      "Sec-WebSocket-Protocol" => "amqp",
+    }
+    ::HTTP::Request.new("GET", "/", headers).to_io(socket)
+    socket.flush
+    response = ::HTTP::Client::Response.from_io(socket, ignore_body: true)
+    unless response.status.switching_protocols?
+      raise Socket::Error.new("WebSocket handshake denied, HTTP status #{response.status.code}")
+    end
+    accept = ::HTTP::WebSocket::Protocol.key_challenge(key)
+    unless response.headers["Sec-WebSocket-Accept"]? == accept
+      raise Socket::Error.new("WebSocket handshake denied, invalid Sec-WebSocket-Accept")
+    end
+    ::HTTP::WebSocket.new(::HTTP::WebSocket::Protocol.new(socket, masked: true))
+  rescue ex
     socket.close rescue nil
     raise ex
   end
