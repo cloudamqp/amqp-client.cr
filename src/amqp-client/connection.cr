@@ -146,6 +146,8 @@ class AMQP::Client
     ensure
       @closed = true
       @io.close rescue nil
+      # WebSocketIO#close raises before it closes the socket if its close frame can't be sent
+      @socket.try &.close rescue nil
       @reply_frames.close
       @update_secret_ok.close
       @channels_lock.synchronize do
