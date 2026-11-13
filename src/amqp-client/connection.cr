@@ -19,8 +19,10 @@ class AMQP::Client
     getter? blocked = false
 
     protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
+                             @socket : Socket?,
                              @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
       spawn read_loop, name: "AMQP::Client#read_loop"
+      spawn heartbeat_loop, name: "AMQP::Client#heartbeat_loop" if @heartbeat.positive?
     end
 
     @channels = Hash(UInt16, Channel).new
@@ -129,7 +131,7 @@ class AMQP::Client
           when Frame::Connection::UpdateSecretOk
             @update_secret_ok.send nil
           when Frame::Heartbeat
-            write f
+            # Any frame resets the read timeout, heartbeat_loop sends our heartbeats
           else
             process_channel_frame(f)
           end
@@ -153,6 +155,11 @@ class AMQP::Client
     end
 
     private def notify_disconnected(ex : Exception)
+      if ex.is_a?(IO::TimeoutError)
+        # A plain close flushes first, which blocks if the send buffer is full
+        @socket.try &.close_write rescue nil
+        ex = IO::TimeoutError.new("No frame from the server in #{@heartbeat.to_i32 * 2}s (heartbeat timeout)", ex)
+      end
       if on_disconnect = @on_disconnect
         begin
           on_disconnect.call(ex)
@@ -205,7 +212,24 @@ class AMQP::Client
       end
     end
 
+    # Sends a heartbeat each `heartbeat / 2` seconds in which no other frame was written
+    private def heartbeat_loop
+      interval = @heartbeat.seconds / 2
+      until @closed
+        sleep interval
+        break if @closed
+        if @wrote
+          @wrote = false
+        else
+          write Frame::Heartbeat.new
+        end
+      end
+    rescue ex
+      Log.debug(exception: ex) { "Could not send heartbeat" }
+    end
+
     @write_lock = Mutex.new
+    @wrote = false
 
     # :nodoc:
     def write(frame : Frame)
@@ -226,6 +250,7 @@ class AMQP::Client
       end
       begin
         @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
+        @wrote = true
       rescue ex
         raise Error.new(cause: ex)
       end
@@ -268,13 +293,16 @@ class AMQP::Client
     # Connection negotiation
     def self.start(io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                    user, password, vhost, channel_max, frame_max, heartbeat, connection_information,
-                   name = File.basename(PROGRAM_NAME), auth_mechanism = "PLAIN")
+                   name = File.basename(PROGRAM_NAME), auth_mechanism = "PLAIN",
+                   socket : Socket? = io.as?(Socket))
       io.read_timeout = 60.seconds
       connection_information.name ||= name
       start(io, user, password, connection_information, auth_mechanism)
       channel_max, frame_max, heartbeat = tune(io, channel_max, frame_max, heartbeat)
       open(io, vhost)
-      new(io, channel_max, frame_max, heartbeat)
+      # The server sends a frame at least every heartbeat, so 2 missed heartbeats is a dead peer
+      io.read_timeout = heartbeat.zero? ? nil : heartbeat.seconds * 2
+      new(io, socket, channel_max, frame_max, heartbeat)
     rescue ex
       case ex
       when IO::EOFError
@@ -284,8 +312,6 @@ class AMQP::Client
       end
       io.close rescue nil
       raise ex
-    ensure
-      io.read_timeout = nil
     end
 
     private def self.start(io, user, password, connection_information, auth_mechanism = "PLAIN")
