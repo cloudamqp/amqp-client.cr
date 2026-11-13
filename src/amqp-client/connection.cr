@@ -229,6 +229,8 @@ class AMQP::Client
           @wrote = false
         else
           write Frame::Heartbeat.new
+          # Our own heartbeat must not skip the next one
+          @wrote = false
         end
       end
     rescue ex : Error | IO::Error | OpenSSL::Error
