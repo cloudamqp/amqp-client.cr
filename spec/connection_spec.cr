@@ -72,7 +72,12 @@ private def freezable_proxy(upstream_port : Int32, switch : ProxySwitch) : Int32
   server = TCPServer.new("127.0.0.1", 0)
   spawn(name: "freezable-proxy") do
     client = server.accept
-    upstream = TCPSocket.new("127.0.0.1", upstream_port)
+    begin
+      upstream = TCPSocket.new(AMQP::Client::AMQP_HOST, upstream_port)
+    rescue ex
+      client.close
+      raise ex
+    end
     proxy_pipe(client, upstream, switch)
     proxy_pipe(upstream, client, switch)
   ensure
@@ -233,7 +238,8 @@ describe AMQP::Client::Connection do
     it "makes a blocked publish raise when a WebSocket peer goes silent" do
       switch = ProxySwitch.new
       port = freezable_proxy(15_672, switch)
-      conn = AMQP::Client.new(host: "127.0.0.1", port: port, websocket: true, heartbeat: 1_u16).connect
+      client = AMQP::Client.new(host: "127.0.0.1", port: port, websocket: true, heartbeat: 1_u16)
+      conn = client.connect
       conn.on_disconnect { |_ex| }
       ch = conn.channel
       switch.frozen = true

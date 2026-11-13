@@ -214,7 +214,8 @@ class AMQP::Client
     unless response.status.switching_protocols?
       raise Socket::Error.new("WebSocket handshake denied, HTTP status #{response.status.code}")
     end
-    unless response.headers["Sec-WebSocket-Accept"]? == ::HTTP::WebSocket::Protocol.key_challenge(key)
+    accept = ::HTTP::WebSocket::Protocol.key_challenge(key)
+    unless response.headers["Sec-WebSocket-Accept"]? == accept
       raise Socket::Error.new("WebSocket handshake denied, invalid Sec-WebSocket-Accept")
     end
     ::HTTP::WebSocket.new(::HTTP::WebSocket::Protocol.new(socket, masked: true))
