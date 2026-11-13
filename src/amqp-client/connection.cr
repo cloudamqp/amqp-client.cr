@@ -145,9 +145,7 @@ class AMQP::Client
       end
     ensure
       @closed = true
-      @io.close rescue nil
-      # WebSocketIO#close raises before it closes the socket if its close frame can't be sent
-      @socket.try &.close rescue nil
+      close_io
       @reply_frames.close
       @update_secret_ok.close
       @channels_lock.synchronize do
@@ -156,10 +154,16 @@ class AMQP::Client
       end
     end
 
+    private def close_io : Nil
+      # A plain close flushes first, which blocks if the send buffer is full
+      @socket.try &.close_write rescue nil
+      @io.close rescue nil
+      # WebSocketIO#close raises before it closes the socket if its close frame can't be sent
+      @socket.try &.close rescue nil
+    end
+
     private def notify_disconnected(ex : Exception)
       if ex.is_a?(IO::TimeoutError)
-        # A plain close flushes first, which blocks if the send buffer is full
-        @socket.try &.close_write rescue nil
         msg = "No frame from the server in #{@heartbeat.to_i32 * 2}s (heartbeat timeout)"
         ex = IO::TimeoutError.new(msg, ex)
       end
@@ -319,6 +323,7 @@ class AMQP::Client
         io.write_bytes(Frame::Connection::CloseOk.new, IO::ByteFormat::NetworkEndian) rescue nil
       end
       io.close rescue nil
+      socket.try &.close rescue nil
       raise ex
     end
 
