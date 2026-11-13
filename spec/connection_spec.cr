@@ -48,6 +48,39 @@ private def fake_amqp_server(&handler : TCPSocket ->) : Int32
   port
 end
 
+private class ProxySwitch
+  property? frozen = false
+end
+
+private def proxy_pipe(from : TCPSocket, to : TCPSocket, switch : ProxySwitch) : Nil
+  spawn(name: "freezable-proxy-pipe") do
+    buf = Bytes.new(4096)
+    while (n = from.read(buf)) > 0
+      while switch.frozen?
+        sleep 10.milliseconds
+      end
+      to.write(buf[0, n])
+    end
+  rescue IO::Error
+    # one side closed, the test is over
+  end
+end
+
+# Forwards one connection to *upstream_port* until *switch* is frozen, then stops
+# forwarding in both directions but keeps the sockets open, like a dead peer.
+private def freezable_proxy(upstream_port : Int32, switch : ProxySwitch) : Int32
+  server = TCPServer.new("127.0.0.1", 0)
+  spawn(name: "freezable-proxy") do
+    client = server.accept
+    upstream = TCPSocket.new("127.0.0.1", upstream_port)
+    proxy_pipe(client, upstream, switch)
+    proxy_pipe(upstream, client, switch)
+  ensure
+    server.close
+  end
+  server.local_address.port
+end
+
 describe AMQP::Client::Connection do
   describe "network-level disconnect" do
     it "invokes on_disconnect with the exception when read_loop sees IO::Error" do
@@ -195,6 +228,34 @@ describe AMQP::Client::Connection do
       ensure
         release.send nil
       end
+    end
+
+    it "makes a blocked publish raise when a WebSocket peer goes silent" do
+      switch = ProxySwitch.new
+      port = freezable_proxy(15_672, switch)
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port, websocket: true, heartbeat: 1_u16).connect
+      conn.on_disconnect { |_ex| }
+      ch = conn.channel
+      switch.frozen = true
+      publish_error = ::Channel(Exception).new(1)
+      spawn do
+        body = Bytes.new(1_000)
+        loop { ch.basic_publish(body, "", "q") }
+      rescue ex
+        publish_error.send ex
+      end
+      select
+      when publish_error.receive
+        30.times do
+          break if ch.closed?
+          sleep 50.milliseconds
+        end
+        ch.closed?.should be_true
+      when timeout(5.seconds)
+        fail "basic_publish was still blocked 5s after the WebSocket peer went silent"
+      end
+    ensure
+      switch.try &.frozen = false
     end
 
     it "sends heartbeats while transaction publishes stay in the write buffer" do
