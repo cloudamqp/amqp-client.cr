@@ -158,7 +158,8 @@ class AMQP::Client
       if ex.is_a?(IO::TimeoutError)
         # A plain close flushes first, which blocks if the send buffer is full
         @socket.try &.close_write rescue nil
-        ex = IO::TimeoutError.new("No frame from the server in #{@heartbeat.to_i32 * 2}s (heartbeat timeout)", ex)
+        msg = "No frame from the server in #{@heartbeat.to_i32 * 2}s (heartbeat timeout)"
+        ex = IO::TimeoutError.new(msg, ex)
       end
       if on_disconnect = @on_disconnect
         begin
@@ -224,7 +225,8 @@ class AMQP::Client
           write Frame::Heartbeat.new
         end
       end
-    rescue ex
+    rescue ex : Error | IO::Error | OpenSSL::Error
+      # read_loop reports the broken connection
       Log.debug(exception: ex) { "Could not send heartbeat" }
     end
 
@@ -236,6 +238,7 @@ class AMQP::Client
       @write_lock.synchronize do
         unsafe_write(frame)
         @io.flush
+        @wrote = true
       end
     end
 
@@ -250,7 +253,6 @@ class AMQP::Client
       end
       begin
         @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
-        @wrote = true
       rescue ex
         raise Error.new(cause: ex)
       end
@@ -261,7 +263,11 @@ class AMQP::Client
     def with_lock(flush = true, & : self -> _)
       @write_lock.synchronize do
         yield self
-        @io.flush if flush
+        if flush
+          @io.flush
+          # Buffered frames are not sent, so they must not stop a heartbeat
+          @wrote = true
+        end
       end
     end
 

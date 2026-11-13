@@ -197,6 +197,19 @@ describe AMQP::Client::Connection do
       end
     end
 
+    it "sends heartbeats while transaction publishes stay in the write buffer" do
+      with_channel(heartbeat: 1_u16) do |ch|
+        ch.tx_select
+        q = ch.queue
+        32.times do
+          q.publish "x"
+          sleep 250.milliseconds
+        end
+        ch.closed?.should be_false
+        ch.tx_commit
+      end
+    end
+
     it "keeps an idle connection to the broker open" do
       with_channel(heartbeat: 1_u16) do |ch|
         sleep 3.seconds
