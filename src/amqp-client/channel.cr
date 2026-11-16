@@ -83,15 +83,15 @@ class AMQP::Client
     # :nodoc:
     def cleanup
       @closed = true
-      unconfirmed, waiters = @confirm_lock.synchronize do
-        u = @unconfirmed_publishes.dup
+      callbacks, waiters = @confirm_lock.synchronize do
+        cbs = @unconfirmed_publishes.compact_map { |(_, cb)| cb }
         @unconfirmed_publishes.clear
         w = @confirm_waiters.dup
         @confirm_waiters.clear
-        {u, w}
+        {cbs, w}
       end
       # Outside of @confirm_lock, see process_confirm
-      unconfirmed.each { |(_, cb)| cb.try &.call(false) }
+      callbacks.each &.call(false)
       waiters.each &.close
       @reply_frames.close
       @basic_get.close
@@ -145,7 +145,7 @@ class AMQP::Client
         # that follow ConsumeOk can't wait for the fiber that called
         # basic_consume to resume (which, with several threads, they don't)
         if deliveries = @pending_consumers.lock &.shift?
-          @consumers.lock &.[]=(frame.consumer_tag, deliveries)
+          @consumers.lock { |consumers| consumers[frame.consumer_tag] = deliveries }
         end
         @reply_frames.send frame
       else
@@ -186,7 +186,7 @@ class AMQP::Client
       case f = @next_msg_deliver
       when Frame::Basic::Deliver
         # Sent outside of the lock, as it blocks while the consumer is full
-        if deliveries = @consumers.lock &.[f.consumer_tag]?
+        if deliveries = @consumers.lock { |consumers| consumers[f.consumer_tag]? }
           msg = DeliverMessage.new(self, f.exchange, f.routing_key,
             f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
             f.redelivered)

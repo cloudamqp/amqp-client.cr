@@ -51,6 +51,39 @@ describe "publisher confirms" do
         end
       end
 
+      # A confirm block runs on the read loop, and publishing from it takes
+      # the connection's write lock. Other publishers take the write lock and
+      # then the channel's confirm lock, so the read loop mustn't hold the
+      # confirm lock while calling blocks.
+      it "doesn't deadlock when confirm blocks publish while other fibers publish" do
+        with_connection_on_other_thread do |conn|
+          ch = conn.channel
+          q = ch.queue("", durable: false, exclusive: true)
+          ch.confirm_select
+          count = 5_000
+          called = Channel(Nil).new(count)
+          publishers = Fiber::ExecutionContext::Parallel.new("publishers", 3)
+          2.times do
+            publishers.spawn { count.times { ch.basic_publish("", "", q.name) } }
+          end
+          publishers.spawn do
+            count.times do
+              ch.basic_publish("", "", q.name) do
+                ch.basic_publish("", "", q.name)
+                called.send nil
+              end
+            end
+          end
+          count.times do |i|
+            select
+            when called.receive
+            when timeout(5.seconds)
+              fail "deadlocked after #{i} of #{count} confirm blocks"
+            end
+          end
+        end
+      end
+
       it "calls the confirm block of every publish" do
         with_connection_on_other_thread do |conn|
           ch = conn.channel
