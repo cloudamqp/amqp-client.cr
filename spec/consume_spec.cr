@@ -80,16 +80,7 @@ describe "basic_consume" do
     it "delivers to a consumer when the read loop runs on another thread" do
       iterations = 100
       messages = 10
-      reader = Fiber::ExecutionContext::Concurrent.new("amqp read loop")
-      connected = Channel(AMQP::Client::Connection | Exception).new
-      reader.spawn do
-        connected.send AMQP::Client.new.connect
-      rescue ex
-        connected.send ex
-      end
-      conn = connected.receive
-      raise conn if conn.is_a?(Exception)
-      begin
+      with_connection_on_other_thread do |conn|
         ch = conn.channel
         q = ch.queue("", durable: false, exclusive: true)
         ch.confirm_select
@@ -108,8 +99,6 @@ describe "basic_consume" do
           end
           q.unsubscribe(tag, no_wait: false)
         end
-      ensure
-        conn.close
       end
     end
   {% end %}

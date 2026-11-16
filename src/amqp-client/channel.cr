@@ -82,13 +82,16 @@ class AMQP::Client
     # :nodoc:
     def cleanup
       @closed = true
-      @unconfirmed_empty.close
-      @confirm_lock.synchronize do
-        @unconfirmed_publishes.reject! do |_, cb|
-          cb.try &.call(false)
-          true
-        end
+      unconfirmed, waiters = @confirm_lock.synchronize do
+        u = @unconfirmed_publishes.dup
+        @unconfirmed_publishes.clear
+        w = @confirm_waiters.dup
+        @confirm_waiters.clear
+        {u, w}
       end
+      # Outside of @confirm_lock, see process_confirm
+      unconfirmed.each { |(_, cb)| cb.try &.call(false) }
+      waiters.each &.close
       @reply_frames.close
       @basic_get.close
       @pending_consumers.clear
@@ -276,10 +279,21 @@ class AMQP::Client
                       blk : Proc(Bool, Nil)? = nil) : UInt64
       raise_if_closed
 
+      msgid = 0_u64
       @connection.with_lock(flush: !@tx) do |c|
         if blk && !@confirm_mode
           c.unsafe_write Frame::Confirm::Select.new(@id, true)
           @confirm_mode = true
+        end
+        # Recorded before the publish is written, and under the write lock so
+        # that ids follow the order the server numbers the publishes in, as
+        # the read loop can process the confirm before this fiber resumes
+        if @confirm_mode
+          msgid = @confirm_lock.synchronize do
+            id = @confirm_id &+= 1_u64
+            @unconfirmed_publishes.push({id, blk})
+            id
+          end
         end
         c.unsafe_write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
         c.unsafe_write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, properties)
@@ -296,39 +310,31 @@ class AMQP::Client
           pos += length
         end
       end
-      if @confirm_mode
-        @confirm_lock.synchronize do
-          msgid = @confirm_id &+= 1_u64
-          @unconfirmed_publishes.push({msgid, blk})
-          msgid
-        end
-      else
-        0_u64
-      end
+      msgid
     end
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      confirmed = false
-      waiting_fiber = Fiber.current
+      # A channel rather than enqueue/sleep, as the read loop can call the
+      # block (on another thread) before this fiber has gone to sleep
+      confirmed = ::Channel(Bool).new(1)
       basic_publish(msg, exchange, routing_key, mandatory, immediate, properties) do |ok|
-        confirmed = ok
-        waiting_fiber.enqueue
+        confirmed.send ok
       end
-      sleep
+      ok = confirmed.receive
       raise_if_closed
-      confirmed
+      ok
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      confirmed = false
-      waiting_fiber = Fiber.current
+      # A channel rather than enqueue/sleep, as the read loop can call the
+      # block (on another thread) before this fiber has gone to sleep
+      confirmed = ::Channel(Bool).new(1)
       basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties) do |ok|
-        confirmed = ok
-        waiting_fiber.enqueue
+        confirmed.send ok
       end
-      sleep
+      ok = confirmed.receive
       raise_if_closed
-      confirmed
+      ok
     end
 
     # Returns when there are no unconfirmed publishes on the channel
@@ -336,8 +342,13 @@ class AMQP::Client
     def wait_for_confirms : Bool
       ensure_confirm_mode
 
-      return true if @unconfirmed_publishes.empty?
-      ok = @unconfirmed_empty.receive
+      # Checked and registered under the lock, as the read loop can process
+      # the last confirm (on another thread) between a check and a receive
+      waiter = @confirm_lock.synchronize do
+        return true if @unconfirmed_publishes.empty?
+        ::Channel(Bool).new(1).tap { |w| @confirm_waiters << w }
+      end
+      ok = waiter.receive
       unless ok
         raise_if_closed
         raise Error.new("BUG: got nack without closing frame")
@@ -346,34 +357,37 @@ class AMQP::Client
     end
 
     @unconfirmed_publishes = Deque(Tuple(UInt64, Proc(Bool, Nil)?)).new
-    @unconfirmed_empty = ::Channel(Bool).new
+    # Fibers in wait_for_confirms, woken when there are no unconfirmed publishes
+    @confirm_waiters = Array(::Channel(Bool)).new
     @confirm_lock = Mutex.new
 
+    # Callbacks are called, and waiters woken, outside of @confirm_lock, as a
+    # callback may publish, which takes the connection's write lock and then
+    # @confirm_lock
     private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
+      callback = nil
+      callbacks = nil
+      waiters = nil
       @confirm_lock.synchronize do
-        if @unconfirmed_publishes.first? == delivery_tag
-          _, blk = @unconfirmed_publishes.shift
-          blk.try &.call(acked)
-        elsif multiple
-          @unconfirmed_publishes.reject! do |confirm_id, cb|
-            break if confirm_id > delivery_tag
-            cb.try &.call(acked)
-            true
-          end
-        elsif idx = @unconfirmed_publishes.bsearch_index { |(confirm_id, _)| confirm_id >= delivery_tag }
-          _, blk = @unconfirmed_publishes.delete_at(idx)
-          blk.try &.call(acked)
-        end
-        if @unconfirmed_publishes.empty?
-          loop do
-            select
-            when @unconfirmed_empty.send acked
-            else
-              break
+        if multiple
+          while (first = @unconfirmed_publishes.first?) && first[0] <= delivery_tag
+            if cb = @unconfirmed_publishes.shift[1]
+              (callbacks ||= Array(Proc(Bool, Nil)).new) << cb
             end
           end
+        elsif idx = @unconfirmed_publishes.bsearch_index { |(confirm_id, _)| confirm_id >= delivery_tag }
+          if @unconfirmed_publishes[idx][0] == delivery_tag
+            callback = @unconfirmed_publishes.delete_at(idx)[1]
+          end
+        end
+        if @unconfirmed_publishes.empty? && !@confirm_waiters.empty?
+          waiters = @confirm_waiters.dup
+          @confirm_waiters.clear
         end
       end
+      callback.try &.call(acked)
+      callbacks.try &.each &.call(acked)
+      waiters.try &.each &.send(acked)
     end
 
     private def ensure_confirm_mode

@@ -65,6 +65,44 @@ module TestHelpers
     forward_missing_to @http
   end
 
+  {% if Fiber.has_constant?("ExecutionContext") %}
+    # Opens a connection from an execution context of its own, so that its
+    # read loop runs on another thread than the fiber using the connection
+    def with_connection_on_other_thread(&)
+      reader = Fiber::ExecutionContext::Concurrent.new("amqp read loop")
+      connected = Channel(AMQP::Client::Connection | Exception).new
+      reader.spawn do
+        connected.send AMQP::Client.new.connect
+      rescue ex
+        connected.send ex
+      end
+      conn = connected.receive
+      raise conn if conn.is_a?(Exception)
+      begin
+        yield conn
+      ensure
+        conn.close
+      end
+    end
+  {% end %}
+
+  # Fails if the block doesn't return within *span*
+  def within(span : Time::Span, description : String, &blk : -> _)
+    done = Channel(Exception?).new(1)
+    spawn do
+      blk.call
+      done.send nil
+    rescue ex
+      done.send ex
+    end
+    select
+    when ex = done.receive
+      raise ex if ex
+    when timeout(span)
+      fail "#{description} didn't return within #{span}"
+    end
+  end
+
   def with_http_api(&)
     uri = URI.parse ENV.fetch("MGMT_URL", "http://guest:guest@#{AMQP::Client::AMQP_HOST}:15672")
     yield ManagementApi.new(uri)
