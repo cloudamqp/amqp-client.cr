@@ -239,38 +239,38 @@ class AMQP::Client
     end
 
     # Publish a *bytes* message, to an *exchange* with *routing_key*
-    def basic_publish(bytes : Bytes, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new)
-      basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, properties)
+    def basic_publish(bytes : Bytes, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, flush : Bool = true)
+      basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, properties, flush: flush)
     end
 
-    def basic_publish(bytes : Bytes, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, &blk : Bool -> Nil)
-      basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, properties, blk)
+    def basic_publish(bytes : Bytes, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, flush : Bool = true, &blk : Bool -> Nil)
+      basic_publish(bytes, bytes.size, exchange, routing_key, mandatory, immediate, properties, blk, flush)
     end
 
     # Publish a *string* message, to an *exchange* with *routing_key*
-    def basic_publish(string : String, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new)
-      basic_publish(string.to_slice, exchange, routing_key, mandatory, immediate, properties)
+    def basic_publish(string : String, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, flush : Bool = true)
+      basic_publish(string.to_slice, exchange, routing_key, mandatory, immediate, properties, flush: flush)
     end
 
-    def basic_publish(string : String, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, &blk : Bool -> Nil)
-      basic_publish(string.to_slice, string.bytesize, exchange, routing_key, mandatory, immediate, properties, blk)
+    def basic_publish(string : String, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, flush : Bool = true, &blk : Bool -> Nil)
+      basic_publish(string.to_slice, string.bytesize, exchange, routing_key, mandatory, immediate, properties, blk, flush)
     end
 
     # Publish an *io* message, to an *exchange* with *routing_key*
     # Only data from the current position of the IO to the end will be published. The position will be restored after publish.
-    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new)
+    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, flush : Bool = true)
       pos = io.pos
       begin
-        basic_publish(io, io.bytesize - pos, exchange, routing_key, mandatory, immediate, properties)
+        basic_publish(io, io.bytesize - pos, exchange, routing_key, mandatory, immediate, properties, flush: flush)
       ensure
         io.pos = pos
       end
     end
 
-    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, &blk : Bool -> Nil)
+    def basic_publish(io : (IO::Memory | IO::FileDescriptor), exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new, flush : Bool = true, &blk : Bool -> Nil)
       pos = io.pos
       begin
-        basic_publish(io, io.bytesize - pos, exchange, routing_key, mandatory, immediate, properties, blk)
+        basic_publish(io, io.bytesize - pos, exchange, routing_key, mandatory, immediate, properties, blk, flush)
       ensure
         io.pos = pos
       end
@@ -278,18 +278,26 @@ class AMQP::Client
 
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props properties = Properties.new,
-                      &blk : Bool -> Nil) : UInt64
-      basic_publish(body, bytesize, exchange, routing_key, mandatory, immediate, properties, blk)
+                      flush : Bool = true, &blk : Bool -> Nil) : UInt64
+      basic_publish(body, bytesize, exchange, routing_key, mandatory, immediate, properties, blk, flush)
     end
 
     # Publish a message with a set *bytesize*, to an *exchange* with *routing_key*
+    #
+    # With *flush* false the message stays in the connection's write buffer
+    # until it fills, a write that flushes sends it along, or
+    # `Connection#flush` is called: many small messages then take one write
+    # to the socket instead of one each. Until then the server hasn't got
+    # it, so its confirm can't come, and a failed write is raised by
+    # whatever writes next. With `buffer_size=0` every write goes straight
+    # to the socket.
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props properties = Properties.new,
-                      blk : Proc(Bool, Nil)? = nil) : UInt64
+                      blk : Proc(Bool, Nil)? = nil, flush : Bool = true) : UInt64
       raise_if_closed
 
       msgid = 0_u64
-      @connection.with_lock(flush: !@tx) do |c|
+      @connection.with_lock(flush: flush && !@tx) do |c|
         if blk && !@confirm_mode
           c.unsafe_write Frame::Confirm::Select.new(@id, true)
           @confirm_mode = true
@@ -354,6 +362,7 @@ class AMQP::Client
     # Raises if there was any negative acknowledgements
     def wait_for_confirms : Bool
       ensure_confirm_mode
+      @connection.flush
 
       # Checked and registered under the lock, as the read loop can process
       # the last confirm (on another thread) between a check and a receive

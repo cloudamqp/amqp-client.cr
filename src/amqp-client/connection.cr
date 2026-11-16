@@ -232,6 +232,15 @@ class AMQP::Client
       Log.debug { "sent #{frame.inspect}" }
     end
 
+    # Writes what's buffered to the socket, such as messages published with
+    # `flush: false`
+    def flush : Nil
+      return if @closed
+      @write_lock.synchronize do
+        @io.flush
+      end
+    end
+
     # :nodoc:
     def with_lock(flush = true, & : self -> _)
       @write_lock.synchronize do

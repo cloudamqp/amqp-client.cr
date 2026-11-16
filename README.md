@@ -57,6 +57,11 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
       end
     end
 
+    # Many small messages in one write to the socket: they stay in the
+    # connection's buffer until it's full or flushed
+    1000.times { ch.basic_publish "msg", "amq.topic", "a", flush: false }
+    c.flush
+
     # This statement will block until a message has arrived
     # The only way to "escape" the block is to unsubscribe
     q.subscribe(tag: "myconsumer", block: true) do |msg|

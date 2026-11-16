@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `flush: false` on `Channel#basic_publish` and `Connection#flush`: small messages published in a row then go to the socket in one write instead of one write each. Their confirms come after they're flushed; `Channel#wait_for_confirms` flushes before it waits.
+
 ## [1.5.0] - 2026-11-17
 
 ### Changed

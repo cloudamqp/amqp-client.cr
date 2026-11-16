@@ -31,6 +31,61 @@ describe AMQP::Client do
     end
   end
 
+  it "should publish without flushing until the connection is flushed" do
+    with_connection do |c|
+      ch = c.channel
+      q = ch.queue("publish-without-flush", durable: false)
+      ch.basic_publish "hej", "", q.name, flush: false
+      with_channel do |other|
+        other.basic_get(q.name, no_ack: true).should be_nil
+        c.flush
+        msg = nil
+        100.times do
+          break if msg = other.basic_get(q.name, no_ack: true)
+          sleep 10.milliseconds
+        end
+        msg.should_not be_nil
+      end
+    ensure
+      ch.try &.queue_delete("publish-without-flush")
+    end
+  end
+
+  it "should flush publishes when waiting for their confirms" do
+    with_channel do |ch|
+      ch.confirm_select
+      q = ch.queue
+      ch.basic_publish "hej", "", q.name, flush: false
+      done = Channel(Bool).new
+      spawn { done.send ch.wait_for_confirms }
+      select
+      when ok = done.receive
+        ok.should be_true
+      when timeout(1.second)
+        fail "wait_for_confirms didn't return"
+      end
+    end
+  end
+
+  it "should return from wait_for_confirms when the confirm comes while it flushes" do
+    with_connection do |c|
+      ch = c.channel
+      ch.confirm_select
+      q = ch.queue
+      ch.basic_publish "hej", "", q.name
+      spawn { c.with_lock { sleep 100.milliseconds } }
+      Fiber.yield
+      done = Channel(Bool).new(1)
+      spawn { done.send ch.wait_for_confirms }
+      select
+      when ok = done.receive
+        ok.should be_true
+      when timeout(1.second)
+        fail "wait_for_confirms didn't return"
+      end
+    end
+  end
+
   it "should get" do
     with_channel do |ch|
       q = ch.queue
