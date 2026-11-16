@@ -11,9 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Publisher confirms with the client on several threads: a confirm that arrived before its publish had been numbered was dropped, so the publish's callback never ran and `basic_publish_confirm` could hang; `basic_publish_confirm` could enqueue its fiber before it was waiting; `wait_for_confirms` could miss the last confirm and wait forever. Confirm callbacks now also run outside the confirm lock, so one can publish on the same channel [#83](https://github.com/cloudamqp/amqp-client.cr/pull/83)
 
+## [1.4.0] - 2026-11-10
+
+### Added
+
+- `auth_mechanism` option (and `?auth_mechanism=` URI parameter) to select the SASL mechanism, supporting `PLAIN` (default) and `EXTERNAL`, e.g. for TLS client-certificate authentication [#74](https://github.com/cloudamqp/amqp-client.cr/pull/74)
+
 ### Changed
 
 - `TCP_NODELAY` is enabled by default, removing up to ~40 ms of Nagle/delayed-ACK latency. Disable with `?tcp_nodelay=false` [#77](https://github.com/cloudamqp/amqp-client.cr/pull/77)
+
+### Fixed
+
+- The TCP socket is now closed when the TLS handshake fails, instead of staying open until the GC finalizes it [#87](https://github.com/cloudamqp/amqp-client.cr/pull/87)
 
 ## [1.3.4] - 2026-06-29
 
