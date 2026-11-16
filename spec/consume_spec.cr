@@ -21,6 +21,30 @@ describe "basic_consume" do
     end
   end
 
+  it "releases the consumer whose tag a failed basic.consume reused" do
+    with_channel do |ch|
+      q = ch.queue("", durable: false, exclusive: true)
+      first = Channel(Nil).new(1)
+      spawn do
+        q.subscribe(tag: "dup", block: true) { }
+      rescue AMQP::Client::Channel::ClosedException
+      ensure
+        first.send nil
+      end
+      until q.consumer_count == 1
+        sleep 10.milliseconds
+      end
+      expect_raises(AMQP::Client::Channel::ClosedException, /NOT_FOUND/) do
+        ch.basic_consume("no-such-queue", tag: "dup") { }
+      end
+      select
+      when first.receive
+      when timeout(5.seconds)
+        fail "the first consumer was left waiting after the channel closed"
+      end
+    end
+  end
+
   it "delivers to a consumer whose ConsumeOk is followed by a delivery" do
     with_channel do |ch|
       q = ch.queue("", durable: false, exclusive: true)

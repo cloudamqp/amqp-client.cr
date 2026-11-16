@@ -408,14 +408,22 @@ class AMQP::Client
       # here, in the format servers use for the tags they generate.
       tag = "amq.ctag-#{Random::Secure.urlsafe_base64(24)}" if tag.empty?
       deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
-      @consumers[tag] = deliveries
+      # A tag that's in use is left to its consumer: the server refuses the
+      # duplicate and closes the channel, which closes that consumer too
+      @consumers[tag] = deliveries unless @consumers.has_key?(tag)
       begin
         write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
-        expect Frame::Basic::ConsumeOk
+        ok = expect Frame::Basic::ConsumeOk
       rescue ex
-        @consumers.delete(tag)
+        @consumers.delete(tag) if @consumers[tag]?.same?(deliveries)
         raise ex
       end
+      # A server is to use the tag it's given, but go by the one it replied with
+      if ok.consumer_tag != tag
+        @consumers.delete(tag) if @consumers[tag]?.same?(deliveries)
+        tag = ok.consumer_tag
+      end
+      @consumers[tag] = deliveries
       done = ::Channel(Exception?).new
       work_pool.times do |i|
         spawn consume(tag, deliveries, done, i, !block, blk),
