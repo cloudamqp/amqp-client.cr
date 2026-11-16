@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Requires Crystal 1.19 or later, for `Sync::Exclusive`, which replaces the client's own `Sync` wrapper
+
 ### Fixed
 
 - A consumer is registered by the read loop when it reads `ConsumeOk`, so deliveries that follow it are no longer dropped (and left unacked) when the read loop runs on another thread than the fiber calling `basic_consume`

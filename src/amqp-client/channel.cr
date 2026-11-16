@@ -2,7 +2,7 @@ require "./connection"
 require "./message"
 require "./queue"
 require "./exchange"
-require "./sync"
+require "sync/exclusive"
 
 class AMQP::Client
   class Channel
@@ -42,7 +42,7 @@ class AMQP::Client
       return if @closed
       @closed = true
       write Frame::Channel::Close.new(@id, code.to_u16, reason, 0, 0)
-      @consumers.each_value &.close
+      @consumers.lock &.each_value(&.close)
       expect Frame::Channel::CloseOk
       cleanup
     end
@@ -94,9 +94,11 @@ class AMQP::Client
       waiters.each &.close
       @reply_frames.close
       @basic_get.close
-      @pending_consumers.clear
-      @consumers.each_value &.close
-      @consumers.clear
+      @pending_consumers.lock &.clear
+      @consumers.lock do |consumers|
+        consumers.each_value &.close
+        consumers.clear
+      end
     end
 
     @next_msg_deliver : (Frame::Basic::Deliver | Frame::Basic::Return | Frame::Basic::GetOk)?
@@ -141,8 +143,8 @@ class AMQP::Client
         # Registered here, before the next frame is read, as the deliveries
         # that follow ConsumeOk can't wait for the fiber that called
         # basic_consume to resume (which, with several threads, they don't)
-        if deliveries = @pending_consumers.shift?
-          @consumers[frame.consumer_tag] = deliveries
+        if deliveries = @pending_consumers.lock &.shift?
+          @consumers.lock &.[]=(frame.consumer_tag, deliveries)
         end
         @reply_frames.send frame
       else
@@ -165,7 +167,7 @@ class AMQP::Client
       rescue ex
         Log.error(exception: ex) { "Uncaught exception in on_cancel" }
       end
-      if deliveries = @consumers.delete(consumer_tag)
+      if deliveries = @consumers.lock &.delete(consumer_tag)
         deliveries.close
       else
         Log.warn { "Consumer tag '#{consumer_tag}' already cancelled" }
@@ -174,7 +176,7 @@ class AMQP::Client
     end
 
     private def process_cancel_ok(consumer_tag : String)
-      if deliveries = @consumers.delete(consumer_tag)
+      if deliveries = @consumers.lock &.delete(consumer_tag)
         deliveries.close
       end
     end
@@ -182,7 +184,8 @@ class AMQP::Client
     private def process_deliver
       case f = @next_msg_deliver
       when Frame::Basic::Deliver
-        if deliveries = @consumers[f.consumer_tag]?
+        # Sent outside of the lock, as it blocks while the consumer is full
+        if deliveries = @consumers.lock &.[f.consumer_tag]?
           msg = DeliverMessage.new(self, f.exchange, f.routing_key,
             f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
             f.redelivered)
@@ -406,12 +409,14 @@ class AMQP::Client
 
     # :nodoc:
     def has_subscriber?(consumer_tag)
-      @consumers.has_key? consumer_tag
+      @consumers.lock &.has_key?(consumer_tag)
     end
 
-    @consumers = Sync(Hash(String, ::Channel(DeliverMessage))).new
+    private alias Deliveries = ::Channel(DeliverMessage)
+
+    @consumers = Sync::Exclusive(Hash(String, Deliveries)).new(Hash(String, Deliveries).new)
     # Consumers waiting for their ConsumeOk, in the order basic.consume was sent
-    @pending_consumers = Sync(Deque(::Channel(DeliverMessage))).new
+    @pending_consumers = Sync::Exclusive(Deque(Deliveries)).new(Deque(Deliveries).new)
 
     # Consume messages from a *queue*
     #
@@ -429,7 +434,7 @@ class AMQP::Client
 
       # The read loop adds the consumer to @consumers when it reads ConsumeOk
       deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
-      @pending_consumers.push deliveries
+      @pending_consumers.lock &.push(deliveries)
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
       ok = expect Frame::Basic::ConsumeOk
       done = ::Channel(Exception?).new
@@ -477,10 +482,10 @@ class AMQP::Client
     # Cancel the consumer with the *consumer_tag*
     # Even with *no_wait* = false the method will return immediately, but outstanding deliveries will be processed.
     def basic_cancel(consumer_tag, no_wait = false) : Nil
-      if @consumers.has_key? consumer_tag
+      if has_subscriber?(consumer_tag)
         write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
         if no_wait
-          if deliveries = @consumers.delete(consumer_tag)
+          if deliveries = @consumers.lock &.delete(consumer_tag)
             deliveries.close
           end
         end
