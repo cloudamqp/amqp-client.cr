@@ -3,6 +3,7 @@ require "./message"
 require "./queue"
 require "./exchange"
 require "sync/exclusive"
+require "wait_group"
 
 class AMQP::Client
   class Channel
@@ -317,27 +318,31 @@ class AMQP::Client
     end
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      # A channel rather than enqueue/sleep, as the read loop can call the
+      # A WaitGroup rather than enqueue/sleep, as the read loop can call the
       # block (on another thread) before this fiber has gone to sleep
-      confirmed = ::Channel(Bool).new(1)
+      confirmed = false
+      wg = WaitGroup.new(1)
       basic_publish(msg, exchange, routing_key, mandatory, immediate, properties) do |ok|
-        confirmed.send ok
+        confirmed = ok
+        wg.done
       end
-      ok = confirmed.receive
+      wg.wait
       raise_if_closed
-      ok
+      confirmed
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
-      # A channel rather than enqueue/sleep, as the read loop can call the
+      # A WaitGroup rather than enqueue/sleep, as the read loop can call the
       # block (on another thread) before this fiber has gone to sleep
-      confirmed = ::Channel(Bool).new(1)
+      confirmed = false
+      wg = WaitGroup.new(1)
       basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties) do |ok|
-        confirmed.send ok
+        confirmed = ok
+        wg.done
       end
-      ok = confirmed.receive
+      wg.wait
       raise_if_closed
-      ok
+      confirmed
     end
 
     # Returns when there are no unconfirmed publishes on the channel
