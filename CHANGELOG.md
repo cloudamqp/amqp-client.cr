@@ -11,9 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A consumer is registered before `basic.consume` is sent, so deliveries that arrive right after `ConsumeOk` are no longer dropped (and left unacked) when the read loop runs on another thread. When no tag is given, the tag is now chosen by the client, in the same `amq.ctag-` format servers use [#82](https://github.com/cloudamqp/amqp-client.cr/pull/82)
 
+## [1.4.0] - 2026-11-10
+
+### Added
+
+- `auth_mechanism` option (and `?auth_mechanism=` URI parameter) to select the SASL mechanism, supporting `PLAIN` (default) and `EXTERNAL`, e.g. for TLS client-certificate authentication [#74](https://github.com/cloudamqp/amqp-client.cr/pull/74)
+
 ### Changed
 
 - `TCP_NODELAY` is enabled by default, removing up to ~40 ms of Nagle/delayed-ACK latency. Disable with `?tcp_nodelay=false` [#77](https://github.com/cloudamqp/amqp-client.cr/pull/77)
+
+### Fixed
+
+- The TCP socket is now closed when the TLS handshake fails, instead of staying open until the GC finalizes it [#87](https://github.com/cloudamqp/amqp-client.cr/pull/87)
 
 ## [1.3.4] - 2026-06-29
 
