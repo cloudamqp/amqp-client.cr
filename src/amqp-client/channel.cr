@@ -91,6 +91,7 @@ class AMQP::Client
       end
       @reply_frames.close
       @basic_get.close
+      @pending_consumers.clear
       @consumers.each_value &.close
       @consumers.clear
     end
@@ -134,8 +135,13 @@ class AMQP::Client
       when Frame::Channel::Close
         close frame
       when Frame::Basic::ConsumeOk
+        # Registered here, before the next frame is read, as the deliveries
+        # that follow ConsumeOk can't wait for the fiber that called
+        # basic_consume to resume (which, with several threads, they don't)
+        if deliveries = @pending_consumers.shift?
+          @consumers[frame.consumer_tag] = deliveries
+        end
         @reply_frames.send frame
-        Fiber.yield # yield so that the consumer can be added to the hash before msgs are read
       else
         @reply_frames.send frame
       end
@@ -390,6 +396,8 @@ class AMQP::Client
     end
 
     @consumers = Sync(Hash(String, ::Channel(DeliverMessage))).new
+    # Consumers waiting for their ConsumeOk, in the order basic.consume was sent
+    @pending_consumers = Sync(Deque(::Channel(DeliverMessage))).new
 
     # Consume messages from a *queue*
     #
@@ -405,11 +413,12 @@ class AMQP::Client
       raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
       raise ArgumentError.new("At least one worker required") if work_pool < 1
 
+      # The read loop adds the consumer to @consumers when it reads ConsumeOk
+      deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
+      @pending_consumers.push deliveries
       write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
       ok = expect Frame::Basic::ConsumeOk
       done = ::Channel(Exception?).new
-      deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
-      @consumers[ok.consumer_tag] = deliveries
       work_pool.times do |i|
         spawn consume(ok.consumer_tag, deliveries, done, i, !block, blk),
           name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
