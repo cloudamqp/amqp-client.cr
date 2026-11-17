@@ -225,13 +225,10 @@ class AMQP::Client
       until @closed
         sleep interval
         break if @closed
-        if @wrote
-          @wrote = false
-        else
-          write Frame::Heartbeat.new
-          # Our own heartbeat must not skip the next one
-          @wrote = false
-        end
+        next if @wrote.swap(false)
+        write Frame::Heartbeat.new
+        # Our own heartbeat must not skip the next one
+        @wrote.set(false)
       end
     rescue ex : Error | IO::Error | OpenSSL::Error
       # read_loop reports the broken connection
@@ -239,14 +236,15 @@ class AMQP::Client
     end
 
     @write_lock = Mutex.new
-    @wrote = false
+    # Atomic because writers and heartbeat_loop can run on different threads
+    @wrote = Atomic(Bool).new(false)
 
     # :nodoc:
     def write(frame : Frame)
       @write_lock.synchronize do
         unsafe_write(frame)
         @io.flush
-        @wrote = true
+        @wrote.set(true)
       end
     end
 
@@ -274,7 +272,7 @@ class AMQP::Client
         if flush
           @io.flush
           # Buffered frames are not sent, so they must not stop a heartbeat
-          @wrote = true
+          @wrote.set(true)
         end
       end
     end
