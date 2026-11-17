@@ -146,10 +146,17 @@ class AMQP::Client
       @io.close rescue nil
       @reply_frames.close
       @update_secret_ok.close
-      @channels_lock.synchronize do
-        @channels.each_value &.cleanup
+      cleanup_channels
+    end
+
+    # Cleanup runs user confirm callbacks, so it must run outside of @channels_lock
+    private def cleanup_channels
+      channels = @channels_lock.synchronize do
+        values = @channels.values
         @channels.clear
+        values
       end
+      channels.each &.cleanup
     end
 
     private def notify_disconnected(ex : Exception)
@@ -262,10 +269,7 @@ class AMQP::Client
         @closed = true
         @reply_frames.close
         @io.close rescue nil
-        @channels_lock.synchronize do
-          @channels.each_value &.cleanup
-          @channels.clear
-        end
+        cleanup_channels
       end
     end
 
