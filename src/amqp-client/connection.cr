@@ -30,6 +30,11 @@ class AMQP::Client
     def channel(id : Int? = nil)
       ch = nil
       @channels_lock.synchronize do
+        # A channel added after cleanup_channels would never be cleaned up
+        if @closed
+          f = @closing_frame
+          raise f ? ClosedException.new(f) : ClosedException.new("Connection closed", nil)
+        end
         if id
           raise "channel_max reached" if @channel_max.positive? && id > @channel_max
           if ch = @channels.fetch(id, nil)
