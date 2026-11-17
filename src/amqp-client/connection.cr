@@ -201,7 +201,9 @@ class AMQP::Client
                @channels.delete f.channel
              end
            else
-             @channels.fetch(f.channel, nil)
+             @channels_lock.synchronize do
+               @channels.fetch(f.channel, nil)
+             end
            end
       if ch
         ch.incoming f
