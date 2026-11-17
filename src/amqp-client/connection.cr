@@ -218,13 +218,7 @@ class AMQP::Client
 
     # :nodoc:
     def unsafe_write(frame : Frame)
-      if @closed
-        if f = @closing_frame
-          raise ClosedException.new(f)
-        else
-          return
-        end
-      end
+      return unless writable?
       begin
         @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
         @unflushed = true
@@ -237,9 +231,8 @@ class AMQP::Client
     # Writes what's buffered to the socket, such as messages published with
     # `flush: false`
     def flush : Nil
-      return if @closed
       @write_lock.synchronize do
-        flush_io
+        flush_io if writable?
       end
     end
 
@@ -253,6 +246,17 @@ class AMQP::Client
     private def flush_io : Nil
       @io.flush
       @unflushed = false
+    rescue ex
+      raise Error.new(cause: ex)
+    end
+
+    # False once the connection is closed, raising if the server closed it
+    private def writable? : Bool
+      return true unless @closed
+      if f = @closing_frame
+        raise ClosedException.new(f)
+      end
+      false
     end
 
     # :nodoc:

@@ -128,6 +128,28 @@ describe AMQP::Client do
     end
   end
 
+  it "should raise on flush when the server has closed the connection" do
+    with_connection do |c|
+      # A method on a channel that isn't open is a connection error
+      c.write AMQ::Protocol::Frame::Basic::Qos.new(42_u16, 0_u32, 1_u16, false)
+      wait_until_closed(c)
+      expect_raises(AMQP::Client::Connection::ClosedException) do
+        c.flush
+      end
+    end
+  end
+
+  it "should raise an Error on flush when the socket is broken" do
+    with_connection do |c|
+      c.channel.basic_publish("x", "", "q", flush: false)
+      c.@io.as(Socket).close_write
+      expect_raises(AMQP::Client::Error) do
+        c.flush
+      end
+      wait_until_closed(c)
+    end
+  end
+
   it "should return from a blocking subscribe when acks can't be flushed" do
     with_connection do |c|
       ch = c.channel

@@ -522,7 +522,7 @@ class AMQP::Client
     # deliveries, so a consumer that can't flush only has to stop waiting
     private def flush_connection : Nil
       @connection.flush
-    rescue IO::Error | OpenSSL::Error
+    rescue Error
     end
 
     # Acks made with `flush: false` have to reach the server before the

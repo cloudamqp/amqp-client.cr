@@ -23,6 +23,14 @@ module TestHelpers
     end
   end
 
+  def wait_until_closed(c : AMQP::Client::Connection, timeout = 1.second)
+    deadline = Time.instant + timeout
+    until c.closed?
+      fail "the connection didn't close" if Time.instant > deadline
+      sleep 10.milliseconds
+    end
+  end
+
   def with_ws_connection(&)
     AMQP::Client.start(websocket: true, port: 15_672) do |c|
       yield c
