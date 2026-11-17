@@ -80,6 +80,13 @@ AMQP::Client.start("amqp://guest:guest@localhost") do |c|
       end
     end
 
+    # Acks can also stay in the buffer: the consumer flushes it before
+    # waiting for the next delivery. Acks made outside the consume block
+    # need a c.flush
+    q.subscribe(no_ack: false) do |msg|
+      msg.ack(flush: false)
+    end
+
     ch.prefetch(count: 1000) # alias for basic_qos
 
     name, message_count, consumer_count =

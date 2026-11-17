@@ -206,12 +206,13 @@ class AMQP::Client
     end
 
     @write_lock = Mutex.new
+    @unflushed = false
 
     # :nodoc:
-    def write(frame : Frame)
+    def write(frame : Frame, flush = true)
       @write_lock.synchronize do
         unsafe_write(frame)
-        @io.flush
+        flush_io if flush
       end
     end
 
@@ -226,6 +227,7 @@ class AMQP::Client
       end
       begin
         @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
+        @unflushed = true
       rescue ex
         raise Error.new(cause: ex)
       end
@@ -237,15 +239,27 @@ class AMQP::Client
     def flush : Nil
       return if @closed
       @write_lock.synchronize do
-        @io.flush
+        flush_io
       end
+    end
+
+    # :nodoc:
+    # Whether frames wait in the write buffer, such as acks or messages
+    # written with `flush: false`
+    def unflushed? : Bool
+      @unflushed
+    end
+
+    private def flush_io : Nil
+      @io.flush
+      @unflushed = false
     end
 
     # :nodoc:
     def with_lock(flush = true, & : self -> _)
       @write_lock.synchronize do
         yield self
-        @io.flush if flush
+        flush_io if flush
       end
     end
 

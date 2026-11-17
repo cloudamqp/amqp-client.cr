@@ -502,7 +502,7 @@ class AMQP::Client
 
     private def consume(consumer_tag, deliveries, done, i, log_errors, blk)
       Log.context.set channel_id: @id.to_i, consumer: consumer_tag, worker: i
-      while msg = deliveries.receive?
+      while msg = @connection.unflushed? ? next_delivery_flushing(deliveries) : deliveries.receive?
         begin
           blk.call(msg)
         rescue ex
@@ -514,7 +514,35 @@ class AMQP::Client
           return
         end
       end
+      flush_connection
       done.send(nil) rescue nil
+    end
+
+    # A broken connection is reported by the read loop, which also closes the
+    # deliveries, so a consumer that can't flush only has to stop waiting
+    private def flush_connection : Nil
+      @connection.flush
+    rescue IO::Error | OpenSSL::Error
+    end
+
+    # Acks made with `flush: false` have to reach the server before the
+    # consumer waits, as the prefetch limit can hold back the next delivery
+    # until they do. Kept out of line, as the select costs more than the
+    # rest of a delivery, and consumers that flush each ack never need it.
+    # Both waits are selects: with a second call site `Channel#receive?` was
+    # no longer inlined in `consume`, which made consumers 5% slower.
+    @[NoInline]
+    private def next_delivery_flushing(deliveries)
+      select
+      when msg = deliveries.receive?
+        return msg
+      else
+        flush_connection
+      end
+      select
+      when msg = deliveries.receive?
+        msg
+      end
     end
 
     # Cancel the consumer with the *consumer_tag*
@@ -534,19 +562,30 @@ class AMQP::Client
 
     # Acknowledge a message with *delivery_tag*,
     # or all message up and including *delivery_tag* if *multiple* set set
-    def basic_ack(delivery_tag : UInt64, multiple = false) : Nil
-      write Frame::Basic::Ack.new(@id, delivery_tag, multiple)
+    #
+    # With *flush* false the ack stays in the connection's write buffer, like
+    # a publish with `flush: false`, until it fills, a write that flushes
+    # sends it along, or `Connection#flush` is called. Consumers flush before
+    # they wait for the next delivery, so acks in a consume block can always
+    # skip it. Acks made elsewhere, by another fiber or after `basic_get`,
+    # need a `Connection#flush`, or the prefetch limit can stop deliveries.
+    def basic_ack(delivery_tag : UInt64, multiple = false, flush : Bool = true) : Nil
+      write Frame::Basic::Ack.new(@id, delivery_tag, multiple), flush
     end
 
     # Reject a message with *delivery_tag*, optionally *requeue* it
-    def basic_reject(delivery_tag : UInt64, requeue = false) : Nil
-      write Frame::Basic::Reject.new(@id, delivery_tag, requeue)
+    #
+    # *flush* works as for `#basic_ack`
+    def basic_reject(delivery_tag : UInt64, requeue = false, flush : Bool = true) : Nil
+      write Frame::Basic::Reject.new(@id, delivery_tag, requeue), flush
     end
 
     # Reject a message with *delivery_tag*, optionally *requeue* it
     # Reject all message up to and including *delivery_tag* if *multiple* is true
-    def basic_nack(delivery_tag : UInt64, requeue = false, multiple = false) : Nil
-      write Frame::Basic::Nack.new(@id, delivery_tag, multiple, requeue)
+    #
+    # *flush* works as for `#basic_ack`
+    def basic_nack(delivery_tag : UInt64, requeue = false, multiple = false, flush : Bool = true) : Nil
+      write Frame::Basic::Nack.new(@id, delivery_tag, multiple, requeue), flush
     end
 
     # Set prefetch limit to *count* messages,
@@ -785,9 +824,9 @@ class AMQP::Client
       end
     end
 
-    private def write(frame)
+    private def write(frame, flush = true)
       raise_if_closed
-      @connection.write frame
+      @connection.write frame, flush
     end
 
     private def next_frame : Frame

@@ -25,19 +25,19 @@ class AMQP::Client
                    @body_io : IO::Memory, @redelivered : Bool)
     end
 
-    # Acknowledge the message
-    def ack(multiple = false)
-      @channel.basic_ack(@delivery_tag, multiple: multiple)
+    # Acknowledge the message, see `Channel#basic_ack` for *flush*
+    def ack(multiple = false, flush : Bool = true)
+      @channel.basic_ack(@delivery_tag, multiple: multiple, flush: flush)
     end
 
-    # Negatively acknowledge (reject) the message
-    def nack(multiple = false, requeue = false)
-      @channel.basic_nack(@delivery_tag, multiple: multiple, requeue: requeue)
+    # Negatively acknowledge (reject) the message, see `Channel#basic_ack` for *flush*
+    def nack(multiple = false, requeue = false, flush : Bool = true)
+      @channel.basic_nack(@delivery_tag, multiple: multiple, requeue: requeue, flush: flush)
     end
 
-    # Reject the message
-    def reject(requeue = false)
-      @channel.basic_reject(@delivery_tag, requeue: requeue)
+    # Reject the message, see `Channel#basic_ack` for *flush*
+    def reject(requeue = false, flush : Bool = true)
+      @channel.basic_reject(@delivery_tag, requeue: requeue, flush: flush)
     end
   end
 

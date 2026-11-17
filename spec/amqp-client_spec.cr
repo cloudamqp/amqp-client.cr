@@ -86,6 +86,69 @@ describe AMQP::Client do
     end
   end
 
+  it "should ack without flushing until the connection is flushed" do
+    with_connection do |c|
+      ch = c.channel
+      ch.prefetch 1
+      q = ch.queue
+      q.publish "1"
+      q.publish "2"
+      msgs = Channel(AMQP::Client::DeliverMessage).new(2)
+      q.subscribe(no_ack: false) { |m| msgs.send m }
+      msgs.receive.ack(flush: false)
+      select
+      when msgs.receive then fail "the ack was sent without a flush"
+      when timeout(100.milliseconds)
+      end
+      c.flush
+      select
+      when msgs.receive
+      when timeout(1.second) then fail "the ack wasn't sent by the flush"
+      end
+    end
+  end
+
+  it "should flush acks before a consumer waits for the next delivery" do
+    with_channel do |ch|
+      ch.prefetch 1
+      q = ch.queue
+      q.publish "1"
+      q.publish "2"
+      msgs = Channel(String).new(2)
+      q.subscribe(no_ack: false) do |m|
+        m.ack(flush: false)
+        msgs.send m.body_io.to_s
+      end
+      2.times do
+        select
+        when msgs.receive
+        when timeout(1.second) then fail "the ack stayed in the buffer"
+        end
+      end
+    end
+  end
+
+  it "should return from a blocking subscribe when acks can't be flushed" do
+    with_connection do |c|
+      ch = c.channel
+      q = ch.queue
+      q.publish "1"
+      done = Channel(Nil).new(1)
+      spawn do
+        q.subscribe(no_ack: false, block: true) do |m|
+          m.ack(flush: false)
+          c.@io.as(Socket).close_write
+        end
+      ensure
+        done.send nil
+      end
+      select
+      when done.receive
+      when timeout(2.seconds) then fail "subscribe didn't return"
+      end
+    end
+  end
+
   it "should get" do
     with_channel do |ch|
       q = ch.queue
