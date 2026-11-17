@@ -37,6 +37,12 @@ class AMQP::Client
     def unbuffered_flush
     end
 
+    # IO::Buffered#close flushes even when closed, so on_close after a failed close would raise
+    def close : Nil
+      return if @closed
+      super
+    end
+
     def unbuffered_close : Nil
       return if @closed
       @closed = true
