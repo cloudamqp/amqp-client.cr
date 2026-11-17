@@ -245,24 +245,28 @@ class AMQP::Client
     # The *reason* might be logged by the server
     def close(reason = "", no_wait = false)
       return if @closed
-      Log.debug { "Closing connection" }
-      write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
-      return if no_wait
-      while frame = @reply_frames.receive?
-        if frame.as?(Frame::Connection::CloseOk)
-          Log.debug { "Server confirmed close" }
-          return
+      begin
+        Log.debug { "Closing connection" }
+        write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
+        return if no_wait
+        while frame = @reply_frames.receive?
+          if frame.as?(Frame::Connection::CloseOk)
+            Log.debug { "Server confirmed close" }
+            return
+          end
+        end
+        Log.debug { "Server didn't confirm close" }
+      rescue IO::Error
+        Log.info { "Socket already closed, can't send close frame" }
+      ensure
+        @closed = true
+        @reply_frames.close
+        @io.close rescue nil
+        @channels_lock.synchronize do
+          @channels.each_value &.cleanup
+          @channels.clear
         end
       end
-      Log.debug { "Server didn't confirm close" }
-    rescue IO::Error
-      Log.info { "Socket already closed, can't send close frame" }
-    ensure
-      @closed = true
-      @reply_frames.close
-      @io.close rescue nil
-      @channels.each_value &.cleanup
-      @channels.clear
     end
 
     # Connection negotiation
