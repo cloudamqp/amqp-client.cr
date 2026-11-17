@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Requires Crystal 1.19 or later, for `Sync::Exclusive`, which replaces the client's own `Sync` wrapper
+
+### Fixed
+
+- A consumer is registered by the read loop when it reads `ConsumeOk`, so deliveries that follow it are no longer dropped (and left unacked) when the read loop runs on another thread than the fiber calling `basic_consume`
+- Publisher confirms with the read loop on another thread: a confirm processed before its publish was recorded was lost, `wait_for_confirms` could miss the last confirm and wait forever, and `basic_publish_confirm` could be resumed before it went to sleep
+- A confirm block that publishes on the same channel no longer raises `Can't lock mutex recursively` in the read loop, as confirm blocks are now called outside of the channel's confirm lock
+
 ## [1.4.0] - 2026-11-10
 
 ### Added

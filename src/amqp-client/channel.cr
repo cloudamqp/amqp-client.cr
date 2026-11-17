@@ -2,7 +2,8 @@ require "./connection"
 require "./message"
 require "./queue"
 require "./exchange"
-require "./sync"
+require "sync/exclusive"
+require "wait_group"
 
 class AMQP::Client
   class Channel
@@ -42,7 +43,7 @@ class AMQP::Client
       return if @closed
       @closed = true
       write Frame::Channel::Close.new(@id, code.to_u16, reason, 0, 0)
-      @consumers.each_value &.close
+      @consumers.lock &.each_value(&.close)
       expect Frame::Channel::CloseOk
       cleanup
     end
@@ -82,17 +83,26 @@ class AMQP::Client
     # :nodoc:
     def cleanup
       @closed = true
-      @unconfirmed_empty.close
-      @confirm_lock.synchronize do
-        @unconfirmed_publishes.reject! do |_, cb|
-          cb.try &.call(false)
-          true
-        end
+      callbacks, waiters = @confirm_lock.synchronize do
+        cbs = @unconfirmed_publishes.compact_map { |(_, cb)| cb }
+        @unconfirmed_publishes.clear
+        w = @confirm_waiters.dup
+        @confirm_waiters.clear
+        {cbs, w}
       end
+      # Outside of @confirm_lock, see process_confirm
+      callbacks.each &.call(false)
+      waiters.each &.close
       @reply_frames.close
       @basic_get.close
-      @consumers.each_value &.close
-      @consumers.clear
+      @pending_consumers.lock do |pending|
+        pending.each &.ok.close
+        pending.clear
+      end
+      @consumers.lock do |consumers|
+        consumers.each_value &.close
+        consumers.clear
+      end
     end
 
     @next_msg_deliver : (Frame::Basic::Deliver | Frame::Basic::Return | Frame::Basic::GetOk)?
@@ -134,8 +144,15 @@ class AMQP::Client
       when Frame::Channel::Close
         close frame
       when Frame::Basic::ConsumeOk
-        @reply_frames.send frame
-        Fiber.yield # yield so that the consumer can be added to the hash before msgs are read
+        # Registered here, before the next frame is read, as the deliveries
+        # that follow ConsumeOk can't wait for the fiber that called
+        # basic_consume to resume (which, with several threads, they don't)
+        if pending = @pending_consumers.lock &.shift?
+          @consumers.lock { |consumers| consumers[frame.consumer_tag] = pending.deliveries }
+          pending.ok.send frame
+        else
+          Log.warn { "ConsumeOk without a pending basic_consume: #{frame.consumer_tag}" }
+        end
       else
         @reply_frames.send frame
       end
@@ -156,7 +173,7 @@ class AMQP::Client
       rescue ex
         Log.error(exception: ex) { "Uncaught exception in on_cancel" }
       end
-      if deliveries = @consumers.delete(consumer_tag)
+      if deliveries = @consumers.lock &.delete(consumer_tag)
         deliveries.close
       else
         Log.warn { "Consumer tag '#{consumer_tag}' already cancelled" }
@@ -165,7 +182,7 @@ class AMQP::Client
     end
 
     private def process_cancel_ok(consumer_tag : String)
-      if deliveries = @consumers.delete(consumer_tag)
+      if deliveries = @consumers.lock &.delete(consumer_tag)
         deliveries.close
       end
     end
@@ -173,7 +190,8 @@ class AMQP::Client
     private def process_deliver
       case f = @next_msg_deliver
       when Frame::Basic::Deliver
-        if deliveries = @consumers[f.consumer_tag]?
+        # Sent outside of the lock, as it blocks while the consumer is full
+        if deliveries = @consumers.lock { |consumers| consumers[f.consumer_tag]? }
           msg = DeliverMessage.new(self, f.exchange, f.routing_key,
             f.delivery_tag, @next_msg_props.not_nil!, @next_body_io.not_nil!,
             f.redelivered)
@@ -270,10 +288,21 @@ class AMQP::Client
                       blk : Proc(Bool, Nil)? = nil) : UInt64
       raise_if_closed
 
+      msgid = 0_u64
       @connection.with_lock(flush: !@tx) do |c|
         if blk && !@confirm_mode
           c.unsafe_write Frame::Confirm::Select.new(@id, true)
           @confirm_mode = true
+        end
+        # Recorded before the publish is written, and under the write lock so
+        # that ids follow the order the server numbers the publishes in, as
+        # the read loop can process the confirm before this fiber resumes
+        if @confirm_mode
+          msgid = @confirm_lock.synchronize do
+            id = @confirm_id &+= 1_u64
+            @unconfirmed_publishes.push({id, blk})
+            id
+          end
         end
         c.unsafe_write Frame::Basic::Publish.new(@id, 0_u16, exchange, routing_key, mandatory, immediate)
         c.unsafe_write Frame::Header.new(@id, 60_u16, 0_u16, bytesize.to_u64, properties)
@@ -290,37 +319,33 @@ class AMQP::Client
           pos += length
         end
       end
-      if @confirm_mode
-        @confirm_lock.synchronize do
-          msgid = @confirm_id &+= 1_u64
-          @unconfirmed_publishes.push({msgid, blk})
-          msgid
-        end
-      else
-        0_u64
-      end
+      msgid
     end
 
     def basic_publish_confirm(msg, exchange, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
+      # A WaitGroup rather than enqueue/sleep, as the read loop can call the
+      # block (on another thread) before this fiber has gone to sleep
       confirmed = false
-      waiting_fiber = Fiber.current
+      wg = WaitGroup.new(1)
       basic_publish(msg, exchange, routing_key, mandatory, immediate, properties) do |ok|
         confirmed = ok
-        waiting_fiber.enqueue
+        wg.done
       end
-      sleep
+      wg.wait
       raise_if_closed
       confirmed
     end
 
     def basic_publish_confirm(io : IO, bytesize : Int, exchange : String, routing_key = "", mandatory = false, immediate = false, props properties = Properties.new) : Bool
+      # A WaitGroup rather than enqueue/sleep, as the read loop can call the
+      # block (on another thread) before this fiber has gone to sleep
       confirmed = false
-      waiting_fiber = Fiber.current
+      wg = WaitGroup.new(1)
       basic_publish(io, bytesize, exchange, routing_key, mandatory, immediate, properties) do |ok|
         confirmed = ok
-        waiting_fiber.enqueue
+        wg.done
       end
-      sleep
+      wg.wait
       raise_if_closed
       confirmed
     end
@@ -330,8 +355,13 @@ class AMQP::Client
     def wait_for_confirms : Bool
       ensure_confirm_mode
 
-      return true if @unconfirmed_publishes.empty?
-      ok = @unconfirmed_empty.receive
+      # Checked and registered under the lock, as the read loop can process
+      # the last confirm (on another thread) between a check and a receive
+      waiter = @confirm_lock.synchronize do
+        return true if @unconfirmed_publishes.empty?
+        ::Channel(Bool).new(1).tap { |w| @confirm_waiters << w }
+      end
+      ok = waiter.receive
       unless ok
         raise_if_closed
         raise Error.new("BUG: got nack without closing frame")
@@ -340,34 +370,40 @@ class AMQP::Client
     end
 
     @unconfirmed_publishes = Deque(Tuple(UInt64, Proc(Bool, Nil)?)).new
-    @unconfirmed_empty = ::Channel(Bool).new
+    # Fibers in wait_for_confirms, woken when there are no unconfirmed publishes
+    @confirm_waiters = Array(::Channel(Bool)).new
     @confirm_lock = Mutex.new
 
+    # Callbacks are called, and waiters woken, outside of @confirm_lock, as a
+    # callback may publish, which takes the connection's write lock and then
+    # @confirm_lock
     private def process_confirm(acked : Bool, delivery_tag : UInt64, multiple : Bool)
+      callback = nil
+      callbacks = nil
+      waiters = nil
       @confirm_lock.synchronize do
-        if @unconfirmed_publishes.first? == delivery_tag
-          _, blk = @unconfirmed_publishes.shift
-          blk.try &.call(acked)
+        if !multiple && (first = @unconfirmed_publishes.first?) && first[0] == delivery_tag
+          # Confirms mostly come in order, so the first one is usually it
+          callback = @unconfirmed_publishes.shift[1]
         elsif multiple
-          @unconfirmed_publishes.reject! do |confirm_id, cb|
-            break if confirm_id > delivery_tag
-            cb.try &.call(acked)
-            true
-          end
-        elsif idx = @unconfirmed_publishes.bsearch_index { |(confirm_id, _)| confirm_id >= delivery_tag }
-          _, blk = @unconfirmed_publishes.delete_at(idx)
-          blk.try &.call(acked)
-        end
-        if @unconfirmed_publishes.empty?
-          loop do
-            select
-            when @unconfirmed_empty.send acked
-            else
-              break
+          while (first = @unconfirmed_publishes.first?) && first[0] <= delivery_tag
+            if cb = @unconfirmed_publishes.shift[1]
+              (callbacks ||= Array(Proc(Bool, Nil)).new) << cb
             end
           end
+        elsif idx = @unconfirmed_publishes.bsearch_index { |(confirm_id, _)| confirm_id >= delivery_tag }
+          if @unconfirmed_publishes[idx][0] == delivery_tag
+            callback = @unconfirmed_publishes.delete_at(idx)[1]
+          end
+        end
+        if @unconfirmed_publishes.empty? && !@confirm_waiters.empty?
+          waiters = @confirm_waiters.dup
+          @confirm_waiters.clear
         end
       end
+      callback.try &.call(acked)
+      callbacks.try &.each &.call(acked)
+      waiters.try &.each &.send(acked)
     end
 
     private def ensure_confirm_mode
@@ -386,10 +422,19 @@ class AMQP::Client
 
     # :nodoc:
     def has_subscriber?(consumer_tag)
-      @consumers.has_key? consumer_tag
+      @consumers.lock &.has_key?(consumer_tag)
     end
 
-    @consumers = Sync(Hash(String, ::Channel(DeliverMessage))).new
+    private alias Deliveries = ::Channel(DeliverMessage)
+
+    @consumers = Sync::Exclusive(Hash(String, Deliveries)).new(Hash(String, Deliveries).new)
+    # Consumers waiting for their ConsumeOk, in the order basic.consume was sent
+    # A basic_consume waiting for its ConsumeOk, which the read loop sends to
+    # *ok* rather than @reply_frames, so that concurrent calls on a channel
+    # each get their own
+    private record PendingConsumer, deliveries : Deliveries, ok : ::Channel(Frame::Basic::ConsumeOk)
+
+    @pending_consumers = Sync::Exclusive(Deque(PendingConsumer)).new(Deque(PendingConsumer).new)
 
     # Consume messages from a *queue*
     #
@@ -405,11 +450,23 @@ class AMQP::Client
       raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
       raise ArgumentError.new("At least one worker required") if work_pool < 1
 
-      write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
-      ok = expect Frame::Basic::ConsumeOk
+      # The read loop adds the consumer to @consumers when it reads ConsumeOk.
+      # Queued under the write lock, so that the queue is in the order the
+      # basic.consume frames are written, which the ConsumeOks come in.
+      deliveries = Deliveries.new(@prefetch_count.to_i32)
+      pending = PendingConsumer.new(deliveries, ::Channel(Frame::Basic::ConsumeOk).new(1))
+      raise_if_closed
+      @connection.with_lock do |c|
+        @pending_consumers.lock &.push(pending)
+        c.unsafe_write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
+      end
+      ok = begin
+        pending.ok.receive
+      rescue ex : ::Channel::ClosedError
+        raise_if_closed(ex)
+        raise Error.new("BUG: Channel::ClosedError but not closing frame")
+      end
       done = ::Channel(Exception?).new
-      deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
-      @consumers[ok.consumer_tag] = deliveries
       work_pool.times do |i|
         spawn consume(ok.consumer_tag, deliveries, done, i, !block, blk),
           name: "AMQPconsumer##{ok.consumer_tag} ##{i}"
@@ -454,10 +511,10 @@ class AMQP::Client
     # Cancel the consumer with the *consumer_tag*
     # Even with *no_wait* = false the method will return immediately, but outstanding deliveries will be processed.
     def basic_cancel(consumer_tag, no_wait = false) : Nil
-      if @consumers.has_key? consumer_tag
+      if has_subscriber?(consumer_tag)
         write Frame::Basic::Cancel.new(@id, consumer_tag, no_wait)
         if no_wait
-          if deliveries = @consumers.delete(consumer_tag)
+          if deliveries = @consumers.lock &.delete(consumer_tag)
             deliveries.close
           end
         end
