@@ -73,6 +73,48 @@ describe "basic_consume" do
   end
 
   {% if Fiber.has_constant?("ExecutionContext") %}
+    # Each ConsumeOk must go to the basic_consume call that sent its
+    # basic.consume, and the consumer must be registered under its tag,
+    # whichever of the calls writes its frame first
+    it "pairs concurrent basic_consume calls on a channel with their ConsumeOk" do
+      with_connection_on_other_thread do |conn|
+        ch = conn.channel
+        ch.confirm_select
+        callers = Fiber::ExecutionContext::Parallel.new("consumers", 2)
+        200.times do |i|
+          queues = {"a", "b"}.map { |name| ch.queue("", durable: false, exclusive: true).tap(&.publish(name)) }
+          ch.wait_for_confirms
+          received = Channel({String, String}).new(2)
+          returned = Channel({String, String} | Exception).new(2)
+          {"a", "b"}.each_with_index do |name, idx|
+            callers.spawn do
+              tag = queues[idx].subscribe(tag: "#{name}-#{i}") { |msg| received.send({name, msg.body_io.to_s}) }
+              returned.send({name, tag})
+            rescue ex
+              returned.send ex
+            end
+          end
+          2.times do
+            within(5.seconds, "basic_consume (iteration #{i})") do
+              case r = returned.receive
+              when Exception then raise r
+              else                r[1].should eq "#{r[0]}-#{i}"
+              end
+            end
+          end
+          2.times do
+            within(5.seconds, "a delivery (iteration #{i})") do
+              consumer, body = received.receive
+              body.should eq consumer
+            end
+          end
+          queues.each &.delete
+        end
+      end
+    end
+  {% end %}
+
+  {% if Fiber.has_constant?("ExecutionContext") %}
     # The server sends what's in the queue right after ConsumeOk. Here the
     # connection, and so its read loop, is in an execution context of its
     # own: the read loop handles those deliveries while the fiber that sent

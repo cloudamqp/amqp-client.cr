@@ -95,7 +95,10 @@ class AMQP::Client
       waiters.each &.close
       @reply_frames.close
       @basic_get.close
-      @pending_consumers.lock &.clear
+      @pending_consumers.lock do |pending|
+        pending.each &.ok.close
+        pending.clear
+      end
       @consumers.lock do |consumers|
         consumers.each_value &.close
         consumers.clear
@@ -144,10 +147,12 @@ class AMQP::Client
         # Registered here, before the next frame is read, as the deliveries
         # that follow ConsumeOk can't wait for the fiber that called
         # basic_consume to resume (which, with several threads, they don't)
-        if deliveries = @pending_consumers.lock &.shift?
-          @consumers.lock { |consumers| consumers[frame.consumer_tag] = deliveries }
+        if pending = @pending_consumers.lock &.shift?
+          @consumers.lock { |consumers| consumers[frame.consumer_tag] = pending.deliveries }
+          pending.ok.send frame
+        else
+          Log.warn { "ConsumeOk without a pending basic_consume: #{frame.consumer_tag}" }
         end
-        @reply_frames.send frame
       else
         @reply_frames.send frame
       end
@@ -424,7 +429,12 @@ class AMQP::Client
 
     @consumers = Sync::Exclusive(Hash(String, Deliveries)).new(Hash(String, Deliveries).new)
     # Consumers waiting for their ConsumeOk, in the order basic.consume was sent
-    @pending_consumers = Sync::Exclusive(Deque(Deliveries)).new(Deque(Deliveries).new)
+    # A basic_consume waiting for its ConsumeOk, which the read loop sends to
+    # *ok* rather than @reply_frames, so that concurrent calls on a channel
+    # each get their own
+    private record PendingConsumer, deliveries : Deliveries, ok : ::Channel(Frame::Basic::ConsumeOk)
+
+    @pending_consumers = Sync::Exclusive(Deque(PendingConsumer)).new(Deque(PendingConsumer).new)
 
     # Consume messages from a *queue*
     #
@@ -440,11 +450,22 @@ class AMQP::Client
       raise ArgumentError.new("Max allowed work_pool is 1024") if work_pool > 1024
       raise ArgumentError.new("At least one worker required") if work_pool < 1
 
-      # The read loop adds the consumer to @consumers when it reads ConsumeOk
-      deliveries = ::Channel(DeliverMessage).new(@prefetch_count.to_i32)
-      @pending_consumers.lock &.push(deliveries)
-      write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
-      ok = expect Frame::Basic::ConsumeOk
+      # The read loop adds the consumer to @consumers when it reads ConsumeOk.
+      # Queued under the write lock, so that the queue is in the order the
+      # basic.consume frames are written, which the ConsumeOks come in.
+      deliveries = Deliveries.new(@prefetch_count.to_i32)
+      pending = PendingConsumer.new(deliveries, ::Channel(Frame::Basic::ConsumeOk).new(1))
+      raise_if_closed
+      @connection.with_lock do |c|
+        @pending_consumers.lock &.push(pending)
+        c.unsafe_write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
+      end
+      ok = begin
+        pending.ok.receive
+      rescue ex : ::Channel::ClosedError
+        raise_if_closed(ex)
+        raise Error.new("BUG: Channel::ClosedError but not closing frame")
+      end
       done = ::Channel(Exception?).new
       work_pool.times do |i|
         spawn consume(ok.consumer_tag, deliveries, done, i, !block, blk),
