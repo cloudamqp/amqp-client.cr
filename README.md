@@ -170,6 +170,9 @@ amqp.client.connection: sent AMQ::Protocol::Frame::Channel::Open(...) -- connect
 amqp.client.connection: recv AMQ::Protocol::Frame::Channel::OpenOk(...) -- connection: "10.0.0.5:47182 -> 10.0.0.9:5672"
 ```
 
+Lines logged before the connection is open, such as "Opening connection", do
+not have the key.
+
 By default the value is the local and remote address of the socket. RabbitMQ
 and LavinMQ name the connection with the same string, unless NAT or a proxy is
 in between. UNIX sockets and WebSockets have no address pair, so those
