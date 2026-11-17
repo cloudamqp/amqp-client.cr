@@ -43,7 +43,8 @@ class AMQP::Client
                  channel_max = 1024_u16, frame_max = 131_072_u32, heartbeat = 0_u16,
                  verify_mode = OpenSSL::SSL::VerifyMode::PEER, name = nil, connection_information = ConnectionInformation.new,
                  auth_mechanism = AMQP_AUTH_MECHANISM, & : AMQP::Client::Connection -> _)
-    conn = new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name, connection_information, auth_mechanism: auth_mechanism).connect
+    conn = new(host, port, vhost, user, password, tls, websocket, channel_max, frame_max, heartbeat, verify_mode, name,
+      connection_information, auth_mechanism: auth_mechanism).connect
     yield conn
   ensure
     conn.try &.close
@@ -67,7 +68,7 @@ class AMQP::Client
     frame_max = 131_072_u32
     channel_max = 1024_u16
     verify_mode = OpenSSL::SSL::VerifyMode::PEER
-    name = File.basename(PROGRAM_NAME)
+    name = nil
     auth_mechanism = "PLAIN"
     buffer_size = 16_384
     tcp = TCPConfig.new
@@ -124,8 +125,8 @@ class AMQP::Client
 
   def initialize(@host = AMQP_HOST, @port = AMQP_PORT, @vhost = AMQP_VHOST, @user = AMQP_USER, @password = AMQP_PASS,
                  tls : TLSContext = AMQP_TLS, @websocket = AMQP_WS, @channel_max = 1024_u16, @frame_max = 131_072_u32, @heartbeat = 0_u16,
-                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = File.basename(PROGRAM_NAME),
-                 @connection_information = ConnectionInformation.new("amqp-client.cr", AMQP::Client::VERSION, "Crystal", Crystal::VERSION, File.basename(PROGRAM_NAME)),
+                 verify_mode = OpenSSL::SSL::VerifyMode::PEER, @name : String? = nil,
+                 @connection_information = ConnectionInformation.new("amqp-client.cr", AMQP::Client::VERSION, "Crystal", Crystal::VERSION),
                  @tcp = TCPConfig.new, @buffer_size = 16_384, auth_mechanism = AMQP_AUTH_MECHANISM)
     @auth_mechanism = auth_mechanism.upcase
     if tls.is_a? OpenSSL::SSL::Context::Client
