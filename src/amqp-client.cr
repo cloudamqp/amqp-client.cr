@@ -200,8 +200,9 @@ class AMQP::Client
   # Does the WebSocket handshake on our own socket, so that Connection can shut down the TCP socket
   private def websocket_upgrade(socket : IO) : ::HTTP::WebSocket
     key = Base64.strict_encode(Random::Secure.random_bytes(16))
+    host = @host.includes?(':') ? "[#{@host}]" : @host
     headers = ::HTTP::Headers{
-      "Host"                   => "#{@host}:#{@port}",
+      "Host"                   => "#{host}:#{@port}",
       "Connection"             => "Upgrade",
       "Upgrade"                => "websocket",
       "Sec-WebSocket-Version"  => ::HTTP::WebSocket::Protocol::VERSION,

@@ -264,6 +264,30 @@ describe AMQP::Client::Connection do
       switch.try &.frozen = false
     end
 
+    it "brackets an IPv6 host in the WebSocket Host header" do
+      server = begin
+        TCPServer.new("::1", 0)
+      rescue Socket::Error
+        pending! "IPv6 loopback is not available"
+      end
+      host_header = ::Channel(String?).new(1)
+      spawn do
+        if sock = server.accept?
+          request = HTTP::Request.from_io(sock)
+          host_header.send request.as?(HTTP::Request).try(&.headers["Host"]?)
+          sock.print "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"
+          sock.close
+        end
+      end
+      port = server.local_address.port
+      expect_raises(AMQP::Client::Error::NetworkError) do
+        AMQP::Client.new(host: "::1", port: port, websocket: true).connect
+      end
+      host_header.receive.should eq "[::1]:#{port}"
+    ensure
+      server.try &.close
+    end
+
     it "sends heartbeats while transaction publishes stay in the write buffer" do
       with_channel(heartbeat: 1_u16) do |ch|
         ch.tx_select
