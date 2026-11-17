@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `Connection#close` no longer cleans up channels again, without `@channels_lock`, after the read loop closed the connection [#94](https://github.com/cloudamqp/amqp-client.cr/issues/94)
+- `Connection#channel` raises `ClosedException` on a closed connection. Before, it could wait forever for `OpenOk` [#95](https://github.com/cloudamqp/amqp-client.cr/pull/95)
+
 ## [1.5.0] - 2026-11-17
 
 ### Changed

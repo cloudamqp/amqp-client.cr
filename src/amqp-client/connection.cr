@@ -30,6 +30,11 @@ class AMQP::Client
     def channel(id : Int? = nil)
       ch = nil
       @channels_lock.synchronize do
+        # A channel added after cleanup_channels would never be cleaned up
+        if @closed
+          f = @closing_frame
+          raise f ? ClosedException.new(f) : ClosedException.new("Connection closed", nil)
+        end
         if id
           raise "channel_max reached" if @channel_max.positive? && id > @channel_max
           if ch = @channels.fetch(id, nil)
@@ -146,10 +151,17 @@ class AMQP::Client
       @io.close rescue nil
       @reply_frames.close
       @update_secret_ok.close
-      @channels_lock.synchronize do
-        @channels.each_value &.cleanup
+      cleanup_channels
+    end
+
+    # Cleanup runs user confirm callbacks, so it must run outside of @channels_lock
+    private def cleanup_channels
+      channels = @channels_lock.synchronize do
+        values = @channels.values
         @channels.clear
+        values
       end
+      channels.each &.cleanup
     end
 
     private def notify_disconnected(ex : Exception)
@@ -189,7 +201,9 @@ class AMQP::Client
                @channels.delete f.channel
              end
            else
-             @channels.fetch(f.channel, nil)
+             @channels_lock.synchronize do
+               @channels.fetch(f.channel, nil)
+             end
            end
       if ch
         ch.incoming f
@@ -245,24 +259,25 @@ class AMQP::Client
     # The *reason* might be logged by the server
     def close(reason = "", no_wait = false)
       return if @closed
-      Log.debug { "Closing connection" }
-      write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
-      return if no_wait
-      while frame = @reply_frames.receive?
-        if frame.as?(Frame::Connection::CloseOk)
-          Log.debug { "Server confirmed close" }
-          return
+      begin
+        Log.debug { "Closing connection" }
+        write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
+        return if no_wait
+        while frame = @reply_frames.receive?
+          if frame.as?(Frame::Connection::CloseOk)
+            Log.debug { "Server confirmed close" }
+            return
+          end
         end
+        Log.debug { "Server didn't confirm close" }
+      rescue IO::Error
+        Log.info { "Socket already closed, can't send close frame" }
+      ensure
+        @closed = true
+        @reply_frames.close
+        @io.close rescue nil
+        cleanup_channels
       end
-      Log.debug { "Server didn't confirm close" }
-    rescue IO::Error
-      Log.info { "Socket already closed, can't send close frame" }
-    ensure
-      @closed = true
-      @reply_frames.close
-      @io.close rescue nil
-      @channels.each_value &.cleanup
-      @channels.clear
     end
 
     # Connection negotiation

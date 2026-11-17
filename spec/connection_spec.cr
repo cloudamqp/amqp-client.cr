@@ -95,4 +95,23 @@ describe AMQP::Client::Connection do
       entry.try(&.severity).should eq ::Log::Severity::Error
     end
   end
+
+  it "raises when a channel is opened on a closed connection" do
+    with_connection do |conn|
+      conn.close
+      result = ::Channel(Exception?).new(1)
+      spawn do
+        conn.channel
+        result.send nil
+      rescue ex
+        result.send ex
+      end
+      select
+      when ex = result.receive
+        ex.should be_a(AMQP::Client::Connection::ClosedException)
+      when timeout(2.seconds)
+        fail "Connection#channel hung on a closed connection"
+      end
+    end
+  end
 end
