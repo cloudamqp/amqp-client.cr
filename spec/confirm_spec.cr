@@ -84,6 +84,28 @@ describe "publisher confirms" do
         end
       end
 
+      it "confirms every basic_publish_confirm from concurrent publishers" do
+        with_connection_on_other_thread do |conn|
+          ch = conn.channel
+          q = ch.queue("", durable: false, exclusive: true)
+          publishers = 4
+          publishes = 500
+          confirmed = Atomic(Int32).new(0)
+          wg = WaitGroup.new(publishers)
+          publishers.times do
+            spawn do
+              publishes.times do
+                confirmed.add(1) if ch.basic_publish_confirm("", "", q.name)
+              end
+            ensure
+              wg.done
+            end
+          end
+          within(30.seconds, "#{publishers} × #{publishes} basic_publish_confirm") { wg.wait }
+          confirmed.get.should eq publishers * publishes
+        end
+      end
+
       it "calls the confirm block of every publish" do
         with_connection_on_other_thread do |conn|
           ch = conn.channel

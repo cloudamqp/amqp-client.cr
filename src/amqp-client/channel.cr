@@ -377,7 +377,10 @@ class AMQP::Client
       callbacks = nil
       waiters = nil
       @confirm_lock.synchronize do
-        if multiple
+        if !multiple && (first = @unconfirmed_publishes.first?) && first[0] == delivery_tag
+          # Confirms mostly come in order, so the first one is usually it
+          callback = @unconfirmed_publishes.shift[1]
+        elsif multiple
           while (first = @unconfirmed_publishes.first?) && first[0] <= delivery_tag
             if cb = @unconfirmed_publishes.shift[1]
               (callbacks ||= Array(Proc(Bool, Nil)).new) << cb
