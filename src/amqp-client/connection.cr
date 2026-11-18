@@ -21,6 +21,7 @@ class AMQP::Client
     protected def initialize(@io : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client | WebSocketIO,
                              @channel_max : UInt16, @frame_max : UInt32, @heartbeat : UInt16)
       spawn read_loop, name: "AMQP::Client#read_loop"
+      spawn flush_loop, name: "AMQP::Client#flush_loop"
     end
 
     @channels = Hash(UInt16, Channel).new
@@ -144,6 +145,7 @@ class AMQP::Client
     ensure
       @closed = true
       close_io
+      @flush_signal.close
       @reply_frames.close
       @update_secret_ok.close
       @channels_lock.synchronize do
@@ -153,6 +155,7 @@ class AMQP::Client
     end
 
     private def notify_disconnected(ex : Exception)
+      ex = @flush_error || ex
       if on_disconnect = @on_disconnect
         begin
           on_disconnect.call(ex)
@@ -211,8 +214,8 @@ class AMQP::Client
     def write(frame : Frame)
       @write_lock.synchronize do
         unsafe_write(frame)
-        @io.flush
       end
+      schedule_flush
     end
 
     # :nodoc:
@@ -236,8 +239,34 @@ class AMQP::Client
     def with_lock(flush = true, & : self -> _)
       @write_lock.synchronize do
         yield self
-        @io.flush if flush
       end
+    ensure
+      schedule_flush if flush
+    end
+
+    @flush_pending = Atomic(Bool).new(false)
+    # Not Channel(Nil), as its receive? returns nil for a signal too
+    @flush_signal = ::Channel(Bool).new(1)
+    @flush_error : Exception?
+
+    private def schedule_flush : Nil
+      return if @flush_pending.swap(true)
+      @flush_signal.send(true)
+    rescue ::Channel::ClosedError
+    end
+
+    private def flush_loop
+      while @flush_signal.receive?
+        # Cleared before flushing, so a write during the flush signals again
+        @flush_pending.set(false)
+        @write_lock.synchronize do
+          @io.flush unless @closed
+        end
+      end
+    rescue ex
+      return if @closed
+      @flush_error = ex
+      close_io # the read loop then reports @flush_error
     end
 
     # Under the write lock, as the read loop and `#close` can both close the
@@ -252,7 +281,10 @@ class AMQP::Client
     def close(reason = "", no_wait = false)
       return if @closed
       Log.debug { "Closing connection" }
-      write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
+      @write_lock.synchronize do
+        unsafe_write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
+        @io.flush
+      end
       return if no_wait
       while frame = @reply_frames.receive?
         if frame.as?(Frame::Connection::CloseOk)
@@ -265,6 +297,7 @@ class AMQP::Client
       Log.info { "Socket already closed, can't send close frame" }
     ensure
       @closed = true
+      @flush_signal.close
       @reply_frames.close
       close_io
       @channels.each_value &.cleanup

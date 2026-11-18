@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Crash when closing a TLS connection while other threads write to it
 
+### Changed
+
+- Writes are flushed by a fiber per connection, so frames written in a row, by one fiber or several, go to the socket in one write instead of one each. A frame is sent once the writing fiber yields or the write buffer fills, so close the connection before the program exits. A failed flush is reported through `on_disconnect`, not raised by the call that wrote the frame.
+
 ## [1.5.0] - 2026-11-17
 
 ### Changed

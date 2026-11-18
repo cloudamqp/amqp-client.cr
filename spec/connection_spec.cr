@@ -1,6 +1,6 @@
 require "./spec_helper"
 
-private def fake_amqp_server_that_closes(done : ::Channel(Nil)) : Int32
+private def fake_amqp_server(&after_open : TCPSocket -> Nil) : Int32
   server = TCPServer.new("127.0.0.1", 0)
   port = server.local_address.port
   format = IO::ByteFormat::NetworkEndian
@@ -17,13 +17,20 @@ private def fake_amqp_server_that_closes(done : ::Channel(Nil)) : Int32
     AMQ::Protocol::Stream.new(sock).next_frame { |_f| } # Open
     sock.write_bytes(AMQ::Protocol::Frame::Connection::OpenOk.new, format)
     sock.flush
-    sock.close
+    after_open.call(sock)
   ensure
+    sock.try &.close
     server.close
-    done.send nil
   end
 
   port
+end
+
+private def fake_amqp_server_that_closes(done : ::Channel(Nil)) : Int32
+  fake_amqp_server do |sock|
+    sock.close
+    done.send nil
+  end
 end
 
 describe AMQP::Client::Connection do
@@ -72,6 +79,29 @@ describe AMQP::Client::Connection do
       when timeout(200.milliseconds)
         # expected
       end
+    end
+
+    it "invokes on_disconnect when a flush fails, though reads still work" do
+      stop = ::Channel(Nil).new
+      port = fake_amqp_server { |_sock| stop.receive? }
+
+      callback_received = ::Channel(Exception).new(1)
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      conn.on_disconnect do |ex|
+        callback_received.send(ex)
+      end
+      conn.@io.as(TCPSocket).close_write
+      conn.write AMQ::Protocol::Frame::Heartbeat.new
+
+      select
+      when ex = callback_received.receive
+        ex.should be_a(IO::Error)
+      when timeout(2.seconds)
+        fail "on_disconnect was not invoked within 2s of a failed flush"
+      end
+      conn.closed?.should be_true
+    ensure
+      stop.try &.close
     end
 
     it "logs at error when no on_disconnect callback is registered" do
