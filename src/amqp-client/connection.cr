@@ -178,7 +178,7 @@ class AMQP::Client
         Log.info { "Connection closed by server: #{f.reply_text} (code #{f.reply_code})" }
       end
       begin
-        write Frame::Connection::CloseOk.new
+        write_and_flush Frame::Connection::CloseOk.new
       rescue ex
         Log.error(exception: ex) { "Couldn't write CloseOk frame" }
       end
@@ -216,6 +216,14 @@ class AMQP::Client
         unsafe_write(frame)
       end
       schedule_flush
+    end
+
+    # For the last frame before the socket is closed
+    private def write_and_flush(frame : Frame)
+      @write_lock.synchronize do
+        unsafe_write(frame)
+        @io.flush
+      end
     end
 
     # :nodoc:
@@ -281,10 +289,7 @@ class AMQP::Client
     def close(reason = "", no_wait = false)
       return if @closed
       Log.debug { "Closing connection" }
-      @write_lock.synchronize do
-        unsafe_write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
-        @io.flush
-      end
+      write_and_flush Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
       return if no_wait
       while frame = @reply_frames.receive?
         if frame.as?(Frame::Connection::CloseOk)

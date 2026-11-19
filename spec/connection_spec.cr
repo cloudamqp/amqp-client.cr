@@ -104,6 +104,23 @@ describe AMQP::Client::Connection do
       stop.try &.close
     end
 
+    it "replies CloseOk when the server closes the connection" do
+      reply = ::Channel(AMQ::Protocol::Frame).new(1)
+      port = fake_amqp_server do |sock|
+        sock.write_bytes(AMQ::Protocol::Frame::Connection::Close.new(320_u16, "CONNECTION_FORCED", 0_u16, 0_u16), IO::ByteFormat::NetworkEndian)
+        sock.flush
+        AMQ::Protocol::Stream.new(sock).next_frame { |f| reply.send f }
+      end
+
+      AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      select
+      when f = reply.receive
+        f.should be_a(AMQ::Protocol::Frame::Connection::CloseOk)
+      when timeout(2.seconds)
+        fail "no CloseOk within 2s of the server's Close"
+      end
+    end
+
     it "logs at error when no on_disconnect callback is registered" do
       done = ::Channel(Nil).new
       port = fake_amqp_server_that_closes(done)
