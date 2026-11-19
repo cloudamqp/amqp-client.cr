@@ -1,6 +1,6 @@
 require "./spec_helper"
 
-private def fake_amqp_server_that_closes(done : ::Channel(Nil)) : Int32
+private def fake_amqp_server(&after_open : TCPSocket -> Nil) : Int32
   server = TCPServer.new("127.0.0.1", 0)
   port = server.local_address.port
   format = IO::ByteFormat::NetworkEndian
@@ -17,13 +17,20 @@ private def fake_amqp_server_that_closes(done : ::Channel(Nil)) : Int32
     AMQ::Protocol::Stream.new(sock).next_frame { |_f| } # Open
     sock.write_bytes(AMQ::Protocol::Frame::Connection::OpenOk.new, format)
     sock.flush
-    sock.close
+    after_open.call(sock)
   ensure
+    sock.try &.close
     server.close
-    done.send nil
   end
 
   port
+end
+
+private def fake_amqp_server_that_closes(done : ::Channel(Nil)) : Int32
+  fake_amqp_server do |sock|
+    sock.close
+    done.send nil
+  end
 end
 
 describe AMQP::Client::Connection do
@@ -71,6 +78,46 @@ describe AMQP::Client::Connection do
         fail "on_close should not fire on network-level disconnect"
       when timeout(200.milliseconds)
         # expected
+      end
+    end
+
+    it "invokes on_disconnect when a flush fails, though reads still work" do
+      stop = ::Channel(Nil).new
+      port = fake_amqp_server { |_sock| stop.receive? }
+
+      callback_received = ::Channel(Exception).new(1)
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      conn.on_disconnect do |ex|
+        callback_received.send(ex)
+      end
+      conn.@io.as(TCPSocket).close_write
+      conn.write AMQ::Protocol::Frame::Heartbeat.new
+
+      select
+      when ex = callback_received.receive
+        ex.should be_a(IO::Error)
+      when timeout(2.seconds)
+        fail "on_disconnect was not invoked within 2s of a failed flush"
+      end
+      conn.closed?.should be_true
+    ensure
+      stop.try &.close
+    end
+
+    it "replies CloseOk when the server closes the connection" do
+      reply = ::Channel(AMQ::Protocol::Frame).new(1)
+      port = fake_amqp_server do |sock|
+        sock.write_bytes(AMQ::Protocol::Frame::Connection::Close.new(320_u16, "CONNECTION_FORCED", 0_u16, 0_u16), IO::ByteFormat::NetworkEndian)
+        sock.flush
+        AMQ::Protocol::Stream.new(sock).next_frame { |f| reply.send f }
+      end
+
+      AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      select
+      when f = reply.receive
+        f.should be_a(AMQ::Protocol::Frame::Connection::CloseOk)
+      when timeout(2.seconds)
+        fail "no CloseOk within 2s of the server's Close"
       end
     end
 
