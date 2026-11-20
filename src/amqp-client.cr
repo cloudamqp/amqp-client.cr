@@ -3,6 +3,8 @@ require "uri"
 require "socket"
 require "openssl"
 require "log"
+require "base64"
+require "http/client"
 require "./amqp-client/*"
 
 class AMQP::Client
@@ -104,6 +106,10 @@ class AMQP::Client
   end
 
   property host, port, vhost, user, websocket, tcp, buffer_size
+
+  # Time limit for each step of `#connect` before the AMQP handshake:
+  # the TCP connect, the TLS handshake and the WebSocket upgrade
+  property connect_timeout : Time::Span = 60.seconds
   property tls : OpenSSL::SSL::Context::Client?
 
   getter auth_mechanism : String
@@ -147,13 +153,11 @@ class AMQP::Client
       socket = connect_unix
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
     elsif @websocket
-      headers = ::HTTP::Headers.new
-      headers["Sec-WebSocket-Protocol"] = "amqp"
-      websocket = ::HTTP::WebSocket.new(@host, path: "", port: @port, tls: @tls, headers: headers)
-      io = WebSocketIO.new(websocket)
+      io = WebSocketIO.new(connect_websocket)
       Connection.start(io, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
     elsif ctx = @tls.as? OpenSSL::SSL::Context::Client
-      socket = connect_tls(connect_tcp, ctx)
+      tcp_socket = connect_tcp
+      socket = with_handshake_timeout(tcp_socket) { connect_tls(tcp_socket, ctx) }
       Connection.start(socket, @user, @password, @vhost, @channel_max, @frame_max, @heartbeat, @connection_information, @name, @auth_mechanism)
     else
       socket = connect_tcp
@@ -175,7 +179,7 @@ class AMQP::Client
   end
 
   private def connect_tcp
-    socket = TCPSocket.new(@host, @port, connect_timeout: 60)
+    socket = TCPSocket.new(@host, @port, connect_timeout: @connect_timeout)
     socket.keepalive = true if @tcp.keepalive_idle.positive?
     socket.tcp_keepalive_idle = @tcp.keepalive_idle if @tcp.keepalive_idle.positive?
     socket.tcp_keepalive_count = @tcp.keepalive_count if @tcp.keepalive_count.positive?
@@ -195,6 +199,52 @@ class AMQP::Client
     # OpenSSL::SSL::Socket::Client.new does not close the socket if the handshake fails
     socket.close rescue nil
     raise ex
+  end
+
+  # Opens the TCP (and TLS) connection and does the WebSocket upgrade on it,
+  # so that the TCP settings and `connect_timeout` apply to WebSocket connections too
+  private def connect_websocket : ::HTTP::WebSocket
+    tcp_socket = connect_tcp
+    with_handshake_timeout(tcp_socket) do
+      socket = (ctx = @tls) ? connect_tls(tcp_socket, ctx) : tcp_socket
+      begin
+        upgrade_to_websocket(socket)
+      rescue ex
+        socket.close rescue nil
+        raise ex
+      end
+    end
+  end
+
+  private def upgrade_to_websocket(socket : IO) : ::HTTP::WebSocket
+    key = Base64.strict_encode(Random::Secure.random_bytes(16))
+    headers = ::HTTP::Headers{
+      "Host"                   => "#{@host}:#{@port}",
+      "Connection"             => "Upgrade",
+      "Upgrade"                => "websocket",
+      "Sec-WebSocket-Version"  => ::HTTP::WebSocket::Protocol::VERSION,
+      "Sec-WebSocket-Key"      => key,
+      "Sec-WebSocket-Protocol" => "amqp",
+    }
+    ::HTTP::Request.new("GET", "/", headers).to_io(socket)
+    socket.flush
+    response = ::HTTP::Client::Response.from_io(socket, ignore_body: true)
+    unless response.status.switching_protocols?
+      raise Socket::Error.new("Handshake got denied. Status code was #{response.status.code}.")
+    end
+    unless response.headers["Sec-WebSocket-Accept"]? == ::HTTP::WebSocket::Protocol.key_challenge(key)
+      raise Socket::Error.new("Handshake got denied. Server did not verify WebSocket challenge.")
+    end
+    ::HTTP::WebSocket.new(::HTTP::WebSocket::Protocol.new(socket, masked: true))
+  end
+
+  # Bounds a handshake that reads from *socket*. The read timeout is removed
+  # afterwards, as `Connection` and `HTTP::WebSocket#run` read the same socket.
+  private def with_handshake_timeout(socket : TCPSocket, &)
+    socket.read_timeout = @connect_timeout
+    yield
+  ensure
+    socket.read_timeout = nil
   end
 
   private def connect_unix

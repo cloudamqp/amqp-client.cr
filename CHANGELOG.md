@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `AMQP::Client#connect_timeout` (default 60 seconds) limits the TCP connect, the TLS handshake and the WebSocket upgrade
+
+### Fixed
+
+- `connect` no longer waits forever when the peer accepts the TCP connection but never answers the TLS handshake or the WebSocket upgrade [#90](https://github.com/cloudamqp/amqp-client.cr/issues/90)
+- WebSocket connections now use the TCP settings (`TCPConfig`) and buffer size, like the other connections
+
 ## [1.5.0] - 2026-11-17
 
 ### Changed
