@@ -81,6 +81,7 @@ class AMQP::Client
     end
 
     @on_disconnect : Proc(Exception, Nil)?
+    @disconnect_error : Exception?
 
     # Callback called when the `Connection` is lost at the network layer.
     # This occurs when the read loop gets an `IO::Error` or an `OpenSSL::Error`
@@ -153,6 +154,7 @@ class AMQP::Client
     end
 
     private def notify_disconnected(ex : Exception)
+      @disconnect_error = ex
       if on_disconnect = @on_disconnect
         begin
           on_disconnect.call(ex)
@@ -217,19 +219,23 @@ class AMQP::Client
 
     # :nodoc:
     def unsafe_write(frame : Frame)
-      if @closed
-        if f = @closing_frame
-          raise ClosedException.new(f)
-        else
-          return
-        end
-      end
+      raise_if_closed
+      return if @closed
       begin
         @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
       rescue ex
         raise Error.new(cause: ex)
       end
       Log.debug { "sent #{frame.inspect}" }
+    end
+
+    # :nodoc:
+    def raise_if_closed(cause : Exception? = nil) : Nil
+      if frame = @closing_frame
+        raise ClosedException.new(frame, cause)
+      elsif ex = @disconnect_error
+        raise ClosedException.new("Connection lost: #{ex.message}", ex)
+      end
     end
 
     # :nodoc:
