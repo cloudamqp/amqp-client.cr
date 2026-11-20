@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `basic_consume` on a channel or connection that the client closed itself raises `Channel::ClosedException` instead of waiting forever for a `ConsumeOk`
+
 ## [1.5.0] - 2026-11-17
 
 ### Changed

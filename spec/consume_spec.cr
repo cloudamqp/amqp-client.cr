@@ -23,6 +23,27 @@ describe "basic_consume" do
     end
   end
 
+  it "raises on a connection the client closed" do
+    with_connection do |c|
+      ch = c.channel
+      q = ch.queue("", durable: false, exclusive: true)
+      c.close
+      result = ::Channel(Exception?).new(1)
+      spawn do
+        q.subscribe { }
+        result.send nil
+      rescue ex
+        result.send ex
+      end
+      select
+      when ex = result.receive
+        ex.should be_a AMQP::Client::Channel::ClosedException
+      when timeout(1.second)
+        fail "subscribe didn't return"
+      end
+    end
+  end
+
   it "registers each consumer under its own tag" do
     with_channel do |ch|
       q = ch.queue("", durable: false, exclusive: true)
