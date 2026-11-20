@@ -1,6 +1,6 @@
 require "./spec_helper"
 
-private def fake_amqp_server_that_closes(done : ::Channel(Nil)) : Int32
+private def fake_amqp_server(&after_open : TCPSocket -> Nil) : Int32
   server = TCPServer.new("127.0.0.1", 0)
   port = server.local_address.port
   format = IO::ByteFormat::NetworkEndian
@@ -17,13 +17,20 @@ private def fake_amqp_server_that_closes(done : ::Channel(Nil)) : Int32
     AMQ::Protocol::Stream.new(sock).next_frame { |_f| } # Open
     sock.write_bytes(AMQ::Protocol::Frame::Connection::OpenOk.new, format)
     sock.flush
-    sock.close
+    after_open.call(sock)
   ensure
+    sock.try &.close
     server.close
-    done.send nil
   end
 
   port
+end
+
+private def fake_amqp_server_that_closes(done : ::Channel(Nil)) : Int32
+  fake_amqp_server do |sock|
+    sock.close
+    done.send nil
+  end
 end
 
 describe AMQP::Client::Connection do
@@ -93,6 +100,42 @@ describe AMQP::Client::Connection do
       entry = backend.entries.find(&.message.includes?("connection closed unexpectedly"))
       entry.should_not be_nil
       entry.try(&.severity).should eq ::Log::Severity::Error
+    end
+
+    it "raises on a write after the connection is lost" do
+      done = ::Channel(Nil).new
+      port = fake_amqp_server_that_closes(done)
+
+      disconnected = ::Channel(Nil).new(1)
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      conn.on_disconnect { disconnected.send nil }
+      done.receive
+      select
+      when disconnected.receive
+      when timeout(2.seconds)
+        fail "on_disconnect was not invoked within 2s of peer disconnect"
+      end
+
+      expect_raises(AMQP::Client::Connection::ClosedException, "Connection lost") do
+        conn.write AMQ::Protocol::Frame::Heartbeat.new
+      end
+    end
+
+    it "raises from a call waiting for its reply when the connection is lost" do
+      port = fake_amqp_server do |sock|
+        AMQ::Protocol::Stream.new(sock).next_frame { |_f| } # Channel.Open
+        sock.write_bytes(AMQ::Protocol::Frame::Channel::OpenOk.new(1_u16), IO::ByteFormat::NetworkEndian)
+        sock.flush
+        AMQ::Protocol::Stream.new(sock).next_frame { |_f| } # Queue.Declare
+      end
+
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      conn.on_disconnect { }
+      ch = conn.channel
+
+      expect_raises(AMQP::Client::Connection::ClosedException, "Connection lost") do
+        ch.queue_declare("q")
+      end
     end
   end
 end
