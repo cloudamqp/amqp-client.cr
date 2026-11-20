@@ -797,9 +797,7 @@ class AMQP::Client
       if frame = @closing_frame
         raise ClosedException.new frame, cause: ex
       end
-      if frame = @connection.closing_frame
-        raise Connection::ClosedException.new frame, cause: ex
-      end
+      @connection.raise_if_closed(ex)
     end
 
     def inspect(io : IO) : Nil

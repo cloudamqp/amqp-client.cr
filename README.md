@@ -108,6 +108,9 @@ If a transport failure occurs, the background read loop marks the connection
 closed, closes the channels and the consumers, calls `on_disconnect`, and
 exits. The read loop does not call `on_close`.
 
+After that, calls on the connection and its channels raise
+`Connection::ClosedException`, with the transport exception as `cause`.
+
 Use `on_disconnect` to unblock a consumer that waits on an application-owned
 shutdown channel:
 
