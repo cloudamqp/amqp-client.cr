@@ -457,7 +457,10 @@ class AMQP::Client
       pending = PendingConsumer.new(deliveries, ::Channel(Frame::Basic::ConsumeOk).new(1))
       raise_if_closed
       @connection.with_lock do |c|
-        @pending_consumers.lock &.push(pending)
+        @pending_consumers.lock do |consumers|
+          raise ClosedException.new(@closing_frame) if @closed
+          consumers.push(pending)
+        end
         c.unsafe_write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
       end
       ok = begin
