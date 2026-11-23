@@ -143,7 +143,7 @@ class AMQP::Client
       end
     ensure
       @closed = true
-      @io.close rescue nil
+      close_io
       @reply_frames.close
       @update_secret_ok.close
       @channels_lock.synchronize do
@@ -240,6 +240,12 @@ class AMQP::Client
       end
     end
 
+    # Under the write lock, as the read loop and `#close` can both close the
+    # socket, on different threads, while frames are written
+    private def close_io : Nil
+      @write_lock.synchronize { @io.close rescue nil }
+    end
+
     # Close the connection the server.
     #
     # The *reason* might be logged by the server
@@ -260,7 +266,7 @@ class AMQP::Client
     ensure
       @closed = true
       @reply_frames.close
-      @io.close rescue nil
+      close_io
       @channels.each_value &.cleanup
       @channels.clear
     end
