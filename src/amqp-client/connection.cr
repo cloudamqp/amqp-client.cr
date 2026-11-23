@@ -178,7 +178,7 @@ class AMQP::Client
         Log.info { "Connection closed by server: #{f.reply_text} (code #{f.reply_code})" }
       end
       begin
-        write_and_flush Frame::Connection::CloseOk.new
+        write Frame::Connection::CloseOk.new
       rescue ex
         Log.error(exception: ex) { "Couldn't write CloseOk frame" }
       end
@@ -214,16 +214,18 @@ class AMQP::Client
     def write(frame : Frame)
       @write_lock.synchronize do
         unsafe_write(frame)
-      end
-      schedule_flush
-    end
-
-    # For the last frame before the socket is closed
-    private def write_and_flush(frame : Frame)
-      @write_lock.synchronize do
-        unsafe_write(frame)
         @io.flush
       end
+    end
+
+    # :nodoc:
+    # For frames written at a high rate, such as acks. They are flushed
+    # by the flush loop, together with the frames written after them.
+    def write_coalesced(frame : Frame)
+      @write_lock.synchronize do
+        unsafe_write(frame)
+      end
+      schedule_flush
     end
 
     # :nodoc:
@@ -247,9 +249,8 @@ class AMQP::Client
     def with_lock(flush = true, & : self -> _)
       @write_lock.synchronize do
         yield self
+        @io.flush if flush
       end
-    ensure
-      schedule_flush if flush
     end
 
     @flush_pending = Atomic(Bool).new(false)
@@ -257,7 +258,8 @@ class AMQP::Client
     @flush_signal = ::Channel(Bool).new(1)
     @flush_error : Exception?
 
-    private def schedule_flush : Nil
+    # :nodoc:
+    def schedule_flush : Nil
       return if @flush_pending.swap(true)
       @flush_signal.send(true)
     rescue ::Channel::ClosedError
@@ -289,7 +291,7 @@ class AMQP::Client
     def close(reason = "", no_wait = false)
       return if @closed
       Log.debug { "Closing connection" }
-      write_and_flush Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
+      write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
       return if no_wait
       while frame = @reply_frames.receive?
         if frame.as?(Frame::Connection::CloseOk)

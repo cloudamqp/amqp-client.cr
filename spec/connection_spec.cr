@@ -91,7 +91,7 @@ describe AMQP::Client::Connection do
         callback_received.send(ex)
       end
       conn.@io.as(TCPSocket).close_write
-      conn.write AMQ::Protocol::Frame::Heartbeat.new
+      conn.write_coalesced AMQ::Protocol::Frame::Heartbeat.new
 
       select
       when ex = callback_received.receive
@@ -100,6 +100,18 @@ describe AMQP::Client::Connection do
         fail "on_disconnect was not invoked within 2s of a failed flush"
       end
       conn.closed?.should be_true
+    ensure
+      stop.try &.close
+    end
+
+    it "raises the write error from a call that waits for a reply" do
+      stop = ::Channel(Nil).new
+      port = fake_amqp_server { |_sock| stop.receive? }
+
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      conn.on_disconnect { }
+      conn.@io.as(TCPSocket).close_write
+      expect_raises(IO::Error) { conn.channel }
     ensure
       stop.try &.close
     end
