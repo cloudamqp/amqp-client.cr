@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Crash when closing a TLS connection while other threads write to it
+- The port in `AMQP_URL` was ignored [#98](https://github.com/cloudamqp/amqp-client.cr/issues/98)
 
 ## [1.5.0] - 2026-11-17
 

@@ -429,6 +429,17 @@ describe AMQP::Client do
     end
   end
 
+  describe "AMQP_URL environment variable" do
+    it "sets the port of a client created without arguments" do
+      code = %(require "./src/amqp-client"; print AMQP::Client.new.@port)
+      output = IO::Memory.new
+      status = Process.run("crystal", {"eval", code}, env: {"AMQP_URL" => "amqp://localhost:1234"},
+        output: output, error: :inherit)
+      status.success?.should be_true
+      output.to_s.should eq "1234"
+    end
+  end
+
   describe "verify URI parameter" do
     it "sets verify_mode to NONE for verify=none" do
       client = AMQP::Client.new("amqps://localhost?verify=none")

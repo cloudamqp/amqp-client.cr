@@ -19,7 +19,7 @@ class AMQP::Client
   # :nodoc:
   AMQP_HOST = AMQP_URL.try(&.hostname) || "localhost"
   # :nodoc:
-  AMQP_PORT = AMQP_URL.try(&.port) || AMQP_WS ? (AMQP_TLS ? 443 : 80) : (AMQP_TLS ? 5671 : 5672)
+  AMQP_PORT = AMQP_URL.try(&.port) || (AMQP_WS ? (AMQP_TLS ? 443 : 80) : (AMQP_TLS ? 5671 : 5672))
   # :nodoc:
   AMQP_USER = AMQP_URL.try(&.user) || "guest"
   # :nodoc:
