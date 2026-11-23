@@ -289,7 +289,7 @@ class AMQP::Client
       raise_if_closed
 
       msgid = 0_u64
-      @connection.with_lock(flush: !@tx) do |c|
+      @connection.with_lock(flush: false) do |c|
         if blk && !@confirm_mode
           c.unsafe_write Frame::Confirm::Select.new(@id, true)
           @confirm_mode = true
@@ -319,6 +319,7 @@ class AMQP::Client
           pos += length
         end
       end
+      @connection.schedule_flush unless @tx
       msgid
     end
 
@@ -526,18 +527,18 @@ class AMQP::Client
     # Acknowledge a message with *delivery_tag*,
     # or all message up and including *delivery_tag* if *multiple* set set
     def basic_ack(delivery_tag : UInt64, multiple = false) : Nil
-      write Frame::Basic::Ack.new(@id, delivery_tag, multiple)
+      write_coalesced Frame::Basic::Ack.new(@id, delivery_tag, multiple)
     end
 
     # Reject a message with *delivery_tag*, optionally *requeue* it
     def basic_reject(delivery_tag : UInt64, requeue = false) : Nil
-      write Frame::Basic::Reject.new(@id, delivery_tag, requeue)
+      write_coalesced Frame::Basic::Reject.new(@id, delivery_tag, requeue)
     end
 
     # Reject a message with *delivery_tag*, optionally *requeue* it
     # Reject all message up to and including *delivery_tag* if *multiple* is true
     def basic_nack(delivery_tag : UInt64, requeue = false, multiple = false) : Nil
-      write Frame::Basic::Nack.new(@id, delivery_tag, multiple, requeue)
+      write_coalesced Frame::Basic::Nack.new(@id, delivery_tag, multiple, requeue)
     end
 
     # Set prefetch limit to *count* messages,
@@ -779,6 +780,11 @@ class AMQP::Client
     private def write(frame)
       raise_if_closed
       @connection.write frame
+    end
+
+    private def write_coalesced(frame)
+      raise_if_closed
+      @connection.write_coalesced frame
     end
 
     private def next_frame : Frame
