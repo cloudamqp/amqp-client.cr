@@ -137,5 +137,18 @@ describe AMQP::Client::Connection do
         ch.queue_declare("q")
       end
     end
+
+    it "raises from update_secret when the connection is lost" do
+      port = fake_amqp_server do |sock|
+        AMQ::Protocol::Stream.new(sock).next_frame { |_f| } # Connection.UpdateSecret
+      end
+
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      conn.on_disconnect { }
+
+      expect_raises(AMQP::Client::Connection::ClosedException, "Connection lost") do
+        conn.update_secret("secret", "reason")
+      end
+    end
   end
 end
