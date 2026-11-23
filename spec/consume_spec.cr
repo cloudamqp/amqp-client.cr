@@ -143,5 +143,34 @@ describe "basic_consume" do
         end
       end
     end
+
+    it "sends every ack when threads ack and publish on one connection" do
+      count = 9_000
+      with_connection_on_other_thread do |conn|
+        ch = conn.channel
+        ch.prefetch(300)
+        q = ch.queue("", durable: false, exclusive: true)
+        deliveries = Channel(AMQP::Client::DeliverMessage).new(count)
+        q.subscribe(no_ack: false) { |msg| deliveries.send msg }
+        workers = Fiber::ExecutionContext::Parallel.new("publishers and ackers", 4)
+        acked = WaitGroup.new(count)
+        3.times do
+          workers.spawn { (count // 3).times { q.publish "" } }
+        end
+        3.times do
+          workers.spawn do
+            while msg = deliveries.receive?
+              msg.ack
+              acked.done
+            end
+          end
+        end
+        within(20.seconds, "#{count} deliveries acked") { acked.wait }
+        deliveries.close
+        # Unacked messages would go back to the queue
+        ch.close
+        conn.channel.queue_declare(q.name, passive: true)[:message_count].should eq 0
+      end
+    end
   {% end %}
 end
