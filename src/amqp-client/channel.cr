@@ -42,7 +42,9 @@ class AMQP::Client
     def close(reason = "", code = 200) : Nil
       return if @closed
       @closed = true
-      write Frame::Channel::Close.new(@id, code.to_u16, reason, 0, 0)
+      # Set before the Close frame is written, so no other call writes after it
+      @close_reason.compare_and_set(nil, ClosedException.new("Channel closed by client", client_initiated: true))
+      @connection.write Frame::Channel::Close.new(@id, code.to_u16, reason, 0, 0)
       @consumers.lock &.each_value(&.close)
       expect Frame::Channel::CloseOk
       cleanup
@@ -50,13 +52,16 @@ class AMQP::Client
 
     # :nodoc:
     def close(frame : Frame::Channel::Close) : Nil
+      # Set before CloseOk is written, as the server closes the connection
+      # for a frame on the channel after it. The server's reason replaces
+      # the client's when both closed the channel at once.
+      @close_reason.set(ClosedException.new(frame))
+      @closed = true
       begin
-        write Frame::Channel::CloseOk.new(@id)
+        @connection.write Frame::Channel::CloseOk.new(@id)
       rescue ex
         Log.error(exception: ex) { "Couldn't write CloseOk frame" }
       end
-      @closed = true
-      @closing_frame = frame
       if on_close = @on_close
         begin
           on_close.call(frame.reply_code, frame.reply_text)
@@ -286,10 +291,11 @@ class AMQP::Client
     def basic_publish(body : IO | Bytes, bytesize : Int, exchange : String, routing_key = "",
                       mandatory = false, immediate = false, props properties = Properties.new,
                       blk : Proc(Bool, Nil)? = nil) : UInt64
-      raise_if_closed
-
       msgid = 0_u64
       @connection.with_lock(flush: false) do |c|
+        # Under the write lock, as the read loop writes the CloseOk for a
+        # close from the server under it too
+        raise_if_closed
         if blk && !@confirm_mode
           c.unsafe_write Frame::Confirm::Select.new(@id, true)
           @confirm_mode = true
@@ -333,7 +339,7 @@ class AMQP::Client
         wg.done
       end
       wg.wait
-      raise_if_closed
+      raise_if_closed unless confirmed
       confirmed
     end
 
@@ -347,7 +353,7 @@ class AMQP::Client
         wg.done
       end
       wg.wait
-      raise_if_closed
+      raise_if_closed unless confirmed
       confirmed
     end
 
@@ -359,10 +365,16 @@ class AMQP::Client
       # Checked and registered under the lock, as the read loop can process
       # the last confirm (on another thread) between a check and a receive
       waiter = @confirm_lock.synchronize do
+        # cleanup empties @unconfirmed_publishes
+        raise_if_closed
         return true if @unconfirmed_publishes.empty?
         ::Channel(Bool).new(1).tap { |w| @confirm_waiters << w }
       end
-      ok = waiter.receive
+      ok = begin
+        waiter.receive
+      rescue ::Channel::ClosedError
+        raise_closed
+      end
       unless ok
         raise_if_closed
         raise Error.new("BUG: got nack without closing frame")
@@ -416,9 +428,8 @@ class AMQP::Client
     def basic_get(queue : String, no_ack = true) : GetMessage?
       write Frame::Basic::Get.new(@id, 0_u16, queue, no_ack)
       @basic_get.receive
-    rescue ex : ::Channel::ClosedError
-      raise_if_closed(cause: ex)
-      raise ex
+    rescue ::Channel::ClosedError
+      raise_closed
     end
 
     # :nodoc:
@@ -456,16 +467,19 @@ class AMQP::Client
       # basic.consume frames are written, which the ConsumeOks come in.
       deliveries = Deliveries.new(@prefetch_count.to_i32)
       pending = PendingConsumer.new(deliveries, ::Channel(Frame::Basic::ConsumeOk).new(1))
-      raise_if_closed
       @connection.with_lock do |c|
-        @pending_consumers.lock &.push(pending)
+        # Checked under the lock that cleanup takes to close pending
+        # consumers, so that a consumer is never left waiting after it
+        @pending_consumers.lock do |consumers|
+          raise_closed if @closed
+          consumers.push(pending)
+        end
         c.unsafe_write Frame::Basic::Consume.new(@id, 0_u16, queue, tag, false, no_ack, exclusive, false, arguments)
       end
       ok = begin
         pending.ok.receive
-      rescue ex : ::Channel::ClosedError
-        raise_if_closed(ex)
-        raise Error.new("BUG: Channel::ClosedError but not closing frame")
+      rescue ::Channel::ClosedError
+        raise_closed
       end
       done = ::Channel(Exception?).new
       work_pool.times do |i|
@@ -476,10 +490,13 @@ class AMQP::Client
         work_pool.times do
           if ex = done.receive
             done.close
+            # An ack from the block raises once the client has closed
+            break if closed_by_client? && ex.is_a?(ClosedException | Connection::ClosedException)
             raise ex
           end
         end
-        raise_if_closed
+        # A close by the client is how a blocking consumer is stopped
+        raise_if_closed unless closed_by_client?
       else
         done.close
       end
@@ -498,7 +515,8 @@ class AMQP::Client
         begin
           blk.call(msg)
         rescue ex
-          if log_errors
+          # Once the channel is closed, an ack from the block raises
+          if log_errors && !(@closed && ex.is_a?(ClosedException | Connection::ClosedException))
             Log.error(exception: ex) { "Uncaught exception in consumer, closing channel" }
           end
           close("Uncaught exception in consumer #{consumer_tag}", 500) rescue nil
@@ -770,7 +788,7 @@ class AMQP::Client
       begin
         yield
       rescue ex
-        tx_rollback
+        tx_rollback unless @closed || @connection.closed?
         raise ex
       else
         tx_commit
@@ -789,9 +807,8 @@ class AMQP::Client
 
     private def next_frame : Frame
       @reply_frames.receive
-    rescue ex : ::Channel::ClosedError
-      raise_if_closed(ex)
-      raise Error.new("BUG: Channel::ClosedError but not closing frame")
+    rescue ::Channel::ClosedError
+      raise_closed
     end
 
     private macro expect(clz)
@@ -799,13 +816,35 @@ class AMQP::Client
       frame.as?({{ clz }}) || raise Error::UnexpectedFrame.new(frame)
     end
 
-    private def raise_if_closed(cause ex : Exception? = nil)
-      if frame = @closing_frame
-        raise ClosedException.new frame, cause: ex
+    # Why the channel closed, when the server or the client closed it rather
+    # than the connection. Set before cleanup, so that the calls it wakes up
+    # raise it.
+    @close_reason = Atomic(ClosedException?).new(nil)
+
+    # The connection's reason first, as a closed connection is the cause
+    # of a close of the channel that was in progress. Raises a copy, so that
+    # each raise gets its own backtrace.
+    private def raise_if_closed : Nil
+      if reason = @connection.close_reason
+        raise reason.dup
+      elsif reason = @close_reason.get
+        raise reason.dup
       end
-      if frame = @connection.closing_frame
-        raise Connection::ClosedException.new frame, cause: ex
+    end
+
+    private def closed_by_client? : Bool
+      if reason = @connection.close_reason
+        reason.client_initiated?
+      elsif reason = @close_reason.get
+        reason.client_initiated?
+      else
+        false
       end
+    end
+
+    private def raise_closed : NoReturn
+      raise_if_closed
+      raise ClosedException.new("Channel closed")
     end
 
     def inspect(io : IO) : Nil

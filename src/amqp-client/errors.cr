@@ -22,7 +22,10 @@ class AMQP::Client
 
   class Connection
     class ClosedException < Error
-      def initialize(message, cause)
+      # True when the client closed the connection itself, with `Connection#close`
+      getter? client_initiated = false
+
+      def initialize(message, cause = nil, *, @client_initiated = false)
         super(message, cause)
       end
 
@@ -38,6 +41,13 @@ class AMQP::Client
 
   class Channel
     class ClosedException < Error
+      # True when the client closed the channel itself, with `Channel#close`
+      getter? client_initiated = false
+
+      def initialize(message : String, cause = nil, *, @client_initiated = false)
+        super(message, cause)
+      end
+
       def initialize(close : Frame::Channel::Close?, cause = nil)
         if close
           super("#{close.reply_code} - #{close.reply_text}", cause)
