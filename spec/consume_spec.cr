@@ -108,6 +108,24 @@ describe "basic_consume" do
     end
   end
 
+  it "returns from a blocking subscribe when its block acks after the client closed the connection" do
+    with_connection do |c|
+      q = c.channel.queue("", durable: false, exclusive: true)
+      q.publish "x"
+      result = ::Channel(Exception?).new(1)
+      spawn do
+        q.subscribe(no_ack: false, block: true) do |msg|
+          c.close
+          msg.ack
+        end
+        result.send nil
+      rescue ex
+        result.send ex
+      end
+      within(5.seconds, "subscribe") { result.receive.should be_nil }
+    end
+  end
+
   it "returns from a blocking subscribe when the client closes the channel" do
     with_channel do |ch|
       q = ch.queue("", durable: false, exclusive: true)

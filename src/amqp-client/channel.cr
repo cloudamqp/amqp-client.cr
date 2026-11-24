@@ -489,6 +489,8 @@ class AMQP::Client
         work_pool.times do
           if ex = done.receive
             done.close
+            # An ack from the block raises once the client has closed
+            break if closed_by_client? && ex.is_a?(ClosedException | Connection::ClosedException)
             raise ex
           end
         end
