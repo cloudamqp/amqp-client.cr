@@ -169,6 +169,8 @@ class AMQP::Client
     end
 
     private def process_close(f)
+      @closing_frame = f
+      close_with ClosedException.new(f)
       if on_close = @on_close
         begin
           on_close.call(f.reply_code, f.reply_text)
@@ -179,12 +181,10 @@ class AMQP::Client
         Log.info { "Connection closed by server: #{f.reply_text} (code #{f.reply_code})" }
       end
       begin
-        write Frame::Connection::CloseOk.new
+        write_close_frame Frame::Connection::CloseOk.new
       rescue ex
         Log.error(exception: ex) { "Couldn't write CloseOk frame" }
       end
-      @closing_frame = f
-      close_with ClosedException.new(f)
     end
 
     private def process_channel_frame(f)
@@ -233,6 +233,19 @@ class AMQP::Client
     # :nodoc:
     def unsafe_write(frame : Frame)
       raise_if_closed
+      write_bytes frame
+    end
+
+    # The close reason is set before the Close or CloseOk frame is written,
+    # so that no other call writes after it, so this skips the closed check
+    private def write_close_frame(frame : Frame) : Nil
+      @write_lock.synchronize do
+        write_bytes frame
+        @io.flush
+      end
+    end
+
+    private def write_bytes(frame : Frame) : Nil
       begin
         @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
       rescue ex
@@ -322,11 +335,10 @@ class AMQP::Client
       # under a close that is still waiting for CloseOk
       return if @closed
       @closed = true
-      by_client = ClosedException.new("Connection closed by client", client_initiated: true)
+      close_with ClosedException.new("Connection closed by client", client_initiated: true)
       begin
         Log.debug { "Closing connection" }
-        write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
-        close_with by_client
+        write_close_frame Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
         return if no_wait
         while frame = @reply_frames.receive?
           if frame.as?(Frame::Connection::CloseOk)
@@ -338,7 +350,6 @@ class AMQP::Client
       rescue IO::Error
         Log.info { "Socket already closed, can't send close frame" }
       ensure
-        close_with by_client
         @flush_signal.close
         @reply_frames.close
         close_io

@@ -42,8 +42,9 @@ class AMQP::Client
     def close(reason = "", code = 200) : Nil
       return if @closed
       @closed = true
-      write Frame::Channel::Close.new(@id, code.to_u16, reason, 0, 0)
+      # Set before the Close frame is written, so no other call writes after it
       @close_reason.compare_and_set(nil, ClosedException.new("Channel closed by client", client_initiated: true))
+      @connection.write Frame::Channel::Close.new(@id, code.to_u16, reason, 0, 0)
       @consumers.lock &.each_value(&.close)
       expect Frame::Channel::CloseOk
       cleanup

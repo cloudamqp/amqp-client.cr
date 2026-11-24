@@ -509,6 +509,23 @@ describe AMQP::Client do
       end
     end
 
+    it "#basic_publish from on_close" do
+      with_connection do |c|
+        ch = c.channel
+        result = ::Channel(Exception?).new(1)
+        c.on_close do
+          ch.basic_publish "", "", "foobar"
+          result.send nil
+        rescue ex
+          result.send ex
+        end
+        with_http_api &.close_connections(1)
+        within(5.seconds, "on_close") do
+          result.receive.should be_a(AMQP::Client::Connection::ClosedException)
+        end
+      end
+    end
+
     it "#basic_publish_confirm" do
       with_channel do |ch|
         with_http_api &.close_connections(1)
