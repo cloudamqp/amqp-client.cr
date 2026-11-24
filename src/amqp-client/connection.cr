@@ -64,9 +64,7 @@ class AMQP::Client
       write Frame::Connection::UpdateSecret.new(secret, reason)
       @update_secret_ok.receive
     rescue ::Channel::ClosedError
-      if f = @closing_frame
-        raise ClosedException.new(f)
-      end
+      raise_closed
     end
 
     @on_close : Proc(UInt16, String, Nil)?
@@ -139,6 +137,7 @@ class AMQP::Client
         notify_disconnected(ex)
         break
       rescue ex
+        close_with ClosedException.new("Connection closed: #{ex.message}", ex)
         Log.error(exception: ex) { "read_loop exception: #{ex.inspect}" }
         break
       end
@@ -155,7 +154,9 @@ class AMQP::Client
     end
 
     private def notify_disconnected(ex : Exception)
-      ex = @flush_error || ex
+      reason = lost(ex)
+      return if reason.client_initiated?
+      ex = reason.cause || ex
       if on_disconnect = @on_disconnect
         begin
           on_disconnect.call(ex)
@@ -183,6 +184,7 @@ class AMQP::Client
         Log.error(exception: ex) { "Couldn't write CloseOk frame" }
       end
       @closing_frame = f
+      close_with ClosedException.new(f)
     end
 
     private def process_channel_frame(f)
@@ -230,19 +232,47 @@ class AMQP::Client
 
     # :nodoc:
     def unsafe_write(frame : Frame)
-      if @closed
-        if f = @closing_frame
-          raise ClosedException.new(f)
-        else
-          return
-        end
-      end
+      raise_if_closed
       begin
         @io.write_bytes frame, ::IO::ByteFormat::NetworkEndian
       rescue ex
         raise Error.new(cause: ex)
       end
       Log.debug { "sent #{frame.inspect}" }
+    end
+
+    # Why the connection closed: the server closed it, the client closed it,
+    # or the connection was lost. Set before the channels are cleaned up, so
+    # that the calls they wake up raise it.
+    @close_reason = Atomic(ClosedException?).new(nil)
+
+    # :nodoc:
+    def close_reason : ClosedException?
+      @close_reason.get
+    end
+
+    # The first reason wins: a failed flush, or a close by the client, makes
+    # the read loop fail too
+    private def close_with(reason : ClosedException) : ClosedException
+      current, _ = @close_reason.compare_and_set(nil, reason)
+      current || reason
+    end
+
+    private def lost(ex : Exception) : ClosedException
+      close_with ClosedException.new("Connection lost: #{ex.message}", ex)
+    end
+
+    # :nodoc:
+    # Raises a copy, so that each raise gets its own backtrace
+    def raise_if_closed : Nil
+      if reason = close_reason
+        raise reason.dup
+      end
+    end
+
+    private def raise_closed : NoReturn
+      raise_if_closed
+      raise ClosedException.new("Connection closed")
     end
 
     # :nodoc:
@@ -256,7 +286,6 @@ class AMQP::Client
     @flush_pending = Atomic(Bool).new(false)
     # Not Channel(Nil), as its receive? returns nil for a signal too
     @flush_signal = ::Channel(Bool).new(1)
-    @flush_error : Exception?
 
     # :nodoc:
     def schedule_flush : Nil
@@ -275,8 +304,8 @@ class AMQP::Client
       end
     rescue ex
       return if @closed
-      @flush_error = ex
-      close_io # the read loop then reports @flush_error
+      lost(ex)
+      close_io # the read loop then reports the flush error
     end
 
     # Under the write lock, as the read loop and `#close` can both close the
@@ -289,26 +318,35 @@ class AMQP::Client
     #
     # The *reason* might be logged by the server
     def close(reason = "", no_wait = false)
+      # Outside of the begin block, as its ensure would close the socket
+      # under a close that is still waiting for CloseOk
       return if @closed
-      Log.debug { "Closing connection" }
-      write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
-      return if no_wait
-      while frame = @reply_frames.receive?
-        if frame.as?(Frame::Connection::CloseOk)
-          Log.debug { "Server confirmed close" }
-          return
+      @closed = true
+      by_client = ClosedException.new("Connection closed by client", client_initiated: true)
+      begin
+        Log.debug { "Closing connection" }
+        write Frame::Connection::Close.new(200_u16, reason, 0_u16, 0_u16)
+        close_with by_client
+        return if no_wait
+        while frame = @reply_frames.receive?
+          if frame.as?(Frame::Connection::CloseOk)
+            Log.debug { "Server confirmed close" }
+            return
+          end
+        end
+        Log.debug { "Server didn't confirm close" }
+      rescue IO::Error
+        Log.info { "Socket already closed, can't send close frame" }
+      ensure
+        close_with by_client
+        @flush_signal.close
+        @reply_frames.close
+        close_io
+        @channels_lock.synchronize do
+          @channels.each_value &.cleanup
+          @channels.clear
         end
       end
-      Log.debug { "Server didn't confirm close" }
-    rescue IO::Error
-      Log.info { "Socket already closed, can't send close frame" }
-    ensure
-      @closed = true
-      @flush_signal.close
-      @reply_frames.close
-      close_io
-      @channels.each_value &.cleanup
-      @channels.clear
     end
 
     # Connection negotiation

@@ -7,13 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- Crash when closing a TLS connection while other threads write to it
+- `Connection::ClosedException#client_initiated?` and `Channel::ClosedException#client_initiated?`, true when the client closed the connection or channel itself
 
 ### Changed
 
+- Calls on a closed connection or channel raise `Connection::ClosedException` or `Channel::ClosedException`, whoever closed it. Before, calls after a lost connection or a close by the client were silently dropped, and calls waiting for a reply could hang or raise `Error("BUG: ...")`. A blocking `basic_consume` still returns when the client closes its channel or connection
 - Publishes, acks, nacks and rejects are flushed by a fiber per connection, so those written in a row, by one fiber or several, go to the socket in one write instead of one each. They are sent once the writing fiber yields or the write buffer fills, so close the connection before the program exits. A failed flush of them is reported through `on_disconnect`, not raised by the call that wrote the frame. Other calls flush their frame before they return, as before. [#96](https://github.com/cloudamqp/amqp-client.cr/pull/96)
+
+### Fixed
+
+- `basic_consume` on a connection or channel that was already closed waited forever for a `ConsumeOk`
+- `wait_for_confirms` returned `true` after a close with publishes still unconfirmed, and raised `::Channel::ClosedError` if it was waiting when the channel closed
+- `on_disconnect` was called after `Connection#close(no_wait: true)`
+- Crash when closing a TLS connection while other threads write to it
 
 ## [1.5.0] - 2026-11-17
 

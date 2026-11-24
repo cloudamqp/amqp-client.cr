@@ -63,8 +63,13 @@ describe "publisher confirms" do
           count = 5_000
           called = Channel(Nil).new(count)
           publishers = Fiber::ExecutionContext::Parallel.new("publishers", 3)
+          published = WaitGroup.new(2)
           2.times do
-            publishers.spawn { count.times { ch.basic_publish("", "", q.name) } }
+            publishers.spawn do
+              count.times { ch.basic_publish("", "", q.name) }
+            ensure
+              published.done
+            end
           end
           publishers.spawn do
             count.times do
@@ -81,6 +86,7 @@ describe "publisher confirms" do
               fail "deadlocked after #{i} of #{count} confirm blocks"
             end
           end
+          within(5.seconds, "the other publishers") { published.wait }
         end
       end
 

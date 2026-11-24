@@ -23,6 +23,109 @@ describe "basic_consume" do
     end
   end
 
+  it "raises on a connection the client closed" do
+    with_connection do |c|
+      q = c.channel.queue("", durable: false, exclusive: true)
+      c.close
+      result = ::Channel(Exception?).new(1)
+      spawn do
+        q.subscribe { }
+        result.send nil
+      rescue ex
+        result.send ex
+      end
+      select
+      when ex = result.receive
+        ex.should be_a AMQP::Client::Connection::ClosedException
+      when timeout(1.second)
+        fail "subscribe didn't return"
+      end
+    end
+  end
+
+  it "raises when the client closes the connection while waiting for ConsumeOk" do
+    with_connection do |c|
+      q = c.channel.queue("", durable: false, exclusive: true)
+      result = ::Channel(Exception?).new(1)
+      spawn do
+        q.subscribe { }
+        result.send nil
+      rescue ex
+        result.send ex
+      end
+      Fiber.yield
+      c.close(no_wait: true)
+      select
+      when ex = result.receive
+        ex.should be_a AMQP::Client::Connection::ClosedException
+      when timeout(1.second)
+        fail "subscribe didn't return"
+      end
+    end
+  end
+
+  it "doesn't log an error for an ack after the client closed the channel" do
+    backend = ::Log::MemoryBackend.new
+    Log.builder.bind "amqp.client.channel", :debug, backend
+    with_channel do |ch|
+      q = ch.queue("", durable: false, exclusive: true)
+      q.publish "m"
+      received = ::Channel(Nil).new
+      acked = ::Channel(Nil).new
+      q.subscribe(no_ack: false) do |msg|
+        received.send nil
+        received.send nil
+        msg.ack
+      ensure
+        acked.send nil
+      end
+      received.receive
+      ch.close
+      received.receive
+      acked.receive
+      Fiber.yield
+    end
+    backend.entries.select(&.severity.error?).map(&.message).should be_empty
+  ensure
+    Log.builder.unbind "amqp.client.channel", :debug, backend if backend
+  end
+
+  it "returns from a blocking subscribe when the client closes the connection" do
+    with_connection do |c|
+      q = c.channel.queue("", durable: false, exclusive: true)
+      result = ::Channel(Exception?).new(1)
+      spawn do
+        q.subscribe(block: true) { }
+        result.send nil
+      rescue ex
+        result.send ex
+      end
+      until q.consumer_count == 1
+        sleep 10.milliseconds
+      end
+      c.close
+      within(5.seconds, "subscribe") { result.receive.should be_nil }
+    end
+  end
+
+  it "returns from a blocking subscribe when the client closes the channel" do
+    with_channel do |ch|
+      q = ch.queue("", durable: false, exclusive: true)
+      result = ::Channel(Exception?).new(1)
+      spawn do
+        q.subscribe(block: true) { }
+        result.send nil
+      rescue ex
+        result.send ex
+      end
+      until q.consumer_count == 1
+        sleep 10.milliseconds
+      end
+      ch.close
+      within(5.seconds, "subscribe") { result.receive.should be_nil }
+    end
+  end
+
   it "registers each consumer under its own tag" do
     with_channel do |ch|
       q = ch.queue("", durable: false, exclusive: true)

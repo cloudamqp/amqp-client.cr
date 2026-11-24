@@ -153,5 +153,194 @@ describe AMQP::Client::Connection do
       entry.should_not be_nil
       entry.try(&.severity).should eq ::Log::Severity::Error
     end
+
+    it "raises on a write after the connection is lost" do
+      done = ::Channel(Nil).new
+      port = fake_amqp_server_that_closes(done)
+
+      disconnected = ::Channel(Nil).new(1)
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      conn.on_disconnect { disconnected.send nil }
+      done.receive
+      select
+      when disconnected.receive
+      when timeout(2.seconds)
+        fail "on_disconnect was not invoked within 2s of peer disconnect"
+      end
+
+      expect_raises(AMQP::Client::Connection::ClosedException, "Connection lost") do
+        conn.write AMQ::Protocol::Frame::Heartbeat.new
+      end
+    end
+
+    it "raises from a call waiting for its reply when the connection is lost" do
+      port = fake_amqp_server do |sock|
+        AMQ::Protocol::Stream.new(sock).next_frame { |_f| } # Channel.Open
+        sock.write_bytes(AMQ::Protocol::Frame::Channel::OpenOk.new(1_u16), IO::ByteFormat::NetworkEndian)
+        sock.flush
+        AMQ::Protocol::Stream.new(sock).next_frame { |_f| } # Queue.Declare
+      end
+
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      conn.on_disconnect { }
+      ch = conn.channel
+
+      expect_raises(AMQP::Client::Connection::ClosedException, "Connection lost") do
+        ch.queue_declare("q")
+      end
+    end
+
+    it "raises from update_secret when the connection is lost" do
+      port = fake_amqp_server do |sock|
+        AMQ::Protocol::Stream.new(sock).next_frame { |_f| } # Connection.UpdateSecret
+      end
+
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      conn.on_disconnect { }
+
+      expect_raises(AMQP::Client::Connection::ClosedException, "Connection lost") do
+        conn.update_secret("secret", "reason")
+      end
+    end
+  end
+
+  describe "closed by the client" do
+    it "raises from calls on the connection's channels" do
+      with_connection do |c|
+        ch = c.channel
+        c.close
+        expect_raises(AMQP::Client::Connection::ClosedException, "Connection closed by client") do
+          ch.basic_publish "", "", "q"
+        end
+      end
+    end
+
+    it "raises from calls on the channel" do
+      with_connection do |c|
+        ch = c.channel
+        ch.close
+        expect_raises(AMQP::Client::Channel::ClosedException, "Channel closed by client") do
+          ch.basic_publish "", "", "q"
+        end
+      end
+    end
+
+    it "raises from a call waiting for its reply" do
+      with_connection do |c|
+        ch = c.channel
+        result = ::Channel(Exception?).new(1)
+        spawn do
+          ch.queue_declare("", durable: false, exclusive: true)
+          result.send nil
+        rescue ex
+          result.send ex
+        end
+        Fiber.yield
+        c.close(no_wait: true)
+        select
+        when ex = result.receive
+          ex.should be_a AMQP::Client::Connection::ClosedException
+        when timeout(1.second)
+          fail "queue_declare didn't return"
+        end
+      end
+    end
+
+    it "doesn't call on_disconnect after close without waiting" do
+      with_connection do |c|
+        disconnected = ::Channel(Exception).new(1)
+        c.on_disconnect { |ex| disconnected.send ex }
+        c.close(no_wait: true)
+        select
+        when ex = disconnected.receive
+          fail "on_disconnect called: #{ex.message}"
+        when timeout(200.milliseconds)
+        end
+      end
+    end
+
+    it "keeps the socket open for a close in progress when called again" do
+      with_connection do |c|
+        disconnected = ::Channel(Exception).new(1)
+        c.on_disconnect { |ex| disconnected.send ex }
+        first = ::Channel(Nil).new(1)
+        spawn do
+          c.close
+          first.send nil
+        end
+        Fiber.yield
+        c.close
+        within(5.seconds, "the first close") { first.receive }
+        select
+        when ex = disconnected.receive
+          fail "on_disconnect called: #{ex.message}"
+        when timeout(100.milliseconds)
+        end
+      end
+    end
+
+    it "raises from wait_for_confirms with publishes still unconfirmed" do
+      with_connection do |c|
+        ch = c.channel
+        ch.confirm_select
+        q = ch.queue("", durable: false, exclusive: true)
+        100.times { q.publish "" }
+        c.close(no_wait: true)
+        expect_raises(AMQP::Client::Connection::ClosedException) { ch.wait_for_confirms }
+      end
+    end
+
+    it "raises from a wait_for_confirms that is waiting" do
+      port = fake_amqp_server do |sock|
+        loop do
+          AMQ::Protocol::Stream.new(sock).next_frame do |f|
+            reply = case f
+                    when AMQ::Protocol::Frame::Channel::Open   then AMQ::Protocol::Frame::Channel::OpenOk.new(f.channel)
+                    when AMQ::Protocol::Frame::Confirm::Select then AMQ::Protocol::Frame::Confirm::SelectOk.new(f.channel)
+                    end
+            if reply
+              sock.write_bytes reply, IO::ByteFormat::NetworkEndian
+              sock.flush
+            end
+          end
+        end
+      rescue IO::Error
+      end
+
+      conn = AMQP::Client.new(host: "127.0.0.1", port: port).connect
+      ch = conn.channel
+      ch.confirm_select
+      ch.basic_publish "", "", "q"
+      result = ::Channel(Exception?).new(1)
+      spawn do
+        ch.wait_for_confirms
+        result.send nil
+      rescue ex
+        result.send ex
+      end
+      Fiber.yield
+      conn.close(no_wait: true)
+      within(5.seconds, "wait_for_confirms") do
+        result.receive.should be_a AMQP::Client::Connection::ClosedException
+      end
+    end
+
+    it "raises from transaction what the block raised" do
+      with_channel do |ch|
+        expect_raises(Exception, "boom") do
+          ch.transaction do
+            ch.close
+            raise "boom"
+          end
+        end
+      end
+    end
+  end
+
+  it "raises the server's reason from a channel close that crossed the server's" do
+    with_channel do |ch|
+      ch.basic_publish "", "no-such-exchange"
+      expect_raises(AMQP::Client::Channel::ClosedException, /NOT_FOUND/) { ch.close }
+    end
   end
 end
