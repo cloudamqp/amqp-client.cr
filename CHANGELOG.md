@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The `name` argument to `AMQP::Client.new` is now the connection name that the broker shows, unless `connection_information` has a name of its own. Before, the broker showed the program name. [#63](https://github.com/cloudamqp/amqp-client.cr/pull/63)
+- Crash when closing a TLS connection while other threads write to it
 
 ## [1.5.0] - 2026-11-17
 
