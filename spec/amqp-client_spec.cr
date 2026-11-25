@@ -291,6 +291,36 @@ describe AMQP::Client do
     end
   end
 
+  it "should send the name, or else the program name, as connection name", tags: "slow" do
+    program = File.basename(PROGRAM_NAME)
+    uri = "amqp://#{AMQP::Client::AMQP_HOST}"
+    {
+      AMQP::Client.new                                                                  => program,
+      AMQP::Client.new(uri)                                                             => program,
+      AMQP::Client.new(connection_information: AMQP::Client::ConnectionInformation.new) => program,
+      AMQP::Client.new(name: "")                                                        => program,
+      AMQP::Client.new(name: "set-by-new")                                              => "set-by-new",
+      AMQP::Client.new("#{uri}?name=set-by-uri")                                        => "set-by-uri",
+    }.each do |client, expected|
+      with_http_api do |api|
+        before = api.connections.map &.["name"]
+        conn = client.connect
+        begin
+          names = [] of JSON::Any?
+          10.times do
+            names = api.connections.reject { |x| before.includes? x["name"] }
+              .map &.dig?("client_properties", "connection_name")
+            break unless names.empty?
+            sleep 100.milliseconds
+          end
+          names.should eq [JSON::Any.new(expected)]
+        ensure
+          conn.close
+        end
+      end
+    end
+  end
+
   it "should not wait for connection close" do
     conn = AMQP::Client.new.connect
     conn.close(no_wait: true)
